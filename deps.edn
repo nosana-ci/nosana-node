@@ -2,7 +2,8 @@
 
  :deps
  {org.clojure/clojure {:mvn/version "1.10.0"}
-  nostromo/nostromo {:local/root "../../nostromo"}
+  nostromo/nostromo {:git/url "https://github.com/nosana-ci/Nostromo"
+                     :sha "7ba65fc82b35d89b74239b6145232e023381abe4"}
 
   ;; solanaj deps
   org.java-websocket/Java-WebSocket {:mvn/version "1.5.1"}
