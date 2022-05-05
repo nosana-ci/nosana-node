@@ -1,0 +1,9 @@
+{
+ :secrets #include ".secrets.edn"
+ :pinata-jwt #profile {:prod #env PINATA_JWT
+                       :dev #ref [:secrets :pinata-jwt]}
+ :solana-private-key #profile {:prod #env SOLANA_PRIVATE_KEY
+                               :dev #ref [:secrets :solana-private-key]
+                               }
+ :solana-network #profile {:prod :mainnet
+                           :dev :devnet}}

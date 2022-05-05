@@ -1,0 +1,3 @@
+[submodule "solanaj"]
+	path = libs/solanaj
+	url = https://github.com/p2p-org/solanaj.git

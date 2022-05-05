@@ -1,0 +1,62 @@
+{:paths ["src" "resources" "target/classes"]
+
+ :deps
+ {org.clojure/clojure {:mvn/version "1.10.0"}
+  nostromo/nostromo {:local/root "../../nostromo"}
+
+  ;; solanaj deps
+  org.java-websocket/Java-WebSocket {:mvn/version "1.5.1"}
+  org.bitcoinj/bitcoinj-core {:mvn/version "0.15.8"}
+  com.squareup.okhttp3/okhttp {:mvn/version "4.9.0"}
+  com.squareup.moshi/moshi {:mvn/version "1.9.2"}
+  com.squareup.moshi/moshi-adapters {:mvn/version "1.9.2"}
+  junit/junit {:mvn/version "4.13.1"}
+
+  duct/core {:mvn/version "0.7.0"}
+  duct/module.ataraxy {:mvn/version "0.3.0"}
+  duct/module.web {:mvn/version "0.7.0"}
+  duct/module.logging {:mvn/version "0.5.0"}
+  clj-http/clj-http {:mvn/version "3.12.3"}
+  clj-commons/clj-yaml {:mvn/version "0.7.108"}
+
+  ;; core
+  io.replikativ/konserve {:mvn/version "0.6.0-alpha3"}
+  tick/tick {:mvn/version "0.4.23-alpha"}
+  aleph/aleph {:mvn/version "0.4.6"}
+  jarohen/chime {:mvn/version "0.3.2"}
+  selmer/selmer {:mvn/version "1.12.27"}
+  borkdude/sci {:mvn/version "0.0.13-alpha.14"}
+  aero/aero {:mvn/version "1.1.6"}
+  nano-id/nano-id {:mvn/version "0.10.0"}
+  ring-cors/ring-cors {:mvn/version "0.1.13"}}
+
+ ;; we need to compile solanaj as a prep step for this app
+ :deps/prep-lib
+ {:ensure "target/classes"
+  :alias :build
+  :fn build/compile}
+
+ :aliases {:dev {:extra-deps {integrant/repl {:mvn/version "0.3.1"}}
+                 :extra-paths ["dev/src"]
+                 :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]}
+
+           :uberjar
+           {:replace-deps {io.github.clojure/tools.build {:git/tag "v0.7.7" :sha "1474ad69bbb70d4ac9c7601f9bdb2c189dd28477"}}
+            :ns-default build
+            :exec-fn build/uber}
+
+           :build
+           {:replace-deps {io.github.clojure/tools.build {:git/tag "v0.7.7" :sha "1474ad69bbb70d4ac9c7601f9bdb2c189dd28477"}}
+            :ns-default build}
+
+           :compile
+           {:replace-deps {io.github.clojure/tools.build {:git/tag "v0.7.7" :sha "1474ad69bbb70d4ac9c7601f9bdb2c189dd28477"}}
+
+            :ns-default build
+            :exec-fn build/compile}
+
+           :container
+           {:replace-deps {io.github.atomisthq/jibbit {:git/sha "0514b0d5b43ffac40e2eb39c32779deedaf9fb4a"}}
+            :ns-default jibbit.core
+            :ns-aliases {jib jibbit.core}
+            :exec-fn jibbit.core/build}}}
