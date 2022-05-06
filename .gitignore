@@ -2,3 +2,4 @@
 .nrepl-port
 target
 logs
+resources/nosana/.secrets.edn
