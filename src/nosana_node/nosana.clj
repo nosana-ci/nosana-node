@@ -41,7 +41,8 @@
 (defn make-cli-ops [cmds podman-conn image]
   [{:op :docker/run
     :id :docker-cmds
-    :args [{:cmd cmds :image image :conn podman-conn
+    :args [{:cmd cmds :image image
+            :conn {:uri [::flow/vault :podman-conn-uri]}
             :work-dir [::flow/str "/root" (flow/ref :checkout)]
             :resources [{:source (flow/ref :checkout) :dest "/root"}]}]
     :deps [:checkout]}])

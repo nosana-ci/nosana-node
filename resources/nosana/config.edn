@@ -4,4 +4,6 @@
  :solana-private-key #profile {:prod #env SOLANA_PRIVATE_KEY
                                :dev #ref [:secrets :solana-private-key]}
  :solana-network #profile {:prod #or [#keyword #env SOLANA_NETWORK :mainnet]
-                           :dev :devnet}}
+                           :dev :devnet}
+ :podman-conn-uri #profile {:prod #or [#env PODMAN_CONN_URI "http://podman:8080"]
+                            :dev "http://localhost:8080"}}
