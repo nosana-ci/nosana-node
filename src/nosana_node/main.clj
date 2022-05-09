@@ -1,6 +1,8 @@
 (ns nosana-node.main
   (:require [nosana-node.nosana :as nosana]
-            [duct.core :as duct]))
+            nosana-node.handler nos.system
+            [duct.core :as duct])
+  (:gen-class))
 
 (duct/load-hierarchy)
 

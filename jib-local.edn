@@ -1,0 +1,4 @@
+{:main "nosana-node.main"
+ :aot true
+ :target-image {:type :docker
+                :image-name "nos/node"}}
