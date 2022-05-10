@@ -1,11 +1,11 @@
 {:base-image {:type :registry
-              :image-name "registry.gitlab.com/nosana-ci/apps/platform/node_base_image:724d458ee0aea52121dd871fdd4d7eb58db79a1b"
+              :image-name "registry.gitlab.com/nosana-ci/apps/platform/node-base-image:v1.0.2"
               :authorizer {:fn jibbit.creds/load-edn
                            :args {:local ".creds.edn"}}}
  :main "nosana-node.main"
  :aot true
  :target-image {:type :registry
-                :image-name "registry.gitlab.com/nosana-ci/apps/platform/nosana_node"
+                :image-name "registry.gitlab.com/nosana-ci/apps/platform/nosana-node"
                 :tagger {:fn jibbit.tagger/tag}
                 :authorizer {:fn jibbit.creds/load-edn
                              :args {:local ".creds.edn"}}}}
