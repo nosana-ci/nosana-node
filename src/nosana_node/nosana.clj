@@ -526,9 +526,8 @@
      :refresh-jobs-chime (chime/chime-at chimes
                                          (fn [time]
                                            (let [new-jobs (->> (find-jobs-queues-to-poll (:nosana-jobs-queue vault)) (into []))]
-                                             ;; (log :info "Refreshing jobs. There are " (count new-jobs) new-jobs)
-                                             ;; (reset! jobs-addrs new-jobs)
-                                             )))
+                                             (log :info "Refreshing jobs. There are " (count new-jobs) new-jobs)
+                                             (reset! jobs-addrs new-jobs))))
      :project-addrs jobs-addrs}))
 
 (defmethod ig/halt-key! :nos.trigger/nosana-jobs
