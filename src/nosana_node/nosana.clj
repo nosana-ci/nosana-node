@@ -151,7 +151,6 @@
                (.add (AccountMeta. (vault-ata-addr network) false true))     ; vault-ata
                (.add (AccountMeta. (get-addr :signer-ata) false true))    ; ataTo
                (.add (AccountMeta. signer-addr true false))        ; authority
-               (.add (AccountMeta. system-addr false false))       ; system
                (.add (AccountMeta. token-program-id false false))  ; token
                (.add (AccountMeta. clock-addr false false))        ; clock
                )
