@@ -68,7 +68,7 @@
 (def nos-config {:testnet {:signer-addr (PublicKey. "6gcnvYv36JieDQgts7SANrAkqMMRgKjrvoqNi4E2CBNS")
                            :nos-token (PublicKey. "testsKbCqE8T1ndjY4kNmirvyxjajKvyp1QTDmdGwrp")
                            :signer-ata (PublicKey. "5oJsuk3MyzDhCYo4YV4CtXZQAS4REnMhV5R72oxsjoHd")
-                           :job (PublicKey. "nosJwntQe4eEnFC2mCsY9J15qw7kRQCDqcjcPj6aPbR")}
+                           :job (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM")}
                  :mainnet {:nos-token (PublicKey. "TSTntXiYheDFtAdQ1pNBM2QQncA22PCFLLRr53uBa8i")
                            :signer-ata (PublicKey. "HvUxNebdW1ACXMNY8sa3u9yrT3Lh5pgRxw6a3rNDvFE9")
                            :job (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM")
@@ -76,7 +76,7 @@
                  :devnet {:nos-token (PublicKey. "testsKbCqE8T1ndjY4kNmirvyxjajKvyp1QTDmdGwrp")
                           :signer-addr (PublicKey. "6gcnvYv36JieDQgts7SANrAkqMMRgKjrvoqNi4E2CBNS")
                           :signer-ata (PublicKey. "5oJsuk3MyzDhCYo4YV4CtXZQAS4REnMhV5R72oxsjoHd")
-                           :job (PublicKey. "nosJwntQe4eEnFC2mCsY9J15qw7kRQCDqcjcPj6aPbR")}})
+                          :job (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM")}})
 
 (def system-addr (PublicKey. "11111111111111111111111111111111"))
 (def rent-addr (PublicKey. "SysvarRent111111111111111111111111111111111"))
@@ -505,8 +505,6 @@
                                  (recur nil))))))))))
 
 (derive :nos.trigger/nosana-jobs :duct/daemon)
-
-(def nosana-queue-endpoint "https://app.nosana.ci/jobs/queued")
 
 (defn find-jobs-queues-to-poll
   "Fetch job queues to poll from the backend"
