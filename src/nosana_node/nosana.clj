@@ -189,7 +189,6 @@
                (.add (AccountMeta. (PublicKey. jobs-addr) false true))         ; jobs
                (.add (AccountMeta. (PublicKey. job-addr) false true))         ; job
                (.add (AccountMeta. signer-addr true false))     ; authority
-               (.add (AccountMeta. system-addr false false))    ; system
                (.add (AccountMeta. clock-addr false false))     ; clock
                )
         data (byte-array (repeat (+ 8) (byte 0)))
