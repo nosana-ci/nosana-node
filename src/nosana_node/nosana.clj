@@ -510,8 +510,8 @@
 
 (defn find-jobs-queues-to-poll
   "Fetch job queues to poll from the backend"
-  []
-  (-> (http/get nosana-queue-endpoint) :body json/decode))
+  [endpoint]
+  (-> (http/get endpoint) :body json/decode))
 
 (defmethod ig/init-key :nos.trigger/nosana-jobs
   [_ {:keys [store flow-ch vault]}]
@@ -525,7 +525,7 @@
      :exit-chan exit-ch
      :refresh-jobs-chime (chime/chime-at chimes
                                          (fn [time]
-                                           (let [new-jobs (->> (find-jobs-queues-to-poll) (into []))]
+                                           (let [new-jobs (->> (find-jobs-queues-to-poll (:nosana-jobs-queue vault)) (into []))]
                                              ;; (log :info "Refreshing jobs. There are " (count new-jobs) new-jobs)
                                              ;; (reset! jobs-addrs new-jobs)
                                              )))
