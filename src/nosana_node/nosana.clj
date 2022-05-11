@@ -372,6 +372,7 @@
   fetched depth-first until a job is found with status unclaimed."
   [job-addrs network]
   (loop [remaining-queues job-addrs]
+    (log :info "... Picking jobs " remaining-queues)
     (when (not-empty remaining-queues)
       (if-let [jobs (try
                       (-> remaining-queues first (get-jobs network))
@@ -517,6 +518,10 @@
         exit-ch (chan)
         loop-ch (poll-job-loop store flow-ch vault jobs-addrs exit-ch)
         chimes (chime/periodic-seq (Instant/now) (Duration/ofMinutes 1))]
+    (log :info "Node configuration "
+         (.toString (.getPublicKey (get-signer-key vault)))
+         (:solana-network vault)
+         (:nosana-jobs-queue vault))
     {:loop-chan loop-ch
      :exit-chan exit-ch
      :refresh-jobs-chime (chime/chime-at chimes
