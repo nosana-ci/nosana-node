@@ -385,7 +385,9 @@
               (log :info "... Getting job " job-addr)
               (let [job (get-job job-addr network)]
                 (log :info "... Resulted job info is " job)
-                (if (= (:status job) 0)
+                (if (or (= (:status job) 0)
+                        ;; TODO: remove status 1 , we don't want to do them
+                        (= (:status job) 1))
                   [(:addr jobs) job]
                   (recur (rest (:jobs jobs))))))))))))
 
