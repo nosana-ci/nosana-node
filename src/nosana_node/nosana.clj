@@ -377,13 +377,17 @@
       (if-let [jobs (try
                       (-> remaining-queues first (get-jobs network))
                       (catch Exception e []))]
-        (if (empty? (:jobs jobs))
-          (recur (rest remaining-queues))
-          (loop [job-addr (first (:jobs jobs))]
-            (let [job (get-job job-addr network)]
-              (if (= (:status job) 0)
-                [(:addr jobs) job]
-                (recur (rest (:jobs jobs)))))))))))
+        (do
+          (log :info "... Fetched jobs results is " jobs)
+          (if (empty? (:jobs jobs))
+            (recur (rest remaining-queues))
+            (loop [job-addr (first (:jobs jobs))]
+              (log :info "... Getting job " job-addr)
+              (let [job (get-job job-addr network)]
+                (log :info "... Resulted job info is " job)
+                (if (= (:status job) 0)
+                  [(:addr jobs) job]
+                  (recur (rest (:jobs jobs))))))))))))
 
 (defn get-signer-key
   "Retreive the signer key from the vault"
@@ -404,6 +408,7 @@
                      (when-let [[jobs-addr job] (pick-job jobs-addrs network)]
                        (log :info "Trying job " (:addr job) " CID " (:job-ipfs job))
                        (let [job-flow (make-job-flow (:job-ipfs job) (:addr job))
+                             _ (log :info ".. Made job flow")
                              claim-sig (try
                                          (claim-job-tx! jobs-addr (:addr job) (get-signer-key vault) network)
                                          (catch Exception e
