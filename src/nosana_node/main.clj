@@ -11,13 +11,16 @@
             [cider.nrepl :refer (cider-nrepl-handler)]            )
   (:gen-class))
 
-(duct/load-hierarchy)
-
 (defmethod ig/init-key :nosana-node/nrepl-server [_ {:keys [port] :or {port 7888}}]
+  (println ">> Starting nrepl server on port " port)
   (nrepl-server/start-server :port port :handler cider-nrepl-handler))
 
 (defmethod ig/halt-key! :nosana-node/nrepl-server [_ {:keys [server-socket]}]
   (.close server-socket))
+
+(derive :nosana-node/nrepl-server :duct/daemon)
+
+(duct/load-hierarchy)
 
 (defn -main [& args]
   (println "Starting system")
