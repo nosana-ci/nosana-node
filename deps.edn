@@ -8,6 +8,9 @@
   clj-commons/clj-yaml {:mvn/version "0.7.108"}
   jarohen/chime {:mvn/version "0.3.2"}
 
+  ;; nrepl
+  cider/cider-nrepl {:mvn/version "0.27.3"}
+
   ;; solanaj deps
   org.java-websocket/Java-WebSocket {:mvn/version "1.5.1"}
   org.bitcoinj/bitcoinj-core {:mvn/version "0.15.8"}

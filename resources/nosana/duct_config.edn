@@ -27,7 +27,8 @@
                             :store #ig/ref :nos/store
                             :vault #ig/ref :nos/vault}}
 
- :duct.profile/prod {:nos/vault {:profile :prod}}
+ :duct.profile/prod {:nos/vault {:profile :prod}
+                     :nosana-node/nrepl-server {:port 7888}}
  :duct.profile/dev {:nos/vault {:profile :dev}}
 
 
