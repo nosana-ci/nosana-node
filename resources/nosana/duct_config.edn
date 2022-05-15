@@ -18,6 +18,8 @@
 
   :nos.handler/health {}
 
+  :duct.server.http/jetty {:port #duct/env ["NOS_HTTP_PORT" :or 3000]}
+
   :duct.router/ataraxy
   {:routes {"/health" [:health]}
    :handlers {:health #ig/ref :nos.handler/health}
