@@ -1,7 +1,11 @@
 (ns nosana-node.main
   (:require [nosana-node.nosana :as nosana]
-            nosana-node.handler nos.system
-            [duct.core :as duct])
+            nosana-node.handler
+            nos.ops.git
+            nos.ops.docker
+            nos.system
+            nos.module.http
+            [duct.core :as duct]
   (:gen-class))
 
 (duct/load-hierarchy)
