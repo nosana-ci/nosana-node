@@ -10,7 +10,7 @@
    [nos.core :as flow]
    nos.module.http
    nos.ops.git
-   nos.ops.docker
+   [nos.ops.docker :as docker]
    nos.system
    [konserve.core :as kv]
    [integrant.core :as ig]

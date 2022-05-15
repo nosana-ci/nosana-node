@@ -450,11 +450,14 @@
         ;; the final JSON
         op-ids (->> [:docker-cmds]
                     (concat [:clone :checkout]))
-        ;; TODO: the :docker/run operator currently gives a path the the log
-        ;; file. we'll just put it's contents in IPFS for now.
+        ;; put the results of some operators in map to upload to IPFS. also
+        ;; we'll slurp the content of the docker logs as they're only on the
+        ;; local file system.
         res (-> flow :results
                 (select-keys op-ids)
-                (update-in [:docker-cmds 1] slurp))
+                (update-in [:docker-cmds]
+                           (fn [[status results]]
+                             [status (map #(if (:log %) (update % :log slurp) %) results)])))
         job-result {:nos-id (:id flow)
                     :finished-at (flow/current-time)
                     :results res}
@@ -531,11 +534,12 @@
          (:nosana-jobs-queue vault))
     {:loop-chan loop-ch
      :exit-chan exit-ch
-     :refresh-jobs-chime (chime/chime-at chimes
-                                         (fn [time]
-                                           (let [new-jobs (->> (find-jobs-queues-to-poll (:nosana-jobs-queue vault)) (into []))]
-                                             (log :info "Refreshing jobs. There are " (count new-jobs) new-jobs)
-                                             (reset! jobs-addrs new-jobs))))
+     :refresh-jobs-chime
+     (chime/chime-at chimes
+                     (fn [time]
+                       (let [new-jobs (->> (find-jobs-queues-to-poll (:nosana-jobs-queue vault)) (into []))]
+                         (log :info "Refreshing jobs. There are " (count new-jobs) new-jobs)
+                         (reset! jobs-addrs new-jobs))))
      :project-addrs jobs-addrs}))
 
 (defmethod ig/halt-key! :nos.trigger/nosana-jobs
