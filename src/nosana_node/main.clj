@@ -33,5 +33,5 @@
                    (duct/read-config)
                    (duct/prep-config profiles)
                    (ig/init keys))]
-    (swap! global-system system)
+    (reset! global-system system)
     (duct/await-daemons system)))
