@@ -41,10 +41,12 @@
 (defn make-cli-ops [cmds podman-conn image]
   [{:op :docker/run
     :id :docker-cmds
-    :args [{:cmd cmds :image image
+    :args [{:cmd cmds
+            :image image
             :conn {:uri [::flow/vault :podman-conn-uri]}
             :work-dir [::flow/str "/root" (flow/ref :checkout)]
-            :resources [{:source (flow/ref :checkout) :dest "/root"}]}]
+            :resources [{:source (flow/ref :checkout) :dest "/root/tmp/repos"}]
+            }]
     :deps [:checkout]}])
 
 ;; (def ipfs-base-url "https://cloudflare-ipfs.com/ipfs/")
