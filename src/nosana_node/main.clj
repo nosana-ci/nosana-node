@@ -8,8 +8,11 @@
             [duct.core :as duct]
             [integrant.core :as ig]
             [nrepl.server :as nrepl-server]
-            [cider.nrepl :refer (cider-nrepl-handler)]            )
+            [cider.nrepl :refer (cider-nrepl-handler)])
   (:gen-class))
+
+;; keep track of the global system so we can access it in the repl
+(defonce global-system (atom nil))
 
 (defmethod ig/init-key :nosana-node/nrepl-server [_ {:keys [port] :or {port 7888}}]
   (println ">> Starting nrepl server on port " port)
@@ -25,7 +28,10 @@
 (defn -main [& args]
   (println "Starting system")
   (let [keys [:duct/daemon]
-        profiles [:duct.profile/prod]]
-    (-> (duct/resource "nosana/duct_config.edn")
-        (duct/read-config)
-        (duct/exec-config profiles keys))))
+        profiles [:duct.profile/prod]
+        system (-> (duct/resource "nosana/duct_config.edn")
+                   (duct/read-config)
+                   (duct/prep-config profiles)
+                   (ig/init keys))]
+    (swap! global-system system)
+    (duct/await-daemons system)))
