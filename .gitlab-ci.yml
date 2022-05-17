@@ -1,20 +1,25 @@
-image: clojure:latest
-
-stages:
-  - build
+include:
+  - project: nosana-ci/tools/cicd/gitlab-ci
+    file: templates/release.yml
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
-cache:
-  paths:
-    - .m2/repository
+release:
+  stage: deploy
+  extends: .release
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 build:
   stage: build
+  image: clojure:latest
   script:
     - clj -T:build compile
     - echo '{:username "'${CI_REGISTRY_USER}'" :password "'${CI_REGISTRY_PASSWORD}'"}' > .creds.edn
     - clj -Sdeps '{:mvn/local-repo "'${CI_PROJECT_DIR}'/.m2/repository"}' -T:container "$(< jib-gitlab.edn)"
-  only:
-    - tags
+  cache:
+    paths:
+      - .m2/repository
+  rules:
+    - if: $CI_COMMIT_TAG
