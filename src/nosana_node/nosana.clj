@@ -459,7 +459,9 @@
                 (select-keys op-ids)
                 (update-in [:docker-cmds]
                            (fn [[status results]]
-                             [status (map #(if (:log %) (update % :log slurp) %) results)])))
+                             (if (= status :error)
+                               results
+                               [status (map #(if (:log %) (update % :log slurp) %) results)]))))
         job-result {:nos-id (:id flow)
                     :finished-at (flow/current-time)
                     :results res}

@@ -14,7 +14,7 @@
   :nos/flow-engine {:vault #ig/ref :nos/vault
                     :chan #ig/ref :nos/flow-chan
                     :store #ig/ref :nos/store
-                    :log-dir #duct/env [ "NOS_LOG_DIR" :or "logs/" ]}
+                    :log-dir #duct/env [ "NOS_LOG_DIR" :or "/tmp/logs/" ]}
 
   :nos.handler/health {}
 
