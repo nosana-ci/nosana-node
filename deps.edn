@@ -44,7 +44,7 @@
             :exec-fn build/compile}
 
            :container
-           {:replace-deps {io.github.atomisthq/jibbit {:git/sha "0514b0d5b43ffac40e2eb39c32779deedaf9fb4a"}}
+           {:replace-deps {io.github.atomisthq/jibbit {:git/sha "ca4f7d33b1e8dc0f20c26bc4f6c6b8aa8098293f"}}
             :ns-default jibbit.core
             :ns-aliases {jib jibbit.core}
             :exec-fn jibbit.core/build}}}
