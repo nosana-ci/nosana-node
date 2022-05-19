@@ -6,6 +6,5 @@
  :aot true
  :target-image {:type :registry
                 :image-name "registry.gitlab.com/nosana-ci/apps/platform/nosana-node"
-                :tagger {:fn jibbit.tagger/tag}
                 :authorizer {:fn jibbit.creds/load-edn
                              :args {:local ".creds.edn"}}}}
