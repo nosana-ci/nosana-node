@@ -27,7 +27,8 @@
 
   :nos.trigger/nosana-jobs {:flow-ch #ig/ref :nos/flow-chan
                             :store #ig/ref :nos/store
-                            :vault #ig/ref :nos/vault}}
+                            :vault #ig/ref :nos/vault}
+  }
 
  :duct.profile/prod {:nos/vault {:profile :prod}
                      :nosana-node/nrepl-server {:port 7888}}

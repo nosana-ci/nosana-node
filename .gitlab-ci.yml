@@ -17,7 +17,7 @@ build:
   script:
     - clj -T:build compile
     - echo '{:username "'${CI_REGISTRY_USER}'" :password "'${CI_REGISTRY_PASSWORD}'"}' > .creds.edn
-    - clj -Sdeps '{:mvn/local-repo "'${CI_PROJECT_DIR}'/.m2/repository"}' -T:container "$(< jib-gitlab.edn)"
+    - clj -Sdeps '{:mvn/local-repo "'${CI_PROJECT_DIR}'/.m2/repository"}' -T:container "$(< jib-gitlab.edn)" :tag $CI_COMMIT_TAG
   cache:
     paths:
       - .m2/repository
