@@ -6,7 +6,7 @@
  :aot true
  :target-image {:type :registry
                 :image-name "registry.gitlab.com/nosana-ci/apps/platform/nosana-node"
-                :varname "CI_COMMIT_TAG"
-                :tagger {:fn jibbit.tagger/environment}
+                :tagger {:fn jibbit.tagger/environment
+                         :args {:varname "CI_IMAGE_NAME"}}
                 :authorizer {:fn jibbit.creds/load-edn
                              :args {:local ".creds.edn"}}}}

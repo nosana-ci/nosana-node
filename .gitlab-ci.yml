@@ -4,6 +4,7 @@ include:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  CI_IMAGE_NAME: ${CI_REGISTRY_IMAGE}":"${CI_COMMIT_TAG}
 
 release:
   stage: deploy
