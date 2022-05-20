@@ -3,7 +3,7 @@
  :deps
  {org.clojure/clojure {:mvn/version "1.10.0"}
   nostromo/nostromo {:git/url "https://github.com/nosana-ci/nostromo"
-                     :sha "1239a8e86fc0664f4e4350f5467e9a07c48afaf0"}
+                     :sha "baf2dee330e9d70dc264a86ede14f4cefce3fb42"}
   clj-http/clj-http {:mvn/version "3.12.3"}
   clj-commons/clj-yaml {:mvn/version "0.7.108"}
   jarohen/chime {:mvn/version "0.3.2"}
