@@ -444,7 +444,7 @@
 ;; this coerces the flow results for Nosana and uploads them to IPFS. then
 ;; finalizes the Solana transactions for the job
 (defmethod flow/handle-fx :nos.nosana/complete-job
-  [{:keys [store probes chan vault] :as fe} op fx flow]
+  [{:keys [vault] :as fe} op fx flow]
   (let [end-time (flow/current-time)
         ;; here we collect the op IDs of which we want to include the results in
         ;; the final JSON
@@ -471,6 +471,14 @@
 (defn flow-finished? [flow]
   (contains? (:results flow) :result/ipfs))
 
+(defn flow-git-failed?
+  "Check if one of the git operations in a flow falied
+
+  They are pre-requisite for the docker commands and we catch them separately"
+  [flow]
+  (or (= ::flow/error (get-in flow [:results :clone 0]))
+      (= ::flow/error (get-in flow [:results :checkout 0]))))
+
 (defn poll-job-loop
   "Main loop for polling and executing Nosana jobs
 
@@ -484,7 +492,18 @@
          exit-ch nil
          (timeout 30000) (if active-job
                            ;; if we're running a job: check if it's finished
-                           (let [flow (<! (kv/get store active-job))]
+                           (let [flow (<! (kv/get store active-job))
+                                 ;; TODO: here we manually detect a flow failure
+                                 ;; and trigger an FX and then restore the
+                                 ;; flow. this should be handled by Nostromo
+                                 ;; error handlers when implemented there.
+                                 flow (if (flow-git-failed? flow)
+                                        (flow/handle-fx {:store store :chan flow-ch :vault vault}
+                                                        nil
+                                                        [:nos.nosana/complete-job]
+                                                        flow)
+                                        flow)
+                                 _ (<! (kv/assoc store active-job flow))]
                              (log :info "Polling Nosana job. Current running job is " (:id flow))
                              (if (flow-finished? flow)
                                (let [finish-sig
@@ -503,6 +522,7 @@
                                      (<! (get-solana-tx< finish-sig network))
                                      (recur nil))
                                    (recur active-job)))
+                               ;; if flow is not finished
                                (recur active-job)))
                            ;; else: we're not running a job: poll for a new one
                            (do
