@@ -44,7 +44,7 @@
     :args [{:cmd cmds
             :image image
             :conn {:uri [::flow/vault :podman-conn-uri]}
-            :work-dir [::flow/str "/root" ]
+            :work-dir [::flow/str "/root" (flow/ref :checkout)]
             :resources [{:source (flow/ref :checkout) :dest "/root"}]
             }]
     :deps [:checkout]}])
