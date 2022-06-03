@@ -50,7 +50,7 @@
     :deps [:checkout]}])
 
 ;; (def ipfs-base-url "https://cloudflare-ipfs.com/ipfs/")
-(def ipfs-base-url "https://gateway.pinata.cloud/ipfs/")
+(def ipfs-base-url "https://nosana.mypinata.cloud/ipfs/")
 (def pinata-api-url "https://api.pinata.cloud")
 
 (defn str->base64 [string] (.encodeToString (Base64/getEncoder) (.getBytes string)))
