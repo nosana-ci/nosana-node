@@ -459,7 +459,9 @@
                            (fn [[status results]]
                              (if (= status :error)
                                results
-                               [status (map #(if (:log %) (update % :log slurp) %) results)]))))
+                               [status (map #(if (:log %) (update %
+                                                                  :log
+                                                                  (fn [l] (-> l slurp json/decode))) %) results)]))))
         job-result {:nos-id (:id flow)
                     :finished-at (flow/current-time)
                     :results res}
