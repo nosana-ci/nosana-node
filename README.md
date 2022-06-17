@@ -1,5 +1,7 @@
 ## Building
 
+It's recommended to use Clojure version 1.10.x and JVM 11.
+
 ### Docker
 
 This command will build a docker container and import it to your local docker
