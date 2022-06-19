@@ -61,7 +61,7 @@
       (let [claim-sig
             (nos/reclaim-job-tx! job-addr (-> system :nos/vault nos/get-signer-key) network)]
         (log :info "Reclaimed job, waiting on Solana" claim-sig)
-        (<!! (nos/get-solana-tx claim-sig network))
+        (<!! (nos/get-solana-tx< claim-sig network))
         (log :info "Reclaim tx found")))
 
     (let [flow (nos/make-job-flow (:job-ipfs job) job-addr)
