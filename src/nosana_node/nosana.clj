@@ -94,7 +94,8 @@
 
 (def instruction->idx
   {:init-project "284e9c7a3655cc2e"
-   :init-vault "4d4f559621d9346a"})
+   :init-vault "4d4f559621d9346a"
+   :reclaim-job "b1fbd94ecf422e82"})
 
 (defn bytes-to-hex-str
   "Convert a seq of bytes into a hex encoded string."
@@ -201,6 +202,22 @@
                )]
       tx)))
 
+(defn sol-reclaim-job-instruction [job-addr signer-addr network]
+  (let [get-addr #(-> nos-config network %)
+        keys (doto (java.util.ArrayList.)
+               (.add (AccountMeta. (PublicKey. job-addr) false true))         ; job
+               (.add (AccountMeta. signer-addr true false))     ; authority
+               (.add (AccountMeta. clock-addr false false))     ; clock
+               )
+        data (byte-array (repeat (+ 8) (byte 0)))
+        ins-idx (byte-array (hex->bytes (:reclaim-job instruction->idx)))]
+    (System/arraycopy ins-idx 0 data 0 8)
+    (let [txi (TransactionInstruction. (get-addr :job) keys data)
+          tx (doto (Transaction.)
+               (.addInstruction txi)
+               )]
+      tx)))
+
 ;; (defn sol-init-vault-instruction []
 ;;   (let [keys (doto (java.util.ArrayList.)
 ;;                (.add (AccountMeta. signer-addr true false))        ; project
@@ -229,32 +246,43 @@
 ;;       tx)))
 
 ;; Example how to print a raw transaction
-;; (defn print-raw-tx! []
-;;   (prn "nonce: "   (.getNonce vault-derived-addr ))
+(defn print-raw-tx! [signer]
+  ;; (prn "nonce: "   (.getNonce vault-derived-addr ))
 
-;;   (let [;;client (RpcClient. "http://localhost:8899")
-;;         client (RpcClient. (:testnet sol-rpc))
-;;         api (.getApi client)
-;;         ;; tx (sol-create-job-instruction)
-;;         block-hash (.getRecentBlockhash api)
-;;         tx (doto (sol-finish-job-tx  "2VvcGLBGWPvhCs1KJc2kvDsAVe8P3aW255mFdRZ14pbC" "QmS98R6nEgbRCVTmzfFKeymoURGnLrjiorBjS6XHkGNNhd")
-;;              (.setRecentBlockHash block-hash)
-;;              (.sign [signer-acc])
-;;              )
-;;         _ (prn "bh: " block-hash)
-;;         _ (prn(bytes-to-hex-str (Base58/decode block-hash)))
-;;         _ (prn (bytes-to-hex-str (.serialize tx)))
-;;         ;; sig (.sendTransaction api tx [signer-acc])
-;;         ]
-;;     ;;sig
-;;     nil
-;;     ))
+  (let [;;client (RpcClient. "http://localhost:8899")
+        client (RpcClient. (:testnet sol-rpc))
+        api (.getApi client)
+        ;; tx (sol-create-job-instruction)
+        block-hash (.getRecentBlockhash api)
+        tx (doto (sol-reclaim-job-instruction
+                  "22111111111111111111111111111122"
+                  "33111111111111111111111111111133"
+                  (.getPublicKey signer) :mainnet)
+             (.setRecentBlockHash block-hash)
+             (.sign [signer])
+             )
+        _ (prn "bh: " block-hash)
+        _ (prn(bytes-to-hex-str (Base58/decode block-hash)))
+        _ (prn (bytes-to-hex-str (.serialize tx)))
+        ;; sig (.sendTransaction api tx [signer-acc])
+        ]
+    ;;sig
+    nil
+    ))
 
 (defn claim-job-tx! [jobs-addr job-addr signer network]
   (let [client (RpcClient. (get sol-rpc network))
         api (.getApi client)
         block-hash (.getRecentBlockhash api)
         tx (doto (sol-claim-job-instruction jobs-addr job-addr (.getPublicKey signer) network))
+        sig (.sendTransaction api tx [signer])]
+    sig))
+
+(defn reclaim-job-tx! [job-addr signer network]
+  (let [client (RpcClient. (get sol-rpc network))
+        api (.getApi client)
+        block-hash (.getRecentBlockhash api)
+        tx (doto (sol-reclaim-job-instruction job-addr (.getPublicKey signer) network))
         sig (.sendTransaction api tx [signer])]
     sig))
 
@@ -403,7 +431,12 @@
   [tx]
   (-> tx :meta :err nil? not))
 
-(defn poll-nosana-job< [store flow-ch vault jobs-addrs network]
+(defn poll-nosana-job<
+  "Pick, claim, and execute one job from `job-addrs`
+
+  Returns the ID of the nostromo flow initiated when executing the job. If the
+  Solana transaction fails or no suitable job was found return `nil`."
+  [store flow-ch vault jobs-addrs network]
   (go
     (when-let [[job-flow claim-sig]
                (<! (async/thread
@@ -426,6 +459,33 @@
               (>! flow-ch [:trigger (:id job-flow)])
               (:id job-flow))
             (log :info "Job already claimed by someone else.")))))))
+
+(defn reclaim-nosana-job<
+  "Pick, reclaim and exeucte one job from `claim-addrs`"
+  [store flow-ch vault claim-addrs network]
+  (go
+    (when (not (empty? claim-addrs))
+      (when-let [[job-flow claim-sig]
+                 (<! (async/thread
+                       (when-let [job (get-job (first claim-addrs) network)]
+                         (log :info "Trying job " (:addr job) " CID " (:job-ipfs job))
+                         (let [job-flow (make-job-flow (:job-ipfs job) (:addr job))
+                               _ (log :info ".. Made job flow")
+                               claim-sig (try
+                                           (reclaim-job-tx! (:addr job) (get-signer-key vault) network)
+                                           (catch Exception e
+                                             (log :error "Reclaim job transaction failed." (ex-message e))
+                                             nil))]
+                           [job-flow claim-sig]))))]
+        (when claim-sig
+          (when-let [tx (<! (get-solana-tx< claim-sig 2000 30 network))]
+            (if (not (solana-tx-failed? tx))
+              (do
+                (log :info "Job reclaimed. Starting flow " (:id job-flow))
+                (<! (flow/save-flow job-flow store))
+                (>! flow-ch [:trigger (:id job-flow)])
+                (:id job-flow))
+              (log :info "Job already reclaimed by someone else."))))))))
 
 (derive :nos.nosana/complete-job ::flow/fx)
 
@@ -485,8 +545,8 @@
   "Main loop for polling and executing Nosana jobs
 
   The loop ensures no jobs can be executed in parallel."
-  ([store flow-ch vault job-addrs] (poll-job-loop store flow-ch vault job-addrs (chan)))
-  ([store flow-ch vault job-addrs exit-ch]
+  ([store flow-ch vault job-addrs claim-addrs] (poll-job-loop store flow-ch vault job-addrs claim-addrs (chan)))
+  ([store flow-ch vault job-addrs claim-addrs  exit-ch]
    (go-loop [active-job nil]
      (let [timeout-ch (timeout 2000)
            network (vault/get-secret vault :solana-network)]
@@ -529,7 +589,8 @@
                            ;; else: we're not running a job: poll for a new one
                            (do
                              (log :info "Polling for a new Nosana job.")
-                             (if-let [flow-id (<! (poll-nosana-job< store flow-ch vault @job-addrs network))]
+                             (if-let [flow-id (or (<! (reclaim-nosana-job< store flow-ch vault @claim-addrs network))
+                                                  (<! (poll-nosana-job< store flow-ch vault @job-addrs network)))]
                                (do
                                  (log :info "Started processing of job flow " flow-id)
                                  (recur flow-id))
@@ -542,15 +603,20 @@
 (defn find-jobs-queues-to-poll
   "Fetch job queues to poll from the backend"
   [endpoint]
-  (-> (http/get endpoint) :body json/decode))
+  (try
+    (-> (http/get endpoint) :body json/decode)
+    (catch Exception e
+      (log :error "Find jobs queue HTTP request failed" endpoint (ex-message e))
+      [])))
 
 (defmethod ig/init-key :nos.trigger/nosana-jobs
   [_ {:keys [store flow-ch vault]}]
-  (let [jobs-addrs (atom ["Gcpx9EZSKANBU9nChmkajeaNfrbxWqS2Ytsg3UjnkKmq"])
+  (let [jobs-addrs (atom [])
+        reclaim-addrs (atom [])
         ;; put any value to `exit-ch` to cancel the `loop-ch`:
         ;; (async/put! exit-ch true)
         exit-ch (chan)
-        loop-ch (poll-job-loop store flow-ch vault jobs-addrs exit-ch)
+        loop-ch (poll-job-loop store flow-ch vault jobs-addrs reclaim-addrs exit-ch)
         chimes (chime/periodic-seq (Instant/now) (Duration/ofMinutes 1))]
     (log :info "Node configuration "
          (.toString (.getPublicKey (get-signer-key vault)))
@@ -561,9 +627,12 @@
      :refresh-jobs-chime
      (chime/chime-at chimes
                      (fn [time]
-                       (let [new-jobs (->> (find-jobs-queues-to-poll (:nosana-jobs-queue vault)) (into []))]
+                       (let [new-jobs (->> (find-jobs-queues-to-poll (:nosana-jobs-queue vault)) (into []))
+                             new-reclaims (->> (find-jobs-queues-to-poll (:nosana-reclaim-queue vault)) (into []))]
                          (log :info "Refreshing jobs. There are " (count new-jobs) new-jobs)
-                         (reset! jobs-addrs new-jobs))))
+                         (log :info "Refreshing reclaims. There are " (count new-reclaims) new-reclaims)
+                         (reset! jobs-addrs new-jobs)
+                         (reset! reclaim-addrs new-reclaims))))
      :project-addrs jobs-addrs}))
 
 (defmethod ig/halt-key! :nos.trigger/nosana-jobs

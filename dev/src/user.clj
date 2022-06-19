@@ -1,5 +1,6 @@
 (ns user
   (:require
+   [taoensso.timbre :refer [log]]
    [clojure.java.io :as io]
    nosana-node.handler
    [clojure.pprint :refer [pprint]]
@@ -47,22 +48,37 @@
 
 (set-prep! #(duct/prep-config (get-config) [:duct.profile/dev]))
 
-;; (defn finish-stuck-job! [job-addr]
-;;   (let [job (nos/get-job job-addr :mainnet)
-;;         flow (nos/make-job-flow (:job-ipfs job) job-addr)
-;;         flow-flow (run-flow flow)
-;;         max-tries 10]
-;;     (loop [tries 0]
-;;       (Thread/sleep 5000)
-;;       (when (< tries max-tries)
-;;         (let [cur-flow (kv-get [(:id flow)])]
-;;           (if (nos/flow-finished? cur-flow)
-;;             (let [finish-tx (nos/finish-job-tx!
-;;                              job-addr
-;;                              (get-in cur-flow [:results :result/ipfs])
-;;                              (nos/get-signer-key (:nos/vault system))
-;;                              :mainnet)]
-;;               (prn "FINISHED JOB " finish-tx))
-;;             (recur (inc tries))))))
+(defn get-signer-address
+  "Get signer Solana public key as string"
+  []
+  (-> system :nos/vault nos/get-signer-key .getPublicKey .toString))
 
-;;     flow-flow))
+(defn finish-stuck-job! [job-addr network]
+  (let [job (nos/get-job job-addr network)]
+    ;; if we are not the node that claimed, try to reclaim
+    (when (or true (not (= (get-signer-address)  (:node job))))
+      (log :info "Reclaiming job " job-addr)
+      (let [claim-sig
+            (nos/reclaim-job-tx! job-addr (-> system :nos/vault nos/get-signer-key) network)]
+        (log :info "Reclaimed job, waiting on Solana" claim-sig)
+        (<!! (nos/get-solana-tx claim-sig network))
+        (log :info "Reclaim tx found")))
+
+    (let [flow (nos/make-job-flow (:job-ipfs job) job-addr)
+          flow-flow (run-flow flow)
+          max-tries 100]
+      (loop [tries 0]
+        (Thread/sleep 5000)
+        (if (< tries max-tries)
+          (let [cur-flow (kv-get [(:id flow)])]
+            (prn "try tries")
+            (if (nos/flow-finished? cur-flow)
+              (let [finish-tx (nos/finish-job-tx!
+                               job-addr
+                               (get-in cur-flow [:results :result/ipfs])
+                               (-> system :nos/vault nos/get-signer-key)
+                               network)]
+                (prn "FINISHED JOB " finish-tx))
+              (recur (inc tries))))
+          (prn ">> Not finished after timeout!!!")))
+      flow-flow)))
