@@ -406,7 +406,7 @@
   `job-addrs` is a sequence of Nosana jobs queues. The queues and their jobs are
   fetched depth-first until a job is found with status unclaimed."
   [job-addrs network]
-  (loop [remaining-queues job-addrs]
+  (loop [remaining-queues (shuffle job-addrs)]
     (log :info "... Picking jobs " remaining-queues)
     (when (not-empty remaining-queues)
       (if-let [jobs (try
