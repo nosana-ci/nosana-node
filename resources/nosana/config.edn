@@ -18,8 +18,8 @@
                                           ;; :dev "https://app.nosana.ci/commits/"
                                           }
 
- :nosana-reclaim-queue #profile {:prod #or [#env NOSANA_JOBS_QUEUE "https://app.nosana.ci/jobs/reclaims"]
                                  ;; :dev "https://app.nosana.ci/jobs/reclaims"
                                  :dev "https://backend.k8s.dev.nos.ci/jobs/reclaims"
+ :nosana-reclaim-queue #profile {:prod #or [#env NOSANA_RECLAIMS_QUEUE "https://app.nosana.ci/jobs/reclaim"]
                                  }
  }
