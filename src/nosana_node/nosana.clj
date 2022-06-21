@@ -347,7 +347,7 @@
         _ (ByteUtils/readUint64 data 0)                 ; ??
         node (.toString (PublicKey/readPubkey data 8))  ; claimed by
         status (get data (+ 8 32))                  ; gets 1 when it's claimed, 2 when it's finished
-        _ (Utils/readUint32 data (+ 8 32 1))     ; timestamp?
+        start-time (Utils/readUint32 data (+ 8 32 1))     ; timestamp
         _ (ByteUtils/readUint64 data (+ 8 32 1 4))          ; ??
         _ (Utils/readUint32 data (+ 8 32 1 4 8))        ; ??
 
@@ -360,8 +360,13 @@
      :node node ;(if (= status 0) nil node)
      :status status
      :job-ipfs job-ipfs
+     :start-time start-time
      :result-ipfs (if (= status 2) result-ipfs nil)}))
 
+(defn refresh-backend-job-status
+  "Fetch a job status from the backend to refresh it from IPFS"
+  [endpoint job-address]
+  (http/get (str endpoint job-address)))
 
 (defn download-job [ipfs-hash]
   (log :trace "Downloading IPFS file " ipfs-hash)
@@ -465,9 +470,9 @@
   [store flow-ch vault claim-addrs network]
   (go
     (when (not (empty? claim-addrs))
-      (when-let [[job-flow claim-sig]
+      (when-let [[job-flow claim-sig job-addr]
                  (<! (async/thread
-                       (when-let [job (get-job (first claim-addrs) network)]
+                       (when-let [job (get-job (rand-nth claim-addrs) network)]
                          (log :info "Trying job " (:addr job) " CID " (:job-ipfs job))
                          (let [job-flow (make-job-flow (:job-ipfs job) (:addr job))
                                _ (log :info ".. Made job flow")
@@ -476,12 +481,15 @@
                                            (catch Exception e
                                              (log :error "Reclaim job transaction failed." (ex-message e))
                                              nil))]
-                           [job-flow claim-sig]))))]
+                           [job-flow claim-sig (:addr job)]))))]
         (when claim-sig
           (when-let [tx (<! (get-solana-tx< claim-sig 2000 30 network))]
             (if (not (solana-tx-failed? tx))
               (do
-                (log :info "Job reclaimed. Starting flow " (:id job-flow))
+                (log :info "Job reclaimed" job-addr)
+                (refresh-backend-job-status (:nosana-job-status-refresh-url vault) job-addr)
+                (log :info "Job status refreshed in backend.")
+                (log :info "Starting flow" (:id job-flow))
                 (<! (flow/save-flow job-flow store))
                 (>! flow-ch [:trigger (:id job-flow)])
                 (:id job-flow))

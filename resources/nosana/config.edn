@@ -13,8 +13,13 @@
                               ;; :dev "https://app.nosana.ci/jobs/queued"
                               :dev "https://backend.k8s.dev.nos.ci/jobs/queued"
                               }
- :nosana-reclaim-queue #profile {:prod #or [#env NOSANA_JOBS_QUEUE "https://app.nosana.ci/reclaims/queued"]
-                                 ;; :dev "https://app.nosana.ci/reclaims/queued"
-                                 :dev "https://backend.k8s.dev.nos.ci/reclaims/queued"
+ :nosana-job-status-refresh-url #profile {:prod "https://app.nosana.ci/commits/"
+                                          :dev "https://backend.k8s.dev.nos.ci/commits/"
+                                          ;; :dev "https://app.nosana.ci/commits/"
+                                          }
+
+ :nosana-reclaim-queue #profile {:prod #or [#env NOSANA_JOBS_QUEUE "https://app.nosana.ci/jobs/reclaims"]
+                                 ;; :dev "https://app.nosana.ci/jobs/reclaims"
+                                 :dev "https://backend.k8s.dev.nos.ci/jobs/reclaims"
                                  }
  }
