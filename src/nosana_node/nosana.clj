@@ -576,9 +576,10 @@
                                  _ (<! (kv/assoc store active-job flow))]
                              (log :info "Polling Nosana job. Current running job is " (:id flow))
                              (if (flow-finished? flow)
-                               (let [finish-sig
+                               (let [job-addr (get-in flow [:results :input/job-addr])
+                                     finish-sig
                                      (try
-                                       (finish-job-tx! (get-in flow [:results :input/job-addr])
+                                       (finish-job-tx! job-addr
                                                        (get-in flow [:results :result/ipfs])
                                                        (get-signer-key vault)
                                                        network)
@@ -590,6 +591,9 @@
                                  (if finish-sig
                                    (do
                                      (<! (get-solana-tx< finish-sig network))
+                                     (refresh-backend-job-status
+                                      (:nosana-job-status-refresh-url vault) job-addr)
+                                     (log :info "Job finished and status refreshed in backend" job-addr)
                                      (recur nil))
                                    (recur active-job)))
                                ;; if flow is not finished
