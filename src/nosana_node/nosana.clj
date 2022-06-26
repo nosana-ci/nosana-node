@@ -398,6 +398,7 @@
     (->
      new-flow
      (update :ops concat [wrap-up-op])
+     (update :ops #(into [] %))
      flow/build)))
 
 (defn pick-job
