@@ -5,7 +5,7 @@
             [clojure.edn :as edn]
             [clj-http.client :as http]
             [clojure.core.async :as async :refer [<!! <! >!! put! go go-loop >! timeout take! chan]]
-            [taoensso.timbre :refer [log]]
+            [taoensso.timbre :as logg :refer [log]]
             [nos.vault :as vault]
             [chime.core-async :refer [chime-ch]]
             [konserve.core :as kv]
@@ -384,9 +384,10 @@
   [name]
   (->> name sha256 (take 20) (reduce str)))
 
-(defn make-job-flow [job-ipfs job-addr]
-  (let [job (download-job job-ipfs)
-        new-flow (-> base-flow
+
+
+(defn make-job-flow [job job-addr]
+  (let [new-flow (-> base-flow
                      (assoc-in [:results :input/repo] (:url job))
                      (assoc-in [:results :input/path] (str "/tmp/repos/" (hash-repo-url (:url job))))
                      (assoc-in [:results :input/commit-sha] (:commit job))
@@ -400,6 +401,11 @@
      (update :ops concat [wrap-up-op])
      (update :ops #(into [] %))
      flow/build)))
+
+(defn make-job-flow-ipfs [job-ipfs job-addr]
+  (let [job (download-job job-ipfs)]
+    (make-job-flow job job-addr)))
+
 
 (defn pick-job
   "Picks a single job from a sequence of jobs queues
@@ -448,7 +454,7 @@
                (<! (async/thread
                      (when-let [[jobs-addr job] (pick-job jobs-addrs network)]
                        (log :info "Trying job " (:addr job) " CID " (:job-ipfs job))
-                       (let [job-flow (make-job-flow (:job-ipfs job) (:addr job))
+                       (let [job-flow (make-job-flow-ipfs (:job-ipfs job) (:addr job))
                              _ (log :info ".. Made job flow")
                              claim-sig (try
                                          (claim-job-tx! jobs-addr (:addr job) (get-signer-key vault) network)
@@ -475,7 +481,7 @@
                  (<! (async/thread
                        (when-let [job (get-job (rand-nth claim-addrs) network)]
                          (log :info "Trying job " (:addr job) " CID " (:job-ipfs job))
-                         (let [job-flow (make-job-flow (:job-ipfs job) (:addr job))
+                         (let [job-flow (make-job-flow-ipfs (:job-ipfs job) (:addr job))
                                _ (log :info ".. Made job flow")
                                claim-sig (try
                                            (reclaim-job-tx! (:addr job) (get-signer-key vault) network)
@@ -622,6 +628,36 @@
       (log :error "Find jobs queue HTTP request failed" endpoint (ex-message e))
       [])))
 
+(def ascii-logo "  _ __   ___  ___  __ _ _ __   __ _
+ | '_ \\ / _ \\/ __|/ _` | '_ \\ / _` |
+ | | | | (_) \\__ \\ (_| | | | | (_| |
+ |_| |_|\\___/|___/\\__,_|_| |_|\\__,_|")
+
+;;(nos/print-head "v0.3.19" "4HoZogbrDGwK6UsD1eMgkFKTNDyaqcfb2eodLLtS8NTx" "0.084275" "13,260.00")
+(defn print-head [version address network balance stake]
+  (logg/infof "
+%s
+
+Running Nosana Node %s
+
+  Validator  \u001B[34m%s\u001B[0m
+  Network    Solana \u001B[34m%s\u001B[0m
+  Balance    \u001B[34m%s\u001B[0m SOL
+  Stake      \u001B[34m%s\u001B[0m NOS
+  Slashed    \u001B[34m0.00\u001B[0m NOS
+
+Node started. LFG.
+"
+              ascii-logo
+              version
+              address
+              network
+              balance
+              stake
+              ))
+
+
+
 (defmethod ig/init-key :nos.trigger/nosana-jobs
   [_ {:keys [store flow-ch vault]}]
   (let [jobs-addrs (atom [])
@@ -635,6 +671,14 @@
          (.toString (.getPublicKey (get-signer-key vault)))
          (:solana-network vault)
          (:nosana-jobs-queue vault))
+
+    (print-head
+     "v0.3.19"
+     (.toString (.getPublicKey (get-signer-key vault)))
+     (:solana-network vault)
+     "0.084275"
+     "13,260.00")
+
     {:loop-chan loop-ch
      :exit-chan exit-ch
      :refresh-jobs-chime
@@ -642,7 +686,7 @@
                      (fn [time]
                        (let [new-jobs (->> (find-jobs-queues-to-poll (:nosana-jobs-queue vault)) (into []))
                              new-reclaims (->> (find-jobs-queues-to-poll (:nosana-reclaim-queue vault)) (into []))]
-                         (log :info "Refreshing jobs. There are " (count new-jobs) new-jobs)
+                         (log :info "Scanning for jobs. Found " (count new-jobs) new-jobs)
                          (log :info "Refreshing reclaims. There are " (count new-reclaims) new-reclaims)
                          (reset! jobs-addrs new-jobs)
                          (reset! reclaim-addrs new-reclaims))))
