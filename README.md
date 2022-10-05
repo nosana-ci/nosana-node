@@ -2,16 +2,41 @@
 
 It's recommended to use Clojure version 1.10.x and JVM 11.
 
+### Local development
+
+This project includes [solanaj](https://github.com/p2p-org/solanaj)
+as a git submodule, so you will have to clone it recursively.
+
+The solanaj classes have to be compiled once before we start:
+
+```
+clj -X:compile
+```
+
+To quickly start a development repl, and spin up the node:
+
+```
+$ clj -M:dev -r
+Clojure 1.10.0
+user=> (go)
+```
+
 ### Docker
 
-This command will build a docker container and import it to your local docker
-daemon as `nos/node`:
+We use [jibbit](https://github.com/atomisthq/jibbit) to build a
+container image on the JVM, without a Docker daemon.
+
+This command will build a docker container and import it to your local
+docker daemon, tagged as `nos/node`:
 
 ```
 clj -T:container "$(< jib-local.edn)"
 ```
 
-## Running
+The `jib.edn` file can be adjusted to push to different registry or
+supply a different tagger. For more info check the jibbit docs.
+
+## Usage
 
 ### Local machine with Docker
 
