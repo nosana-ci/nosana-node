@@ -13,11 +13,13 @@
    nos.ops.git
    [nos.ops.docker :as docker]
    nos.system
+   [aero.core :refer (read-config)]
    [konserve.core :as kv]
    [integrant.core :as ig]
    [clojure.core.async :as async :refer [<!! <! >!!]]
    [nos.store :as store]
-   [nosana-node.nosana :as nos]))
+   [nosana-node.nosana :as nos]
+   [nosana-node.solana :as sol]))
 
 (duct/load-hierarchy)
 
@@ -54,7 +56,9 @@
   []
   (-> system :nos/vault nos/get-signer-key .getPublicKey .toString))
 
-(defn finish-stuck-job! [job-addr network]
+(defn finish-stuck-job!
+  "Finish a job that this node has claimed but never finished"
+  [job-addr network]
   (let [job (nos/get-job job-addr network)]
     ;; if we are not the node that claimed, try to reclaim
     (when (or true (not (= (get-signer-address)  (:node job))))
@@ -65,7 +69,7 @@
         (<!! (nos/get-solana-tx< claim-sig network))
         (log :info "Reclaim tx found")))
 
-    (let [flow (nos/make-job-flow (:job-ipfs job) job-addr)
+    (let [flow      (nos/make-job-flow (:job-ipfs job) job-addr)
           flow-flow (run-flow flow)
           max-tries 100]
       (loop [tries 0]
