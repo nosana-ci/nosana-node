@@ -1,0 +1,13 @@
+{:secrets    #include #join [#env HOME "/.nosana-node-secrets.edn"]
+ :pinata-jwt #profile {:prod #env PINATA_JWT
+                       :dev  #ref [:secrets :pinata-jwt]}
+
+ :solana-private-key
+ #or [#env SOLANA_PRIVATE_KEY
+      #join ["" #include #join [#env HOME "/.config/solana/id.json"]]]
+
+ :solana-network  #profile {:prod #or [#keyword #env SOLANA_NETWORK :mainnet]
+                            ;; :dev :mainnet
+                            :dev  :devnet}
+ :podman-conn-uri #profile {:prod #or [#env PODMAN_CONN_URI "http://podman:8080"]
+                            :dev  "http://localhost:8080"}}

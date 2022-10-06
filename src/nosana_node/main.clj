@@ -29,7 +29,7 @@
   (println "Starting system")
   (let [keys [:duct/daemon]
         profiles [:duct.profile/prod]
-        system (-> (duct/resource "nosana/duct_config.edn")
+        system (-> (duct/resource "system.edn")
                    (duct/read-config)
                    (duct/prep-config profiles)
                    (ig/init keys))]

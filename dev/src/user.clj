@@ -21,7 +21,8 @@
 
 (duct/load-hierarchy)
 
-(defn get-config [] (duct/read-config (io/resource "nosana/duct_config.edn")))
+(defn get-config []
+  (duct/read-config (io/resource "system.edn")))
 
 (defn kv-get [key]
   (<!! (kv/get-in (:nos/store system) key)))
