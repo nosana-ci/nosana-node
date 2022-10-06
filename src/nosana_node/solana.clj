@@ -62,11 +62,11 @@
 (defn fetch-idl
   "Fetch the IDL associated with an on-chain program.
   Returns the IDL as a map with keywordized keys."
-  [program-id]
+  [program-id network]
   (let [acc-data  (-> program-id
                            get-idl-address
                            .toString
-                           (get-account-data :mainnet))
+                           (get-account-data network))
         ;; skip discriminator and authority key
         idl-data  (Arrays/copyOfRange acc-data (+ 4 40) (count acc-data))
         in-stream (InflaterInputStream. (ByteArrayInputStream. idl-data))]
