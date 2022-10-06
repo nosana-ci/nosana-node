@@ -98,6 +98,57 @@
         tx (doto (Transaction.) (.addInstruction txi))]
     txi))
 
+(defn idl-type->size
+  "Get the size in bytes of an IDL data type.
+  Input is an IDL type like \"u64\" or `{:array [\"u8\" 32]}`"
+  [type]
+  (cond
+    (= type "u64")       8
+    (= type "i64")       8
+    (= type "u32")       4
+    (= type "u8")        1
+    (= type "publicKey") 40
+    (:array type)
+    (let [[inner-type length] (:array type)]
+      (* length (idl-type->size inner-type)))
+    :else (throw (ex-info "Unkown IDL type " {:type type}))))
+
+(defn idl-tx
+  "Build a transaction using the IDL of a program."
+  [idl program-id ins accounts]
+  (let [discriminator (util/hex->bytes (anchor-dispatch-id ins))
+        ins           (->> idl :instructions (filter #(= (:name %) ins)) first)
+        ins-keys      (java.util.ArrayList.)
+        args-size     (reduce #(+ %1  (idl-type->size (:type %2))) 0 (:args ins))
+        ins-data      (byte-array (+ 8 args-size))]
+    (doseq [{:keys [name isMut isSigner]} (:accounts ins)]
+      (when (not (contains? accounts name))
+        (throw (ex-message "Missing required account for instruction")))
+      (.add ins-keys (AccountMeta. (get accounts name) isSigner isMut)))
+    (System/arraycopy discriminator 0 ins-data 0 8)
+    (let [txi (TransactionInstruction. program-id ins-keys ins-data)
+          tx (doto (Transaction.)
+               (.addInstruction txi))]
+      tx)))
+
+;;=================
+;; EXAMPLES
+;;=================
+
+;; (sol/fetch-idl "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM" :mainnet)
+
+
+;; (def k (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM"))
+
+;; (def accs {"authority" k
+;;            "market"    k
+;;            "vault"     k
+;;            "stake"     k
+;;            "nft"       k
+;;            "metadata"  k})
+
+;; (sol/idl-tx idl "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM" "enter" accs)
+
 ;; (defn sol-finish-job-tx [job-addr ipfs-hash signer-addr network]
 ;;   (let [job-key (PublicKey. job-addr)
 ;;         get-addr #(-> nos-config network %)
