@@ -1,7 +1,9 @@
 (ns nosana-node.solana
-  (:require [nosana-node.util :as util]
+  (:require [nosana-node.util :refer [hex->bytes] :as util]
             [cheshire.core :as json]
             [clojure.edn :as edn]
+            [taoensso.timbre :refer [log]]
+            [clojure.core.async :as async :refer [<!! <! >!! put! go go-loop >! timeout take! chan]]
             [cheshire.core :as json]
             [clj-http.client :as http]
             [clojure.java.io :as io])
@@ -9,21 +11,21 @@
    [org.p2p.solanaj.utils ByteUtils]
    [org.p2p.solanaj.rpc RpcClient Cluster]
    [org.bitcoinj.core Utils Base58 Sha256Hash]
-   [java.io ByteArrayOutputStream ByteArrayInputStream]
+   [java.io ByteArrayInputStream]
    [java.util Arrays]
-   java.util.zip.Inflater    java.util.zip.InflaterOutputStream java.util.zip.InflaterInputStream
+   [java.util.zip Inflater InflaterInputStream]
    [org.p2p.solanaj.core Transaction TransactionInstruction PublicKey
     Account Message AccountMeta]))
 
-(def sol-rpc {:testnet "https://api.testnet.solana.com"
-              :devnet "https://api.devnet.solana.com"
-              :mainnet "https://solana-api.projectserum.com"})
+(def rpc {:testnet "https://api.testnet.solana.com"
+          :devnet  "https://api.devnet.solana.com"
+          :mainnet "https://solana-api.projectserum.com"})
 
 (defn rpc-call
   "Make a solana RPC call.
   This uses clj-http instead of solanaj's client."
   [method params network]
-  (http/post (get sol-rpc network)
+  (http/post (get rpc network)
              {:body         (json/encode {:jsonrpc "2.0" :id "1" :method method :params params})
               :content-type :json}))
 
@@ -31,7 +33,7 @@
   "Get the data of a Solana account as ByteArray."
   [addr network]
   (if-let [data (->
-                 (rpc-call "getAccountInfo" [addr {:encoding "base64"}] network)
+                 (rpc-call "getAccountInfo" [(.toString addr) {:encoding "base64"}] network)
                  :body
                  (json/decode true)
                  :result :value :data
@@ -49,54 +51,40 @@
          (.writeBytes (.toByteArray program-id))))
 
 (defn get-idl-address
-  [program-id]
   "Get the PublicKey associated with to IDL of a program.
   Anchor has a deterministic way to find the account holding the IDL
-  for a specific program. This functions returns the decoded string of
-  it."
-  (let [base     (.getAddress (PublicKey/findProgramAddress [] (PublicKey. program-id)))
-        buffer   (create-pub-key-from-seed base "anchor:idl" (PublicKey. program-id))
+  for a specific program."
+  [^PublicKey program-id]
+  (let [base     (.getAddress (PublicKey/findProgramAddress [] program-id))
+        buffer   (create-pub-key-from-seed base "anchor:idl" program-id)
         hash     (Sha256Hash/hash (.toByteArray buffer))]
     (PublicKey. hash)))
 
-(defn fetch-idl
+(def fetch-idl
   "Fetch the IDL associated with an on-chain program.
   Returns the IDL as a map with keywordized keys."
-  [program-id network]
-  (let [acc-data  (-> program-id
-                           get-idl-address
-                           .toString
-                           (get-account-data network))
-        ;; skip discriminator and authority key
-        idl-data  (Arrays/copyOfRange acc-data (+ 4 40) (count acc-data))
-        in-stream (InflaterInputStream. (ByteArrayInputStream. idl-data))]
-    (json/decode
-     (String. (.readAllBytes in-stream) java.nio.charset.StandardCharsets/UTF_8)
-     true)))
+  (memoize
+   (fn [^PublicKey program-id network]
+     (let [acc-data  (-> program-id
+                         get-idl-address
+                         .toString
+                         (get-account-data network))
+           ;; skip discriminator and authority key
+           idl-data  (Arrays/copyOfRange acc-data (+ 4 40) (count acc-data))
+           in-stream (InflaterInputStream. (ByteArrayInputStream. idl-data))]
+       (json/decode
+        (String. (.readAllBytes in-stream) java.nio.charset.StandardCharsets/UTF_8)
+        true)))))
 
 (defn anchor-dispatch-id
   "Get the Anchor dispatch for a method
 
-  Anchor uses an 8 byte dispatch ID for program methods, dervied from the method
+  Anchor uses an 8 byte dispatch ID for program methods, derived from the method
   name: Sha256(<namespace>:<method>)[..8]
 
   For user defined methods the namespace is global."
   [method]
   (->> method (str "global:") util/sha256 (take 16) (reduce str)))
-
-(defn make-tx-account-list
-  "Create an account list for a Solana transaction
-  "
-  [accounts]
-  (reduce
-   #()
-   accounts
-   (java.util.ArrayList)))
-
-(defn make-tx [program method accounts args]
-  (let [txi (TransactionInstruction. program accounts args)
-        tx (doto (Transaction.) (.addInstruction txi))]
-    txi))
 
 (defn idl-type->size
   "Get the size in bytes of an IDL data type.
@@ -111,25 +99,154 @@
     (:array type)
     (let [[inner-type length] (:array type)]
       (* length (idl-type->size inner-type)))
+    (:vec type)
+    (let [[inner-type length] (:vec type)]
+      (* length (idl-type->size inner-type)))
     :else (throw (ex-info "Unkown IDL type " {:type type}))))
 
-(defn idl-tx
-  "Build a transaction using the IDL of a program."
-  [idl program-id ins accounts]
-  (let [discriminator (util/hex->bytes (anchor-dispatch-id ins))
+
+(def addresses
+  {:token             (PublicKey. "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+   :system            (PublicKey. "11111111111111111111111111111111")
+   :rent              (PublicKey. "SysvarRent111111111111111111111111111111111")
+   :clock             (PublicKey. "SysvarC1ock11111111111111111111111111111111")
+   :metaplex-metadata (PublicKey. "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")})
+
+(def nos-addr (PublicKey. "devr1BGQndEW5k5zfvG5FsLyZv1Ap73vNgAHcQ9sUVP"))
+(def nos-jobs (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM"))
+(def nos-stake (PublicKey. "nosScmHY2uR24Zh751PmGj9ww9QRNHewh9H59AfrTJE"))
+(def ata-addr (PublicKey. "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"))
+
+(def nos-collection (PublicKey. "CBLH5YsCPhaQ79zDyzqxEMNMVrE5N7J6h4hrtYNahPLU"))
+
+(defn get-metadata-pda
+  "Finds the MetaPlex metadata address for an NFT mint
+  See https://docs.metaplex.com/programs/token-metadata/changelog/v1.0"
+  [mint-id]
+  (PublicKey/findProgramAddress [(.getBytes "metadata")
+                                 (.toByteArray (:metaplex-metadata addresses))
+                                 (.toByteArray mint-id)]
+                                metaplex-metadata-address))
+
+(defn get-nos-market-pda
+  "Find the PDA of a markets vault."
+  [market]
+  (PublicKey/findProgramAddress [(.toByteArray market)
+                                 (.toByteArray nos-addr)]
+                                nos-jobs))
+
+(defn get-nos-stake-pda
+  "Find the PDA of a stake for an account."
+  [addr]
+  (PublicKey/findProgramAddress [(.getBytes "stake")
+                                 (.toByteArray nos-addr)
+                                 (.toByteArray addr)]
+                                nos-stake))
+
+(defn get-ata
+  "Find the Associated Token Account for an address and mint."
+  [addr mint]
+  (PublicKey/findProgramAddress [(.toByteArray addr)
+                                 (.toByteArray token-program-id)
+                                 (.toByteArray mint)]
+                                ata-addr))
+
+;; TEMP: account needed for enter instructions
+(def enter-accs
+  {"authority" (PublicKey. "9cqm92kXLEyiNdU2WrHznkdidEHHB7UCApJrKHvU5TpP")
+   "market"    (PublicKey. "CH8NQN6BU7SsRaqcMdbZJsEG7Uaa2jLkfsJqJkQ9He8z")
+   "vault"     (PublicKey. "XGGfV7zMhzrQAmxD4uhFUt2ddhfNfnGpYprtz6UuHDB")
+   "stake"     (PublicKey. "27xwnefmARrp9GoKQRiEMk3YSXdM5WUTAidir8kGdLTB")
+   "nft"       (PublicKey. "BSCogYjj6tAfK5S6wm6oGMda5s72qW3SJvbDvAV5sdQ2")
+   "metadata"  (PublicKey. "6pYVk617FEPdgiPzrpNLRrq7L9c66y91AEUMJtLjkbEi")})
+
+(defn build-idl-tx
+  "Build a transaction using the IDL of a program.
+  The IDL is fetched from the blockchain using the Anchor standard."
+  [program-id ins accounts network]
+  (let [idl           (fetch-idl program-id network)
+        discriminator (hex->bytes (anchor-dispatch-id ins))
         ins           (->> idl :instructions (filter #(= (:name %) ins)) first)
         ins-keys      (java.util.ArrayList.)
         args-size     (reduce #(+ %1  (idl-type->size (:type %2))) 0 (:args ins))
         ins-data      (byte-array (+ 8 args-size))]
     (doseq [{:keys [name isMut isSigner]} (:accounts ins)]
       (when (not (contains? accounts name))
-        (throw (ex-message "Missing required account for instruction")))
+        (throw (Exception. "Missing required account for instruction")))
       (.add ins-keys (AccountMeta. (get accounts name) isSigner isMut)))
     (System/arraycopy discriminator 0 ins-data 0 8)
+    ;; TODO: copy arguments into ins-data
     (let [txi (TransactionInstruction. program-id ins-keys ins-data)
-          tx (doto (Transaction.)
-               (.addInstruction txi))]
+        tx  (doto (Transaction.)
+              (.addInstruction txi))]
       tx)))
+
+(defn read-type
+  "Reads a single IDL parameter of  `type` from byte array `data`.
+  Starts reading at `ofs`. Type is as defined in the IDL, like
+  `\"u64\"` or `{:vec \"publicKey\"}`. Returns a tuple with the number
+  of bytes read and the clojure data."
+  [data ofs type]
+  (cond
+    (= type "u64")       [8 (ByteUtils/readUint64 data ofs)]
+    (= type "i64")       [8 (Utils/readInt64 data ofs)]
+    (= type "u32")       [4 (Utils/readUint32 data ofs)]
+    (= type "u8")        [1 (get data ofs)]
+    (= type "publicKey") [32 (PublicKey/readPubkey data ofs)]
+    (:vec type)
+    (let [elm-count (Utils/readUint32 data ofs)
+          elm-size  (idl-type->size (:vec type))
+          type-size (+ 4 (* elm-size elm-count))]
+      [type-size
+       (for [i    (range elm-count)
+             :let [idx (+ ofs 4 (* i elm-size))]]
+         (PublicKey/readPubkey data idx))])
+    :else                (throw (ex-info "Unkown IDL type " {:type type}))))
+
+(defn get-idl-account
+  "Fetches and decodes a program account using its IDL."
+  [program-id account-type addr network]
+  (let [idl      (fetch-idl program-id network)
+        acc-data (get-account-data addr network)
+        {:keys [type fields]}
+        (->> idl :accounts (filter #(= (:name %) account-type)) first :type)]
+    (loop [ofs                 8
+           [field & remaining] fields
+           data                {}]
+      (if field
+        (let [[size value] (read-type acc-data ofs (:type field))]
+          (recur (+ ofs size)
+                 remaining
+                 (assoc data (keyword (:name field)) value)))
+        data))))
+
+(defn send-tx [tx signers network]
+  (let [client (RpcClient. (get rpc network))
+        api (.getApi client)
+        sig (.sendTransaction api tx signers)]
+    sig))
+
+(defn get-tx
+  "Get transaction `sig` as keywordized map"
+  [sig network]
+  (-> (rpc-call "getTransaction" [sig "json"] network)
+      :body
+      (json/decode true)
+      :result))
+
+(defn await-tx<
+  "Returns a channel that emits transaction `sig` when it finalizes."
+  ([sig network] (await-tx< sig 1000 30 network))
+  ([sig timeout-ms max-tries network]
+   (log :trace "Waiting for Solana tx " sig)
+   (go-loop [tries 0]
+     (log :trace "Waiting for tx " tries)
+     (when (< tries max-tries)
+       (if-let [tx (get-tx sig network)]
+         tx
+         (do (<! (timeout timeout-ms))
+             (recur (inc tries))))))))
+
 
 ;;=================
 ;; EXAMPLES
@@ -140,12 +257,12 @@
 
 ;; (def k (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM"))
 
-;; (def accs {"authority" k
-;;            "market"    k
-;;            "vault"     k
-;;            "stake"     k
-;;            "nft"       k
-;;            "metadata"  k})
+#_(def accs {"authority" k
+             "market"    k
+             "vault"     k
+             "stake"     k
+             "nft"       k
+             "metadata"  k})
 
 ;; (sol/idl-tx idl "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM" "enter" accs)
 
