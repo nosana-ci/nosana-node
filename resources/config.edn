@@ -1,13 +1,21 @@
-{:secrets    #include #join [#env HOME "/.nosana-node-secrets.edn"]
+{:config     #include #join [#env HOME "/.nosana-node-config.edn"]
  :pinata-jwt #profile {:prod #env PINATA_JWT
-                       :dev  #ref [:secrets :pinata-jwt]}
+                       :dev  #ref [:config :pinata-jwt]}
 
  :solana-private-key
  #or [#env SOLANA_PRIVATE_KEY
       #join ["" #include #join [#env HOME "/.config/solana/id.json"]]]
 
- :solana-network  #profile {:prod #or [#keyword #env SOLANA_NETWORK :mainnet]
-                            ;; :dev :mainnet
-                            :dev  :devnet}
+ :nosana-market
+ #or [#env NOSANA_MARKET  #ref [:config :nosana-market]]
+
+ :nft
+ #or [#env NOSANA_NODE_NFT #ref [:config :nft]]
+
+ :nft-collection
+ #or [#env NOSANA_NODE_NFT_COLLECTION #ref [:config :nft-collection]]
+
+ :solana-network
+ #keyword #or [#env SOLANA_NETWORK :devnet]
  :podman-conn-uri #profile {:prod #or [#env PODMAN_CONN_URI "http://podman:8080"]
                             :dev  "http://localhost:8080"}}

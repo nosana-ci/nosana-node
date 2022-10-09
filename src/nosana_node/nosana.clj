@@ -11,7 +11,8 @@
             [konserve.core :as kv]
             [clojure.string :as string]
             [cheshire.core :as json]
-            [clj-yaml.core :as yaml])
+            [clj-yaml.core :as yaml]
+            [nosana-node.solana :as sol])
   (:import java.util.Base64
            java.security.MessageDigest
            [java.time Instant Duration]
@@ -63,25 +64,26 @@
 (defn public-key->bytes [pub]
   (.toByteArray (PublicKey. pub)))
 
-(def job-program-addr (PublicKey. "nosJwntQe4eEnFC2mCsY9J15qw7kRQCDqcjcPj6aPbR"))
-(def token-program-id (PublicKey. "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
+(def nos-programs
+  {:mainnet {:nos-token  (PublicKey. "TSTntXiYheDFtAdQ1pNBM2QQncA22PCFLLRr53uBa8i")
+             :stake      (PublicKey. "nosScmHY2uR24Zh751PmGj9ww9QRNHewh9H59AfrTJE")
+             :collection (PublicKey. "nftNgYSG5pbwL7kHeJ5NeDrX8c4KrG1CzWhEXT8RMJ3")
+             :job        (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM")}
+   :devnet  {:nos-token  (PublicKey. "devr1BGQndEW5k5zfvG5FsLyZv1Ap73vNgAHcQ9sUVP")
+             :stake      (PublicKey. "nosScmHY2uR24Zh751PmGj9ww9QRNHewh9H59AfrTJE")
+             :collection (PublicKey. "CBLH5YsCPhaQ79zDyzqxEMNMVrE5N7J6h4hrtYNahPLU")
+             :job        (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM")}})
+
+(defn addr-map
+  "Build the maps of addresses usable for all Nosana instructions."
+  [network]
+  )
+
+(defn addr [addr network] (get-in nos-config [network addr]))
 
 
-(def nos-config {:testnet {:signer-addr (PublicKey. "6gcnvYv36JieDQgts7SANrAkqMMRgKjrvoqNi4E2CBNS")
-                           :nos-token (PublicKey. "testsKbCqE8T1ndjY4kNmirvyxjajKvyp1QTDmdGwrp")
-                           :signer-ata (PublicKey. "5oJsuk3MyzDhCYo4YV4CtXZQAS4REnMhV5R72oxsjoHd")
-                           :job (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM")}
-                 :mainnet {:nos-token (PublicKey. "TSTntXiYheDFtAdQ1pNBM2QQncA22PCFLLRr53uBa8i")
-                           :signer-ata (PublicKey. "HvUxNebdW1ACXMNY8sa3u9yrT3Lh5pgRxw6a3rNDvFE9")
-                           :job (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM")
-                           }
-                 :devnet {:nos-token (PublicKey. "testsKbCqE8T1ndjY4kNmirvyxjajKvyp1QTDmdGwrp")
-                          :signer-addr (PublicKey. "6gcnvYv36JieDQgts7SANrAkqMMRgKjrvoqNi4E2CBNS")
-                          :signer-ata (PublicKey. "5oJsuk3MyzDhCYo4YV4CtXZQAS4REnMhV5R72oxsjoHd")
-                          :job (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM")}})
-
-(def system-addr (PublicKey. "11111111111111111111111111111111"))
-(def rent-addr (PublicKey. "SysvarRent111111111111111111111111111111111"))
+(def system-program (PublicKey. "11111111111111111111111111111111"))
+(def rent-program (PublicKey. "SysvarRent111111111111111111111111111111111"))
 (def clock-addr (PublicKey. "SysvarC1ock11111111111111111111111111111111"))
 
 (defn vault-derived-addr [network]
@@ -516,6 +518,26 @@
    json/decode
    (get "IpfsHash")))
 
+(defn get-health
+  "Queuery health statistics for the node."
+  [{:keys [address network nos-ata accounts]}]
+  {:sol (sol/get-balance address network)
+   :nos (sol/get-token-balance nos-ata network)
+   :nft (sol/get-token-balance (get accounts "nft") network)})
+
+(def  min-sol-balance
+  "Minimum Solana balance to be healthy" 100000000)
+
+(defn healthy
+  "Check if the current node is healthy."
+  [config]
+  (let [{:keys [sol nos nft] :as health} (get-health config)]
+    (cond
+      (< sol min-sol-balance) [:error (str "The SOL balance is too low
+      to operate: " sol)]
+      (< nft 1.0)             [:error (str "NFT is missing")]
+      :else [:success health])))
+
 ;; this coerces the flow results for Nosana and uploads them to IPFS. then
 ;; finalizes the Solana transactions for the job
 (defmethod flow/handle-fx :nos.nosana/complete-job
@@ -656,17 +678,54 @@ Node started. LFG.
               stake
               ))
 
-
+(defn make-config
+  "Build the node's config to interact with the Nosana Network."
+  [system]
+  (let [network      (-> system :nos/vault :solana-network)
+        signer       (-> system :nos/vault get-signer-key)
+        signer-pub   (.getPublicKey signer)
+        programs     (network nos-programs)
+        market-pub   (PublicKey. (-> system :nos/vault :nosana-market))
+        market-vault (sol/pda
+                      [(.toByteArray market-pub)
+                       (.toByteArray (:nos-token programs))]
+                      (:job programs))
+        stake        (sol/pda
+                      [(.getBytes "stake")
+                       (.toByteArray (:nos-token programs))
+                       (.toByteArray (.getPublicKey signer))]
+                      (:stake programs))
+        nft-ata      (sol/get-ata
+                      signer-pub
+                      (PublicKey. (-> system :nos/vault :nft)))
+        nos-ata      (sol/get-ata signer-pub (:nos-token programs))]
+    {:network  network
+     :signer   signer
+     :address  signer-pub
+     :programs programs
+     :nos-ata  nos-ata
+     :accounts {"tokenProgram"  (:token sol/addresses)
+                "systemProgram" (:system sol/addresses)
+                "rent"          (:rent sol/addresses)
+                "accessKey"     (PublicKey. (-> system :nos/vault :nft-collection))
+                "authority"     signer-pub
+                "market"        market-pub
+                "mint"          (:nos-token programs)
+                "vault"         market-vault
+                "stake"         stake
+                "nft"           nft-ata}}))
 
 (defmethod ig/init-key :nos.trigger/nosana-jobs
-  [_ {:keys [store flow-ch vault]}]
-  (let [jobs-addrs (atom [])
-        reclaim-addrs (atom [])
+  [_ {:keys [store flow-ch vault] :as system}]
+  (let [network       (:solana-network vault)
+        market        (:nosana-market vault)
+        market-acc    (sol/get-idl-account (-> config network :job) "MarketAccount" market network)
         ;; put any value to `exit-ch` to cancel the `loop-ch`:
         ;; (async/put! exit-ch true)
-        exit-ch (chan)
-        loop-ch (poll-job-loop store flow-ch vault jobs-addrs reclaim-addrs exit-ch)
-        chimes (chime/periodic-seq (Instant/now) (Duration/ofMinutes 1))]
+        exit-ch       (chan)
+        ;; loop-ch       (poll-job-loop store flow-ch vault jobs-addrs reclaim-addrs exit-ch)
+        ;; chimes        (chime/periodic-seq (Instant/now) (Duration/ofMinutes 1))
+        ]
     (log :info "Node configuration "
          (.toString (.getPublicKey (get-signer-key vault)))
          (:solana-network vault)
@@ -679,23 +738,24 @@ Node started. LFG.
      "0.084275"
      "13,260.00")
 
-    {:loop-chan loop-ch
-     :exit-chan exit-ch
-     :refresh-jobs-chime
-     (chime/chime-at chimes
-                     (fn [time]
-                       (let [new-jobs (->> (find-jobs-queues-to-poll (:nosana-jobs-queue vault)) (into []))
-                             new-reclaims (->> (find-jobs-queues-to-poll (:nosana-reclaim-queue vault)) (into []))]
-                         (log :info "Scanning for jobs. Found " (count new-jobs) new-jobs)
-                         (log :info "Refreshing reclaims. There are " (count new-reclaims) new-reclaims)
-                         (reset! jobs-addrs new-jobs)
-                         (reset! reclaim-addrs new-reclaims))))
-     :project-addrs jobs-addrs}))
+    {;:loop-chan     loop-ch
+                                        ;:exit-chan     exit-ch
+     #_:refresh-jobs-chime
+     #_ (chime/chime-at chimes
+                       (fn [time]
+                         (let [new-jobs     (->> (find-jobs-queues-to-poll (:nosana-jobs-queue vault)) (into []))
+                               new-reclaims (->> (find-jobs-queues-to-poll (:nosana-reclaim-queue vault)) (into []))]
+                           (log :info "Scanning for jobs. Found " (count new-jobs) new-jobs)
+                           (log :info "Refreshing reclaims. There are " (count new-reclaims) new-reclaims)
+                           (reset! jobs-addrs new-jobs)
+                           (reset! reclaim-addrs new-reclaims))))
+     }))
 
 (defmethod ig/halt-key! :nos.trigger/nosana-jobs
   [_ {:keys [loop-chan refresh-jobs-chime exit-chan project-addrs]}]
-  (put! exit-chan true)
-  (.close refresh-jobs-chime))
+  ;(put! exit-chan true)
+  ;(.close refresh-jobs-chime)
+  )
 
 ;; to quick run from repl:
 ;;(nos/poll-job-loop (:nos/store system) (:nos/flow-chan system) ["Gcpx9EZSKANBU9nChmkajeaNfrbxWqS2Ytsg3UjnkKmq"])

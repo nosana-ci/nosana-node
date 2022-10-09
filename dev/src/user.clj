@@ -19,7 +19,9 @@
    [clojure.core.async :as async :refer [<!! <! >!!]]
    [nos.store :as store]
    [nosana-node.nosana :as nos]
-   [nosana-node.solana :as sol]))
+   [nosana-node.solana :as sol])
+  (:import [org.p2p.solanaj.core Transaction TransactionInstruction PublicKey
+            Account Message AccountMeta]))
 
 (duct/load-hierarchy)
 
@@ -55,6 +57,11 @@
   "Get signer Solana public key as string"
   []
   (-> system :nos/vault nos/get-signer-key .getPublicKey .toString))
+
+(defn get-signer
+  "Get the signer keypair"
+  []
+  (-> system :nos/vault nos/get-signer-key))
 
 (defn finish-stuck-job!
   "Finish a job that this node has claimed but never finished"

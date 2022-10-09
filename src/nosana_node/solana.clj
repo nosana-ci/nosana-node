@@ -25,9 +25,21 @@
   "Make a solana RPC call.
   This uses clj-http instead of solanaj's client."
   [method params network]
-  (http/post (get rpc network)
-             {:body         (json/encode {:jsonrpc "2.0" :id "1" :method method :params params})
-              :content-type :json}))
+  (->
+   (http/post (get rpc network)
+              {:body         (json/encode {:jsonrpc "2.0" :id "1" :method method :params params})
+               :content-type :json})
+   ))
+
+(defn get-balance [addr network]
+  (->
+   (rpc-call "getBalance" [(.toString addr)] network)
+   :body (json/decode true) :result :value))
+
+(defn get-token-balance [addr network]
+  (->
+   (rpc-call "getTokenAccountBalance" [(.toString addr)] network)
+   :body (json/decode true) :result :value :uiAmount))
 
 (defn get-account-data
   "Get the data of a Solana account as ByteArray."
@@ -135,6 +147,9 @@
                                  (.toByteArray nos-addr)]
                                 nos-jobs))
 
+(defn pda [seeds program]
+  (.getAddress (PublicKey/findProgramAddress seeds program)))
+
 (defn get-nos-stake-pda
   "Find the PDA of a stake for an account."
   [addr]
@@ -146,10 +161,11 @@
 (defn get-ata
   "Find the Associated Token Account for an address and mint."
   [addr mint]
-  (PublicKey/findProgramAddress [(.toByteArray addr)
-                                 (.toByteArray token-program-id)
-                                 (.toByteArray mint)]
-                                ata-addr))
+  (.getAddress
+   (PublicKey/findProgramAddress [(.toByteArray addr)
+                                  (.toByteArray token-program-id)
+                                  (.toByteArray mint)]
+                                 ata-addr)))
 
 ;; TEMP: account needed for enter instructions
 (def enter-accs
@@ -201,7 +217,8 @@
        (for [i    (range elm-count)
              :let [idx (+ ofs 4 (* i elm-size))]]
          (PublicKey/readPubkey data idx))])
-    :else                (throw (ex-info "Unkown IDL type " {:type type}))))
+
+    :else (throw (ex-info "Unkown IDL type " {:type type}))))
 
 (defn get-idl-account
   "Fetches and decodes a program account using its IDL."
