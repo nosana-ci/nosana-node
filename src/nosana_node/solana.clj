@@ -11,7 +11,7 @@
    [org.p2p.solanaj.utils ByteUtils]
    [org.p2p.solanaj.rpc RpcClient Cluster]
    [org.bitcoinj.core Utils Base58 Sha256Hash]
-   [java.io ByteArrayInputStream]
+   [java.io ByteArrayOutputStream ByteArrayInputStream]
    [java.util Arrays]
    [java.util.zip Inflater InflaterInputStream]
    [org.p2p.solanaj.core Transaction TransactionInstruction PublicKey
@@ -101,19 +101,32 @@
 (defn idl-type->size
   "Get the size in bytes of an IDL data type.
   Input is an IDL type like \"u64\" or `{:array [\"u8\" 32]}`"
-  [type]
+  [type idl]
   (cond
     (= type "u64")       8
     (= type "i64")       8
     (= type "u32")       4
     (= type "u8")        1
     (= type "publicKey") 40
+
+    ;; array is fixed length
     (:array type)
     (let [[inner-type length] (:array type)]
-      (* length (idl-type->size inner-type)))
+      (* length (idl-type->size inner-type idl)))
+
+    ;; vector is dycnamic length so can only calculate with
+    ;; `read-type`, where the data is present
     (:vec type)
-    (let [[inner-type length] (:vec type)]
-      (* length (idl-type->size inner-type)))
+    (throw (Exception. "Can not read size of dynamic length vector"))
+
+    ;; defined refers to a custom struct defined in the idl
+    (:defined type)
+    (let [elm-type   (:defined type)
+          idl-fields (->> idl :types (filter #(= (:name %) elm-type)) first :type :fields)]
+      (->> idl-fields
+           (map #(idl-type->size (:type %) idl))
+           (reduce +)))
+
     :else (throw (ex-info "Unkown IDL type " {:type type}))))
 
 
@@ -135,10 +148,11 @@
   "Finds the MetaPlex metadata address for an NFT mint
   See https://docs.metaplex.com/programs/token-metadata/changelog/v1.0"
   [mint-id]
-  (PublicKey/findProgramAddress [(.getBytes "metadata")
-                                 (.toByteArray (:metaplex-metadata addresses))
-                                 (.toByteArray mint-id)]
-                                metaplex-metadata-address))
+  (.getAddress
+   (PublicKey/findProgramAddress [(.getBytes "metadata")
+                                  (.toByteArray (:metaplex-metadata addresses))
+                                  (.toByteArray mint-id)]
+                                 (:metaplex-metadata addresses))))
 
 (defn get-nos-market-pda
   "Find the PDA of a markets vault."
@@ -163,7 +177,7 @@
   [addr mint]
   (.getAddress
    (PublicKey/findProgramAddress [(.toByteArray addr)
-                                  (.toByteArray token-program-id)
+                                  (.toByteArray (:token addresses))
                                   (.toByteArray mint)]
                                  ata-addr)))
 
@@ -184,41 +198,78 @@
         discriminator (hex->bytes (anchor-dispatch-id ins))
         ins           (->> idl :instructions (filter #(= (:name %) ins)) first)
         ins-keys      (java.util.ArrayList.)
-        args-size     (reduce #(+ %1  (idl-type->size (:type %2))) 0 (:args ins))
+        args-size     (reduce #(+ %1 (idl-type->size (:type %2) idl)) 0 (:args ins))
         ins-data      (byte-array (+ 8 args-size))]
+
+    ;; build up the insturctions ArrayList
     (doseq [{:keys [name isMut isSigner]} (:accounts ins)]
       (when (not (contains? accounts name))
-        (throw (Exception. "Missing required account for instruction")))
+        (throw (ex-info "Missing required account for instruction" {:missing name})))
       (.add ins-keys (AccountMeta. (get accounts name) isSigner isMut)))
-    (System/arraycopy discriminator 0 ins-data 0 8)
+
+    ;; in anchor the instruction data always starts with 8 bytes id
     ;; TODO: copy arguments into ins-data
+    (System/arraycopy discriminator 0 ins-data 0 8)
+
     (let [txi (TransactionInstruction. program-id ins-keys ins-data)
         tx  (doto (Transaction.)
               (.addInstruction txi))]
       tx)))
 
 (defn read-type
-  "Reads a single IDL parameter of  `type` from byte array `data`.
-  Starts reading at `ofs`. Type is as defined in the IDL, like
-  `\"u64\"` or `{:vec \"publicKey\"}`. Returns a tuple with the number
-  of bytes read and the clojure data."
-  [data ofs type]
-  (cond
-    (= type "u64")       [8 (ByteUtils/readUint64 data ofs)]
-    (= type "i64")       [8 (Utils/readInt64 data ofs)]
-    (= type "u32")       [4 (Utils/readUint32 data ofs)]
-    (= type "u8")        [1 (get data ofs)]
-    (= type "publicKey") [32 (PublicKey/readPubkey data ofs)]
-    (:vec type)
-    (let [elm-count (Utils/readUint32 data ofs)
-          elm-size  (idl-type->size (:vec type))
-          type-size (+ 4 (* elm-size elm-count))]
-      [type-size
-       (for [i    (range elm-count)
-             :let [idx (+ ofs 4 (* i elm-size))]]
-         (PublicKey/readPubkey data idx))])
+  "Reads a single IDL parameter of `type` from byte array `data`.
 
-    :else (throw (ex-info "Unkown IDL type " {:type type}))))
+  Starts reading at `ofs`. Type is as defined in the IDL, like
+  `\"u64\"` or `{:vec \"publicKey\"}`. Returns a tuple with the total
+  number of bytes read and the clojure data.
+
+  If `prefix-size?` is false then return only the clojure data."
+  ([data ofs type idl] (read-type data ofs type idl true))
+  ([data ofs type idl prefix-size?]
+   (cond->
+     (cond
+       (= type "u64")       [8 (ByteUtils/readUint64 data ofs)]
+       (= type "i64")       [8 (Utils/readInt64 data ofs)]
+       (= type "u32")       [4 (Utils/readUint32 data ofs)]
+       (= type "u8")        [1 (get data ofs)]
+       (= type "publicKey") [32 (PublicKey/readPubkey data ofs)]
+
+       ;; vectors are dynamic sized
+       (:vec type)
+       (let [elm-type  (:vec type)
+             elm-count (Utils/readUint32 data ofs)
+             elm-size  (idl-type->size elm-type idl)
+             type-size (+ 4 (* elm-size elm-count))]
+         [type-size
+          (for [i    (range elm-count)
+                :let [idx (+ ofs 4 (* i elm-size))]]
+            (read-type data idx elm-type idl false))])
+
+       ;; arrays are static sized
+       (:array type)
+       (let [[elm-type elm-count] (:array type)
+             elm-size             (idl-type->size elm-type idl)
+             type-size            (* elm-size elm-count)]
+         [type-size
+          (for [i    (range elm-count)
+                :let [idx (+ ofs (* i elm-size))]]
+            (read-type data idx elm-type idl false))])
+
+       ;; defined refers to a type struct in the idl
+       (:defined type)
+       (let [elm-type   (:defined type)
+             idl-fields (->> idl :types (filter #(= (:name %) elm-type)) first :type :fields)]
+         (loop [loop-size           0
+                [field & remaining] idl-fields
+                results             {}]
+           (if field
+             (let [[size value] (read-type data (+ ofs loop-size) (:type field) idl)]
+               (recur (+ loop-size size) remaining (assoc results (:name field) value)))
+             [loop-size results])))
+
+       :else (throw (ex-info "Unkown IDL type " {:type type})))
+     ;; if not prefix-size? skip size
+     (not prefix-size?) second)))
 
 (defn get-idl-account
   "Fetches and decodes a program account using its IDL."
@@ -284,3 +335,6 @@
              "metadata"  k})
 
 ;; (sol/idl-tx idl "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM" "enter" accs)
+
+;; (def tx (nos/build-idl-tx :job "work" conf {"job" (.getPublicKey (:dummy-signer conf))}))
+;; (sol/send-tx tx [(:signer conf) (:dummy-signer conf)] :devnet)
