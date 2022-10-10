@@ -6,8 +6,7 @@
  #or [#env SOLANA_PRIVATE_KEY
       #join ["" #include #join [#env HOME "/.config/solana/id.json"]]]
 
- :dummy-private-key
- #or [#env DUMMY_PRIVATE_KEY #ref [:local-config :dummy-private-key]]
+ :dummy-private-key #include "dummy-private-key.json"
 
  :nosana-market
  #or [#env NOSANA_MARKET  #ref [:local-config :nosana-market]]

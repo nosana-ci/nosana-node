@@ -71,23 +71,18 @@
              :job         (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM")
              :reward      (PublicKey. "nosRB8DUV67oLNrL45bo2pFLrmsWPiewe2Lk2DRNYCp")
              :pool        (PublicKey. "nosPdZrfDzND1LAR28FLMDEATUPK53K8xbRBXAirevD")
-             :reward-pool (PublicKey. "mineHEHiHxWS8pVkNc5kFkrvv5a9xMVgRY9wfXtkMsS")}
+             :reward-pool (PublicKey. "mineHEHiHxWS8pVkNc5kFkrvv5a9xMVgRY9wfXtkMsS")
+             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")}
    :devnet  {:nos-token   (PublicKey. "devr1BGQndEW5k5zfvG5FsLyZv1Ap73vNgAHcQ9sUVP")
              :stake       (PublicKey. "nosScmHY2uR24Zh751PmGj9ww9QRNHewh9H59AfrTJE")
              :collection  (PublicKey. "CBLH5YsCPhaQ79zDyzqxEMNMVrE5N7J6h4hrtYNahPLU")
              :job         (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM")
              :reward      (PublicKey. "nosRB8DUV67oLNrL45bo2pFLrmsWPiewe2Lk2DRNYCp")
              :pool        (PublicKey. "nosPdZrfDzND1LAR28FLMDEATUPK53K8xbRBXAirevD")
-             :reward-pool (PublicKey. "miF9saGY5WS747oia48WR3CMFZMAGG8xt6ajB7rdV3e")}})
-
-
-(defn addr-map
-  "Build the maps of addresses usable for all Nosana instructions."
-  [network]
-  )
+             :reward-pool (PublicKey. "miF9saGY5WS747oia48WR3CMFZMAGG8xt6ajB7rdV3e")
+             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")}})
 
 (defn addr [addr network] (get-in nos-config [network addr]))
-
 
 (def system-program (PublicKey. "11111111111111111111111111111111"))
 (def rent-program (PublicKey. "SysvarRent111111111111111111111111111111111"))
@@ -704,21 +699,22 @@ Node started. LFG.
                       signer-pub
                       (PublicKey. (-> system :nos/vault :nft)))
         nos-ata      (sol/get-ata signer-pub (:nos-token programs))]
-    {:network  network
-     :signer   signer
-     :address  signer-pub
-     :programs programs
-     :nos-ata  nos-ata
-     :accounts {"tokenProgram"  (:token sol/addresses)
-                "systemProgram" (:system sol/addresses)
-                "rent"          (:rent sol/addresses)
-                "accessKey"     (PublicKey. (-> system :nos/vault :nft-collection))
-                "authority"     signer-pub
-                "market"        market-pub
-                "mint"          (:nos-token programs)
-                "vault"         market-vault
-                "stake"         stake
-                "nft"           nft-ata}}))
+    {:network      network
+     :signer       signer
+     :dummy-signer (-> system :nos/vault :dummy-private-key byte-array Account.)
+     :address      signer-pub
+     :programs     programs
+     :nos-ata      nos-ata
+     :accounts     {"tokenProgram"  (:token sol/addresses)
+                    "systemProgram" (:system sol/addresses)
+                    "rent"          (:rent sol/addresses)
+                    "accessKey"     (PublicKey. (-> system :nos/vault :nft-collection))
+                    "authority"     signer-pub
+                    "market"        market-pub
+                    "mint"          (:nos-token programs)
+                    "vault"         market-vault
+                    "stake"         stake
+                    "nft"           nft-ata}}))
 
 (defmethod ig/init-key :nos.trigger/nosana-jobs
   [_ {:keys [store flow-ch vault] :as system}]
