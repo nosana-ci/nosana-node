@@ -231,16 +231,19 @@
            [field & remaining] fields
            data                {}]
       (if field
-        (let [[size value] (read-type acc-data ofs (:type field))]
+        (let [[size value] (read-type acc-data ofs (:type field) idl)]
           (recur (+ ofs size)
                  remaining
                  (assoc data (keyword (:name field)) value)))
         data))))
 
-(defn send-tx [tx signers network]
+(defn send-tx
+  "Sign and send a transaction using solanaj rpc.
+  `signers` should be clojure seq of PublicKeys"
+  [tx signers network]
   (let [client (RpcClient. (get rpc network))
         api (.getApi client)
-        sig (.sendTransaction api tx signers)]
+        sig (.sendTransaction api tx (java.util.ArrayList. signers))]
     sig))
 
 (defn get-tx
@@ -264,7 +267,6 @@
          (do (<! (timeout timeout-ms))
              (recur (inc tries))))))))
 
-
 ;;=================
 ;; EXAMPLES
 ;;=================
@@ -282,25 +284,3 @@
              "metadata"  k})
 
 ;; (sol/idl-tx idl "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM" "enter" accs)
-
-;; (defn sol-finish-job-tx [job-addr ipfs-hash signer-addr network]
-;;   (let [job-key (PublicKey. job-addr)
-;;         get-addr #(-> nos-config network %)
-;;         keys (doto (java.util.ArrayList.)
-;;                (.add (AccountMeta. job-key false true))            ; job
-;;                (.add (AccountMeta. (vault-ata-addr network) false true))     ; vault-ata
-;;                (.add (AccountMeta. (get-addr :signer-ata) false true))    ; ataTo
-;;                (.add (AccountMeta. signer-addr true false))        ; authority
-;;                (.add (AccountMeta. token-program-id false false))  ; token
-;;                (.add (AccountMeta. clock-addr false false))        ; clock
-;;                )
-;;         data (byte-array (repeat (+ 8 1 32) (byte 0)))
-;;         ins-idx (byte-array (javax.xml.bind.DatatypeConverter/parseHexBinary "73d976b04fcbc8c2"))]
-;;     (System/arraycopy ins-idx 0 data 0 8)
-;;     (aset-byte data 8 (unchecked-byte (.getNonce (vault-derived-addr network))))
-;;     (System/arraycopy (ipfs-hash->job-bytes ipfs-hash) 0 data 9 32)
-;;     (let [txi (TransactionInstruction. (get-addr :job) keys data)
-;;           tx (doto (Transaction.)
-;;                (.addInstruction txi)
-;;                )]
-;;       tx)))
