@@ -1,19 +1,22 @@
-{:config     #include #join [#env HOME "/.nosana-node-config.edn"]
- :pinata-jwt #profile {:prod #env PINATA_JWT
-                       :dev  #ref [:config :pinata-jwt]}
+{:local-config #include #join [#env HOME "/.nosana-node-config.edn"]
+ :pinata-jwt   #profile {:prod #env PINATA_JWT
+                         :dev  #ref [:local-config :pinata-jwt]}
 
  :solana-private-key
  #or [#env SOLANA_PRIVATE_KEY
       #join ["" #include #join [#env HOME "/.config/solana/id.json"]]]
 
+ :dummy-private-key
+ #or [#env DUMMY_PRIVATE_KEY #ref [:local-config :dummy-private-key]]
+
  :nosana-market
- #or [#env NOSANA_MARKET  #ref [:config :nosana-market]]
+ #or [#env NOSANA_MARKET  #ref [:local-config :nosana-market]]
 
  :nft
- #or [#env NOSANA_NODE_NFT #ref [:config :nft]]
+ #or [#env NOSANA_NODE_NFT #ref [:local-config :nft]]
 
  :nft-collection
- #or [#env NOSANA_NODE_NFT_COLLECTION #ref [:config :nft-collection]]
+ #or [#env NOSANA_NODE_NFT_COLLECTION #ref [:local-config :nft-collection]]
 
  :solana-network
  #keyword #or [#env SOLANA_NETWORK :devnet]
