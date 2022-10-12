@@ -89,12 +89,12 @@
         true)))))
 
 (defn anchor-dispatch-id
-  "Get the Anchor dispatch for a method
+  "Get the Anchor dispatch for a method.
 
   Anchor uses an 8 byte dispatch ID for program methods, derived from the method
-  name: Sha256(<namespace>:<method>)[..8]
+  name: `Sha256(<namespace>:<method>)[..8]`.
 
-  For user defined methods the namespace is global."
+  For user defined methods the namespace is \"global\"."
   [method]
   (->> method (str "global:") util/sha256 (take 16) (reduce str)))
 
