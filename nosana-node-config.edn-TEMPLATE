@@ -1,0 +1,5 @@
+{:nft               nil
+ :pinata-jwt        nil
+ :solana-network    :devnet
+ :nosana-market     "2U7VPHR3CHDAEi1e8hiF2tvpQYohbHojANwJAuB58yKM"
+ :nft-collection    "CBLH5YsCPhaQ79zDyzqxEMNMVrE5N7J6h4hrtYNahPLU"}

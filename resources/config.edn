@@ -12,10 +12,10 @@
  #or [#env NOSANA_MARKET  #ref [:local-config :nosana-market]]
 
  :nft
- #or [#env NOSANA_NODE_NFT #ref [:local-config :nft]]
+ #or [#env NOSANA_NFT #ref [:local-config :nft]]
 
  :nft-collection
- #or [#env NOSANA_NODE_NFT_COLLECTION #ref [:local-config :nft-collection]]
+ #or [#env NOSANA_NFT_COLLECTION #ref [:local-config :nft-collection]]
 
  :ipfs-url
  #or [#env IPFS_URL "https://nosana.mypinata.cloud/ipfs/"]
@@ -24,7 +24,9 @@
  #profile {:prod true :dev  false}
 
  :solana-network
- #keyword #or [#env SOLANA_NETWORK :devnet]
+ #keyword #or [#env SOLANA_NETWORK
+               #ref [:local-config :solana-network]
+               :devnet]
 
  :poll-delay-ms
  #long #or [#env NOSANA_POLL_DELAY_MS 30000]
