@@ -608,10 +608,11 @@ Node started. LFG.
 
 (defn enter-market
   "Enter market, assuming there are no jobs in the queue."
-  [{:keys [dummy dummy-signer] :as conf}]
-  (let [tx (build-idl-tx :job "work" []
-                         conf {"run" dummy})]
-    (sol/send-tx tx [(:signer conf) dummy-signer] (:network conf))))
+  [conf]
+  (let [run (Account.)
+        tx  (build-idl-tx :job "work" []
+                          conf {"run" (.getPublicKey run)})]
+    (sol/send-tx tx [(:signer conf) run] (:network conf))))
 
 (defn finish-job
   "Post results for an owned job."
