@@ -25,7 +25,7 @@ with:
 solana-keygen new
 ```
 
-Make sure your Solana account has enough staked and hold an NFT.
+Make sure your Solana account has enough staked and holds an NFT.
 
 ##### Pinata
 
@@ -37,7 +37,7 @@ feel free to open a GitHub issue with suggestions.
 For now, log in to Pinata and generate new API credentials with the
 `pinJSONToIPFS` ability. Then copy the JWT value to your config.
 
-### Config overview
+##### Config overview
 
 Below is the table of config values that can be set:
 
@@ -57,7 +57,7 @@ Below is the table of config values that can be set:
 ### Local development
 
 This project includes [solanaj](https://github.com/p2p-org/solanaj) as
-a git submodule, so you will have to clone this repository it
+a git submodule, so you will have to clone this repository
 recursively.
 
 The solanaj classes have to be compiled once before we start:
@@ -66,13 +66,6 @@ The solanaj classes have to be compiled once before we start:
 clj -X:compile
 ```
 
-To quickly start a development repl, and spin up the node:
-
-```
-$ clj -M:dev -r
-Clojure 1.10.0
-user=> (go)
-```
 
 This will print the node configuration and check if it's healthy.
 
@@ -103,8 +96,55 @@ docker run -d --name podman --device /dev/fuse --security-opt seccomp=unconfined
 
 Podman will be used to spin up containers for Nosana jobs.
 
+### Hacking locally
 
+To quickly start a development REPL, and spin up the node:
 
 ```
-docker run --rm -it -e "SOLANA_PRIVATE_KEY=$(< ~/.config/solana/id.json)" -e "PODMAN_CONN_URI=http://$(docker inspect -f '{{ .NetworkSettings.IPAddress }}' podman):8080" nos/node
+$ clj -M:dev -r
+Clojure 1.10.0
+user=> (go)
+```
+
+Make sure that your node is health and fix any configuration issues
+that are reported.
+
+This is the fun part! You are now able to interact with the Nosana
+network directly through this interface.
+
+Here are some example commands to check:
+
+```
+;; create a config object to use from the repl
+user=> (def conf (nos/make-config system))
+
+;; displays your the current market and queue
+user=> (nos/get-market conf)
+
+;; see you if you have any jobs claimed
+user=> (nos/find-my-runs conf)
+
+;; enter the market queue
+user=> (nos/enter-market conf)
+
+;; or: just run the main loop, that will process work (polls after 30 seconds)
+user=> (<!! (nos/work-loop conf system))
+```
+
+### Production nodes
+
+Prodcution nodes can run on any device with a JVM and Podman
+available. For simplicity we recommend running the node through
+docker. Below is an example of how you could start a Docker based
+Nosana node, in which you will have to fillout the correct environment
+variables:
+
+```
+docker run --rm -it \
+  -e "SOLANA_PRIVATE_KEY=$(< ~/.config/solana/id.json)"
+  -e "PODMAN_CONN_URI=http://$(docker inspect -f '{{ .NetworkSettings.IPAddress }}' podman):8080" \
+  -e "NOSANA_NFT=nftaddress" \
+  -e "SOLANA_NETWORK=mainnet" \
+  -e "PINATA_JWT=jwtvalue" \
+  nos/node
 ```
