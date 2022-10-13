@@ -174,14 +174,17 @@
 
 (defn healthy
   "Check if the current node is healthy."
-  [config]
-  (let [{:keys [sol nos nft] :as health} (get-health config)]
+  [conf]
+  (let [{:keys [sol nos nft] :as health} (get-health conf)]
     (cond
       (< sol min-sol-balance)
       [:error health (str "SOL balance is too low to operate.")]
 
       (< nft 1.0)
       [:error health (str "Burner Phone NFT is missing")]
+
+      (nil? (:pinata-jwt conf))
+      [:error health "Pinata JWT not found, node will not be able to submit any jobs."]
 
       :else [:success health])))
 
@@ -491,11 +494,12 @@ Running Nosana Node %s
 
     (case status
       :success (println "Node started. LFG.")
-      :error   (println "Node not healthy: " msg))
+      :error   (println "\u001B[31mNode not healthy:\u001B[0m " msg))
 
     ;; put any value to `exit-ch` to cancel the `loop-ch`:
     ;; (async/put! exit-ch true)
-    {:loop-ch    (when (:start-job-loop? vault) (work-loop conf system))
+    {:loop-ch    (when (and (:start-job-loop? vault) (= :success status))
+                   (work-loop conf system))
      :exit-chan  (chan)
      :poll-delay (:poll-delay-ms vault)}))
 
