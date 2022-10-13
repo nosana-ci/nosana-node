@@ -17,7 +17,17 @@
  :nft-collection
  #or [#env NOSANA_NODE_NFT_COLLECTION #ref [:local-config :nft-collection]]
 
+ :ipfs-url
+ #or [#env IPFS_URL "https://nosana.mypinata.cloud/ipfs/"]
+
+ :start-job-loop?
+ #profile {:prod true :dev  false}
+
  :solana-network
  #keyword #or [#env SOLANA_NETWORK :devnet]
+
+ :poll-delay-ms
+ #long #or [#env NOSANA_POLL_DELAY_MS 30000]
+
  :podman-conn-uri #profile {:prod #or [#env PODMAN_CONN_URI "http://podman:8080"]
                             :dev  "http://localhost:8080"}}

@@ -12,7 +12,9 @@
             [clojure.string :as string]
             [cheshire.core :as json]
             [clj-yaml.core :as yaml]
-            [nosana-node.util :as util]
+            [nosana-node.util
+             :refer [ipfs-hash->bytes bytes->ipfs-hash]
+             :as util]
             [nosana-node.solana :as sol])
   (:import java.util.Base64
            java.security.MessageDigest
@@ -44,7 +46,7 @@
   (javax.xml.bind.DatatypeConverter/parseHexBinary string))
 
 (defn bytes->hex [arr]
-    (javax.xml.bind.DatatypeConverter/printHexBinary arr))
+  (javax.xml.bind.DatatypeConverter/printHexBinary arr))
 
 (defn make-cli-ops [cmds podman-conn image]
   [{:op :docker/run
@@ -58,18 +60,7 @@
     :deps [:checkout]}])
 
 ;; (def ipfs-base-url "https://cloudflare-ipfs.com/ipfs/")
-(def ipfs-base-url "https://nosana.mypinata.cloud/ipfs/")
 (def pinata-api-url "https://api.pinata.cloud")
-
-(defn str->base64 [string] (.encodeToString (Base64/getEncoder) (.getBytes string)))
-(defn base64->bytes [base64] (.decode (Base64/getDecoder) base64))
-
-(def sol-rpc {:testnet "https://api.testnet.solana.com"
-              :devnet "https://api.devnet.solana.com"
-              :mainnet "https://solana-api.projectserum.com"})
-
-(defn public-key->bytes [pub]
-  (.toByteArray (PublicKey. pub)))
 
 (def nos-accounts
   {:mainnet {:nos-token   (PublicKey. "TSTntXiYheDFtAdQ1pNBM2QQncA22PCFLLRr53uBa8i")
@@ -89,150 +80,26 @@
              :reward-pool (PublicKey. "miF9saGY5WS747oia48WR3CMFZMAGG8xt6ajB7rdV3e")
              :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")}})
 
-(def system-program (PublicKey. "11111111111111111111111111111111"))
-(def rent-program (PublicKey. "SysvarRent111111111111111111111111111111111"))
-(def clock-addr (PublicKey. "SysvarC1ock11111111111111111111111111111111"))
-
-(def job-acc (Account.))
-
 (defn bytes-to-hex-str
   "Convert a seq of bytes into a hex encoded string."
   [bytes]
   (apply str (for [b bytes] (format "%02x" b))))
 
-(defn ipfs-bytes->ipfs-hash
-  "Convert the ipfs bytes from a solana job to a CID
 
-  It prepends the 0x1220 to make it 34 bytes and Base58 encodes it. This result
-  is IPFS addressable."
-  [bytes]
-  (->>  bytes bytes->hex (str "1220") hex->bytes Base58/encode ))
-
-(defn ipfs-hash->job-bytes
-  "Convert IPFS hash to a jobs byte array
-
-  It Base58 decodes the hash and drops the first 2 bytes as they are static for
-  our IPFS hashses (0x1220, the 0x12 means Sha256 and 0x20 means 256 bits)"
-  [hash]
-  (->> hash Base58/decode (drop 2) byte-array))
-
-;; (defn sol-finish-job-tx [job-addr ipfs-hash signer-addr network]
-;;   (let [job-key (PublicKey. job-addr)
-;;         get-addr #(-> nos-config network %)
-;;         keys (doto (java.util.ArrayList.)
-;;                (.add (AccountMeta. job-key false true))            ; job
-;;                (.add (AccountMeta. (vault-ata-addr network) false true))     ; vault-ata
-;;                (.add (AccountMeta. (get-addr :signer-ata) false true))    ; ataTo
-;;                (.add (AccountMeta. signer-addr true false))        ; authority
-;;                (.add (AccountMeta. token-program-id false false))  ; token
-;;                (.add (AccountMeta. clock-addr false false))        ; clock
-;;                )
-;;         data (byte-array (repeat (+ 8 1 32) (byte 0)))
-;;         ins-idx (byte-array (javax.xml.bind.DatatypeConverter/parseHexBinary "73d976b04fcbc8c2"))]
-;;     (System/iarraycopy ins-idx 0 data 0 8)
-;;     (aset-byte data 8 (unchecked-byte (.getNonce (vault-derived-addr network))))
-;;     (System/arraycopy (ipfs-hash->job-bytes ipfs-hash) 0 data 9 32)
-;;     (let [txi (TransactionInstruction. (get-addr :job) keys data)
-;;           tx (doto (Transaction.)
-;;                (.addInstruction txi)
-;;                )]
-;;       tx)))
-
-;; (defn sol-claim-job-instruction [jobs-addr job-addr signer-addr network]
-;;   (let [get-addr #(-> nos-config network %)
-;;         keys (doto (java.util.ArrayList.)
-;;                (.add (AccountMeta. (PublicKey. jobs-addr) false true))         ; jobs
-;;                (.add (AccountMeta. (PublicKey. job-addr) false true))         ; job
-;;                (.add (AccountMeta. signer-addr true false))     ; authority
-;;                (.add (AccountMeta. clock-addr false false))     ; clock
-;;                )
-;;         data (byte-array (repeat (+ 8) (byte 0)))
-;;         ins-idx (byte-array (hex->bytes "09a005e7747bc60e"))]
-;;     (System/arraycopy ins-idx 0 data 0 8)
-;;     (let [txi (TransactionInstruction. (get-addr :job) keys data)
-;;           tx (doto (Transaction.)
-;;                (.addInstruction txi)
-;;                )]
-;;       tx)))
-
-;; (defn sol-reclaim-job-instruction [job-addr signer-addr network]
-;;   (let [get-addr #(-> nos-config network %)
-;;         keys (doto (java.util.ArrayList.)
-;;                (.add (AccountMeta. (PublicKey. job-addr) false true))         ; job
-;;                (.add (AccountMeta. signer-addr true false))     ; authority
-;;                (.add (AccountMeta. clock-addr false false))     ; clock
-;;                )
-;;         data (byte-array (repeat (+ 8) (byte 0)))
-;;         ins-idx (byte-array (hex->bytes (:reclaim-job instruction->idx)))]
-;;     (System/arraycopy ins-idx 0 data 0 8)
-;;     (let [txi (TransactionInstruction. (get-addr :job) keys data)
-;;           tx (doto (Transaction.)
-;;                (.addInstruction txi)
-;;                )]
-;;       tx)))
-
-;; Example how to print a raw transaction
-;; (defn print-raw-tx! [signer]
-;;   ;; (prn "nonce: "   (.getNonce vault-derived-addr ))
-
-;;   (let [;;client (RpcClient. "http://localhost:8899")
-;;         client (RpcClient. (:testnet sol-rpc))
-;;         api (.getApi client)
-;;         ;; tx (sol-create-job-instruction)
-;;         block-hash (.getRecentBlockhash api)
-;;         tx (doto (sol-reclaim-job-instruction
-;;                   "22111111111111111111111111111122"
-;;                   "33111111111111111111111111111133"
-;;                   (.getPublicKey signer) :mainnet)
-;;              (.setRecentBlockHash block-hash)
-;;              (.sign [signer])
-;;              )
-;;         _ (prn "bh: " block-hash)
-;;         _ (prn(bytes-to-hex-str (Base58/decode block-hash)))
-;;         _ (prn (bytes-to-hex-str (.serialize tx)))
-;;         ;; sig (.sendTransaction api tx [signer-acc])
-;;         ]
-;;     ;;sig
-;;     nil
-;;     ))
-
-;; (defn claim-job-tx! [jobs-addr job-addr signer network]
-;;   (let [client (RpcClient. (get sol-rpc network))
-;;         api (.getApi client)
-;;         block-hash (.getRecentBlockhash api)
-;;         tx (doto (sol-claim-job-instruction jobs-addr job-addr (.getPublicKey signer) network))
-;;         sig (.sendTransaction api tx [signer])]
-;;     sig))
-
-;; (defn reclaim-job-tx! [job-addr signer network]
-;;   (let [client (RpcClient. (get sol-rpc network))
-;;         api (.getApi client)
-;;         block-hash (.getRecentBlockhash api)
-;;         tx (doto (sol-reclaim-job-instruction job-addr (.getPublicKey signer) network))
-;;         sig (.sendTransaction api tx [signer])]
-;;     sig))
-
-;; (defn finish-job-tx! [job-addr result-ipfs signer network]
-;;   (let [client (RpcClient. (get sol-rpc network))
-;;         api (.getApi client)
-;;         block-hash (.getRecentBlockhash api)
-;;         tx (doto (sol-finish-job-tx job-addr result-ipfs (.getPublicKey signer) network))
-;;         sig (.sendTransaction api tx [signer])]
-;;     sig))
 
 (def download-ipfs
   "Download a file from IPFS by its hash."
   (memoize
-   (fn [hash]
+   (fn [hash {:keys [ipfs-url]}]
      (log :trace "Downloading IPFS file " hash)
-     (-> (str ipfs-base-url hash) http/get :body (json/decode true)))))
+     (-> (str ipfs-url hash) http/get :body (json/decode true)))))
 
 (defn download-job-ipfs
-  [bytes]
+  [bytes conf]
   (-> bytes
       byte-array
-      ipfs-bytes->ipfs-hash
-      download-ipfs
+      bytes->ipfs-hash
+      (download-ipfs conf)
       (update :pipeline yaml/parse-string)))
 
 (defn sha256 [string]
@@ -265,35 +132,6 @@
      (update :ops #(into [] %))
      flow/build)))
 
-(defn make-job-flow-ipfs [job-ipfs job-addr]
-  (let [job (download-job-ipfs job-ipfs)]
-    (make-job-flow job job-addr)))
-
-(defn pick-job
-  "Picks a single job from a sequence of jobs queues
-
-  `job-addrs` is a sequence of Nosana jobs queues. The queues and their jobs are
-  fetched depth-first until a job is found with status unclaimed."
-  [job-addrs network]
-  (loop [remaining-queues (shuffle job-addrs)]
-    (log :info "... Picking jobs " remaining-queues)
-    ;; (when (not-empty remaining-queues)
-    ;;   (if-let [jobs (try
-    ;;                   (-> remaining-queues first (get-jobs network))
-    ;;                   (catch Exception e []))]
-    ;;     (do
-    ;;       (log :info "... Fetched jobs results is " jobs)
-    ;;       (if (empty? (:jobs jobs))
-    ;;         (recur (rest remaining-queues))
-    ;;         (loop [job-addr (first (:jobs jobs))]
-    ;;           (log :info "... Getting job " job-addr)
-    ;;           (let [job (get-job job-addr network)]
-    ;;             (log :info "... Resulted job info is " job)
-    ;;             (if (or (= (:status job) 0))
-    ;;               [(:addr jobs) job]
-    ;;               (recur (rest (:jobs jobs))))))))))
-    ))
-
 (defn get-signer-key
   "Retreive the signer key from the vault"
   [vault]
@@ -306,67 +144,7 @@
   [tx]
   (-> tx :meta :err nil? not))
 
-(defn poll-nosana-job<
-  "Pick, claim, and execute one job from `job-addrs`
 
-  Returns the ID of the nostromo flow initiated when executing the job. If the
-  Solana transaction fails or no suitable job was found return `nil`."
-  [store flow-ch vault jobs-addrs network]
-  (go
-    ;; (when-let [[job-flow claim-sig]
-    ;;            (<! (async/thread
-    ;;                  (when-let [[jobs-addr job] (pick-job jobs-addrs network)]
-    ;;                    (log :info "Trying job " (:addr job) " CID " (:job-ipfs job))
-    ;;                    (let [job-flow (make-job-flow-ipfs (:job-ipfs job) (:addr job))
-    ;;                          _ (log :info ".. Made job flow")
-    ;;                          claim-sig (try
-    ;;                                      (claim-job-tx! jobs-addr (:addr job) (get-signer-key vault) network)
-    ;;                                      (catch Exception e
-    ;;                                        (log :error "Claim job transaction failed." (ex-message e))
-    ;;                                        nil))]
-    ;;                      [job-flow claim-sig]))))]
-    ;;   (when claim-sig
-    ;;     (when-let [tx (<! (get-solana-tx< claim-sig 2000 30 network))]
-    ;;       (if (not (solana-tx-failed? tx))
-    ;;         (do
-    ;;           (log :info "Job claimed. Starting flow " (:id job-flow))
-    ;;           (<! (flow/save-flow job-flow store))
-    ;;           (>! flow-ch [:trigger (:id job-flow)])
-    ;;           (:id job-flow))
-    ;;         (log :info "Job already claimed by someone else.")))))
-    ))
-
-;; (defn reclaim-nosana-job<
-;;   "Pick, reclaim and exeucte one job from `claim-addrs`"
-;;   [store flow-ch vault claim-addrs network]
-;;   (go
-;;     (when (not (empty? claim-addrs))
-;;       (when-let [[job-flow claim-sig job-addr]
-;;                  (<! (async/thread
-;;                        (when-let [job (get-job (rand-nth claim-addrs) network)]
-;;                          (log :info "Trying job " (:addr job) " CID " (:job-ipfs job))
-;;                          (let [job-flow (make-job-flow-ipfs (:job-ipfs job) (:addr job))
-;;                                _ (log :info ".. Made job flow")
-;;                                claim-sig (try
-;;                                            (reclaim-job-tx! (:addr job) (get-signer-key vault) network)
-;;                                            (catch Exception e
-;;                                              (log :error "Reclaim job transaction failed." (ex-message e))
-;;                                              nil))]
-;;                            [job-flow claim-sig (:addr job)]))))]
-;;         (when claim-sig
-;;           (when-let [tx (<! (get-solana-tx< claim-sig 2000 30 network))]
-;;             (if (not (solana-tx-failed? tx))
-;;               (do
-;;                 (log :info "Job reclaimed" job-addr)
-;;                 (refresh-backend-job-status (:nosana-job-status-refresh-url vault) job-addr)
-;;                 (log :info "Job status refreshed in backend.")
-;;                 (log :info "Starting flow" (:id job-flow))
-;;                 (<! (flow/save-flow job-flow store))
-;;                 (>! flow-ch [:trigger (:id job-flow)])
-;;                 (:id job-flow))
-;; (log :info "Job already reclaimed by someone else."))))))))
-
-(derive :nos.nosana/complete-job ::flow/fx)
 
 (defn ipfs-upload
   "Converts a map to a JSON string and pins it using Pinata"
@@ -381,24 +159,30 @@
    json/decode
    (get "IpfsHash")))
 
+(defn format-nos [v]
+  (BigDecimal. (BigInteger. v)  6))
+
 (defn get-health
   "Queuery health statistics for the node."
   [{:keys [address network nos-ata accounts]}]
-  {:sol (sol/get-balance address network)
-   :nos (sol/get-token-balance nos-ata network)
-   :nft (sol/get-token-balance (get accounts "nft") network)})
+  {:sol (sol/format-sol (str (sol/get-balance address network)))
+   :nos (format-nos (sol/get-token-balance nos-ata network))
+   :nft (Integer/parseInt (sol/get-token-balance (get accounts "nft") network))})
 
 (def  min-sol-balance
-  "Minimum Solana balance to be healthy" 100000000)
+  "Minimum Solana balance to be healthy" (sol/format-sol "100000000"))
 
 (defn healthy
   "Check if the current node is healthy."
   [config]
   (let [{:keys [sol nos nft] :as health} (get-health config)]
     (cond
-      (< sol min-sol-balance) [:error (str "The SOL balance is too low
-      to operate: " sol)]
-      (< nft 1.0)             [:error (str "NFT is missing")]
+      (< sol min-sol-balance)
+      [:error health (str "SOL balance is too low to operate.")]
+
+      (< nft 1.0)
+      [:error health (str "Burner Phone NFT is missing")]
+
       :else [:success health])))
 
 ;; this coerces the flow results for Nosana and uploads them to IPFS. then
@@ -441,75 +225,13 @@
   (or (= ::flow/error (get-in flow [:results :clone 0]))
       (= ::flow/error (get-in flow [:results :checkout 0]))))
 
-#_(defn poll-job-loop
-  "Main loop for polling and executing Nosana jobs
-
-  The loop ensures no jobs can be executed in parallel."
-  ([store flow-ch vault job-addrs claim-addrs] (poll-job-loop store flow-ch vault job-addrs claim-addrs (chan)))
-  ([store flow-ch vault job-addrs claim-addrs  exit-ch]
-   (go-loop [active-job nil]
-     (let [timeout-ch (timeout 2000)
-           network (vault/get-secret vault :solana-network)]
-       (async/alt!
-         exit-ch nil
-         (timeout 30000) (if active-job
-                           ;; if we're running a job: check if it's finished
-                           (let [flow (<! (kv/get store active-job))
-                                 ;; TODO: here we manually detect a flow failure
-                                 ;; and trigger an FX and then restore the
-                                 ;; flow. this should be handled by Nostromo
-                                 ;; error handlers when implemented there.
-                                 flow (if (flow-git-failed? flow)
-                                        (flow/handle-fx {:store store :chan flow-ch :vault vault}
-                                                        nil
-                                                        [:nos.nosana/complete-job]
-                                                        flow)
-                                        flow)
-                                 _ (<! (kv/assoc store active-job flow))]
-                             (log :info "Polling Nosana job. Current running job is " (:id flow))
-                             (if (flow-finished? flow)
-                               (let [job-addr (get-in flow [:results :input/job-addr])
-                                     finish-sig
-                                     (try
-                                       ;; (finish-job-tx! job-addr
-                                       ;;                 (get-in flow [:results :result/ipfs])
-                                       ;;                 (get-signer-key vault)
-                                       ;;                 network)
-                                       (catch Exception e
-                                         (log :error "Finished job transaction failed. Sleep and retry." (ex-message e))
-                                         (<! (timeout 10000))
-                                         nil))]
-                                 (log :info "Waiting for finish job tx " finish-sig)
-                                 (if finish-sig
-                                   (do
-                                     (<! (sol/await-tx< finish-sig network))
-                                     (log :info "Job finished and status refreshed in backend" job-addr)
-                                     (recur nil))
-                                   (recur active-job)))
-                               ;; if flow is not finished
-                               (recur active-job)))
-                           ;; else: we're not running a job: poll for a new one
-                           (do
-                             (log :info "Polling for a new Nosana job.")
-                             ;; (if-let [flow-id (or (<! (reclaim-nosana-job< store flow-ch vault @claim-addrs network))
-                             ;;                      (<! (poll-nosana-job< store flow-ch vault @job-addrs network)))]
-                             ;;   (do
-                             ;;     (log :info "Started processing of job flow " flow-id)
-                             ;;     (recur flow-id))
-                             ;;   (do
-                             ;;     (log :info "No jobs found. Sleeping.")
-                             ;;     (recur nil)))
-                             )))))))
-
-(derive :nos/jobs :duct/daemon)
-
 (def ascii-logo "  _ __   ___  ___  __ _ _ __   __ _
  | '_ \\ / _ \\/ __|/ _` | '_ \\ / _` |
  | | | | (_) \\__ \\ (_| | | | | (_| |
  |_| |_|\\___/|___/\\__,_|_| |_|\\__,_|")
 
 ;;(nos/print-head "v0.3.19" "4HoZogbrDGwK6UsD1eMgkFKTNDyaqcfb2eodLLtS8NTx" "0.084275" "13,260.00")
-(defn print-head [version address network balance stake]
+(defn print-head [version address network balance stake nft owned]
   (logg/infof "
 %s
 
@@ -520,8 +242,8 @@ Running Nosana Node %s
   Balance    \u001B[34m%s\u001B[0m SOL
   Stake      \u001B[34m%s\u001B[0m NOS
   Slashed    \u001B[34m0.00\u001B[0m NOS
-
-Node started. LFG.
+  NFT        \u001B[34m%s\u001B[0m
+  Owned      \u001B[34m%s\u001B[0m NFT
 "
               ascii-logo
               version
@@ -529,16 +251,18 @@ Node started. LFG.
               network
               balance
               stake
+              nft
+              owned
               ))
 
 (defn make-config
   "Build the node's config to interact with the Nosana Network."
-  [system]
-  (let [network      (-> system :nos/vault :solana-network)
-        signer       (-> system :nos/vault get-signer-key)
+  [{:keys [:nos/vault]}]
+  (let [network      (:solana-network vault)
+        signer       (get-signer-key vault)
         signer-pub   (.getPublicKey signer)
         programs     (network nos-accounts)
-        market-pub   (PublicKey. (-> system :nos/vault :nosana-market))
+        market-pub   (PublicKey. (:nosana-market vault))
         market-vault (sol/pda
                       [(.toByteArray market-pub)
                        (.toByteArray (:nos-token programs))]
@@ -548,18 +272,20 @@ Node started. LFG.
                        (.toByteArray (:nos-token programs))
                        (.toByteArray (.getPublicKey signer))]
                       (:stake programs))
-        nft          (PublicKey. (-> system :nos/vault :nft))
+        nft          (PublicKey. (:nft vault))
         nft-ata      (sol/get-ata signer-pub nft)
         nos-ata      (sol/get-ata signer-pub (:nos-token programs))
-        dummy        (-> system :nos/vault :dummy-private-key byte-array Account.)]
+        dummy        (-> vault :dummy-private-key byte-array Account.)]
     {:network      network
      :signer       signer
      :dummy-signer dummy
-     :pinata-jwt   (-> system :nos/vault :pinata-jwt)
+     :pinata-jwt   (:pinata-jwt vault)
+     :ipfs-url     (:ipfs-url vault)
      :dummy        (.getPublicKey dummy)
      :market       market-pub
      :address      signer-pub
      :programs     programs
+     :nft          nft
      :nos-ata      nos-ata
      :stake-vault  (sol/pda [(.getBytes "vault")
                              (.toByteArray (:nos-token programs))
@@ -568,7 +294,7 @@ Node started. LFG.
      :accounts     {"tokenProgram"      (:token sol/addresses)
                     "systemProgram"     (:system sol/addresses)
                     "rent"              (:rent sol/addresses)
-                    "accessKey"         (PublicKey. (-> system :nos/vault :nft-collection))
+                    "accessKey"         (PublicKey. (:nft-collection vault))
                     "authority"         signer-pub
                     "user"              nos-ata
                     "payer"             signer-pub
@@ -584,9 +310,9 @@ Node started. LFG.
                     "rewardsReflection" (sol/pda [(.getBytes "reflection")]
                                                  (:reward programs))}}))
 
-
-
-(defn build-idl-tx [program ins args {:keys [network accounts]} extra-accounts]
+(defn build-idl-tx
+  "Wrapper around `solana/build-idl-tx` using nosana config"
+  [program ins args {:keys [network accounts]} extra-accounts]
   (sol/build-idl-tx
    (-> nos-accounts network program)
    ins
@@ -600,7 +326,7 @@ Node started. LFG.
   (let [hash (ipfs-upload job conf)
         job  (sol/account)
         run  (sol/account)
-        tx   (build-idl-tx :job "list" [(ipfs-hash->job-bytes hash)]
+        tx   (build-idl-tx :job "list" [(ipfs-hash->bytes hash)]
                            conf {"job" (.getPublicKey job)
                                  "run" (.getPublicKey run)})]
     (log :info "Listing job with hash " (-> job .getPublicKey .toString) hash)
@@ -614,19 +340,24 @@ Node started. LFG.
                           conf {"run" (.getPublicKey run)})]
     (sol/send-tx tx [(:signer conf) run] (:network conf))))
 
-(defn finish-job
-  "Post results for an owned job."
-  [{:keys [network signer] :as conf} job run ipfs-hash]
-  (-> (build-idl-tx :job "finish"
-                    [(ipfs-hash->job-bytes ipfs-hash)]
-                    conf
-                    {"job" job
-                     "run" run})
-      (sol/send-tx [signer] network)))
-
 (defn get-job [{:keys [network programs]} addr]
   (sol/get-idl-account (:job programs) "JobAccount" addr network))
 
+(defn get-run [{:keys [network programs]} addr]
+  (sol/get-idl-account (:job programs) "RunAccount" addr network))
+
+(defn finish-job
+  "Post results for an owned job."
+  [{:keys [network signer] :as conf} job-addr run-addr ipfs-hash]
+  (let [run (get-run conf run-addr)]
+    (-> (build-idl-tx :job "finish"
+                      [(ipfs-hash->bytes ipfs-hash)]
+                      conf
+                      {"job"   job-addr
+                       "run"   run-addr
+                       "payer" (:payer run)})
+        (sol/send-tx [signer] network))))
+;; (let [[run-addr run] (first (nos/find-my-runs conf))] (nos/finish-job conf (:job run) (PublicKey.  run-addr) "QmSM84ChKhuAMMJr4B6gdU22smbkVjVhsVN4aN3rSNzLhX"))
 (defn find-my-jobs
   "Find job accounts owned by this node"
   [{:keys [network programs address]}]
@@ -652,11 +383,6 @@ Node started. LFG.
 (defn is-queued? [conf]
   (let [market (get-market conf)]
     (not-empty (filter #(.equals %1 (:address conf)) (:queue market)))))
-
-(defn work [conf]
-  (let [active-jobs (find-my-jobs conf)]
-
-    ))
 
 (defn process-flow!
   "Check the state of a flow and finalize its job if finished.
@@ -695,7 +421,7 @@ Node started. LFG.
   "Create a flow data structure for a job."
   [job-pub run-pub conf]
   (let [job      (get-job conf job-pub)
-        job-info (download-job-ipfs (:ipfsJob job))]
+        job-info (download-job-ipfs (:ipfsJob job) conf)]
     (make-job-flow job-info job-pub run-pub)))
 
 (defn start-flow-for-run!
@@ -728,55 +454,51 @@ Node started. LFG.
                               (log :info "Found claimed jobs to work on")
                               (recur (<! (start-flow-for-run! (first runs) conf system))))
           (is-queued? conf) (do
-                               (log :info "Waiting in the queue")
-                               (recur nil))
+                              (log :info "Waiting in the queue")
+                              (recur nil))
           :else             (do
                               (log :info "Entering the queue")
                               (sol/await-tx< (enter-market conf) (:network conf))
                               (recur nil)))))))
 
-(defmethod ig/init-key :nos/jobs
-  [_ {:keys [store flow-ch vault] :as system}]
-  (let [network       (:solana-network vault)
-        market        (:nosana-market vault)
-        conf          (make-config system)
-        market-acc    (get-market conf)
+(derive :nos/jobs :duct/daemon)
+(derive :nos.nosana/complete-job ::flow/fx)
 
-        exit-ch       (chan)
-        ;; loop-ch       (poll-job-loop store flow-ch vault jobs-addrs reclaim-addrs exit-ch)
-        ;; chimes        (chime/periodic-seq (Instant/now) (Duration/ofMinutes 1))
-        ]
-    (log :info "Node configuration "
-         (.toString (.getPublicKey (get-signer-key vault)))
-         (:solana-network vault)
-         (:nosana-jobs-queue vault))
+
+
+(defmethod ig/init-key :nos/jobs
+  [_ {:keys [store flow-ch vault]}]
+  (let [system     {:nos/store     store
+                    :nos/flow-chan flow-ch
+                    :nos/vault     vault}
+        network    (:solana-network vault)
+        market     (:nosana-market vault)
+        conf       (make-config system)
+        market-acc (get-market conf)
+        exit-ch    (chan)
+
+        [status health msg] (healthy conf)]
 
     (print-head
-     ;; TODO: version?
+     ;; TODO: version from env
      "v0.3.19"
-     (.toString (.getPublicKey (get-signer-key vault)))
-     (:solana-network vault)
-     "0.084275"
-     "13,260.00")
+     (:address conf)
+     (:network conf)
+     (-> health :sol)
+     (-> health :nos)
+     (:nft conf)
+     (-> health :nft))
 
-    {;:loop-chan     loop-ch
-     ;; put any value to `exit-ch` to cancel the `loop-ch`:
-     ;; (async/put! exit-ch true)
-     :exit-chan     (chan)
-     :poll-delay    5000
-     #_:refresh-jobs-chime
-     #_ (chime/chime-at chimes
-                       (fn [time]
-                         (let [new-jobs     (->> (find-jobs-queues-to-poll (:nosana-jobs-queue vault)) (into []))
-                               new-reclaims (->> (find-jobs-queues-to-poll (:nosana-reclaim-queue vault)) (into []))]
-                           (log :info "Scanning for jobs. Found " (count new-jobs) new-jobs)
-                           (log :info "Refreshing reclaims. There are " (count new-reclaims) new-reclaims)
-                           (reset! jobs-addrs new-jobs)
-                           (reset! reclaim-addrs new-reclaims))))
-     }))
+    (case status
+      :success (println "Node started. LFG.")
+      :error   (println "Node not healthy: " msg))
+
+    ;; put any value to `exit-ch` to cancel the `loop-ch`:
+    ;; (async/put! exit-ch true)
+    {:loop-ch    (when (:start-job-loop? vault) (work-loop conf system))
+     :exit-chan  (chan)
+     :poll-delay (:poll-delay-ms vault)}))
 
 (defmethod ig/halt-key! :nos/jobs
   [_ {:keys [loop-chan refresh-jobs-chime exit-chan project-addrs]}]
-  (put! exit-chan true)
-  ;(.close refresh-jobs-chime)
-  )
+  (put! exit-chan true))

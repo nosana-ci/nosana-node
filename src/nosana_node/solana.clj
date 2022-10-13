@@ -13,6 +13,7 @@
    [org.bitcoinj.core Utils Base58 Sha256Hash]
    [java.io ByteArrayOutputStream ByteArrayInputStream]
    [java.util Arrays]
+   [java.math BigDecimal BigInteger]
    [java.util.zip Inflater InflaterInputStream]
    [org.p2p.solanaj.core Transaction TransactionInstruction PublicKey
     Account Message AccountMeta]))
@@ -41,7 +42,7 @@
 (defn get-token-balance [addr network]
   (->
    (rpc-call "getTokenAccountBalance" [(.toString addr)] network)
-   :body (json/decode true) :result :value :uiAmount))
+   :body (json/decode true) :result :value :amount))
 
 (defn get-account-data
   "Get the data of a Solana account as ByteArray."
@@ -409,6 +410,9 @@
          tx
          (do (<! (timeout timeout-ms))
              (recur (inc tries))))))))
+
+(defn format-sol [v]
+  (BigDecimal. (BigInteger. v)  9))
 
 ;;=================
 ;; EXAMPLES
