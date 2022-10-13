@@ -14,9 +14,9 @@ cp nosana-node-config.edn-TEMPLATE ~/.nosana-node-config.edn
 ```
 
 In development you will only have to enter you node's NFT address in
-the `.nosana-node-config.edn` and you're good-to-go.
+the `.nosana-node-config.edn` and configure Solana and Pinata.
 
-#### Solana keypair
+##### Solana
 
 If you do not have a default Solana keypair yet you can generate one
 with:
@@ -25,12 +25,14 @@ with:
 solana-keygen new
 ```
 
-#### Pinata
+Make sure your Solana account has enough staked and hold an NFT.
+
+##### Pinata
 
 The node uses Pinata to upload job results to IPFS. If you do not have
 Pinata credentials set your node will fail to upload job results and
 get slashed. In the future we will support multiple storage backends -
-feel free to open a Gthub issue with suggestions.
+feel free to open a GitHub issue with suggestions.
 
 For now, log in to Pinata and generate new API credentials with the
 `pinJSONToIPFS` ability. Then copy the JWT value to your config.
