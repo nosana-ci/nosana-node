@@ -28,13 +28,13 @@
  :duct.profile/prod {:nos/vault                {:profile :prod}
                      :nosana-node/nrepl-server {:port 7888}
 
-                     :nos.trigger/nosana-jobs {:flow-ch #ig/ref :nos/flow-chan
-                                               :store   #ig/ref :nos/store
-                                               :vault   #ig/ref :nos/vault}}
+                     :nos/jobs {:flow-ch #ig/ref :nos/flow-chan
+                                :store   #ig/ref :nos/store
+                                :vault   #ig/ref :nos/vault}}
 
- :duct.profile/dev {:nos/vault {:profile :dev}
-                    :nos.trigger/nosana-jobs {:flow-ch #ig/ref :nos/flow-chan
-                                              :store   #ig/ref :nos/store
-                                              :vault   #ig/ref :nos/vault}}
+ :duct.profile/dev    {:nos/vault {:profile :dev}
+                       :nos/jobs  {:flow-ch #ig/ref :nos/flow-chan
+                                   :store   #ig/ref :nos/store
+                                   :vault   #ig/ref :nos/vault}}
  :duct.module/web     {}
  :duct.module/logging {}}

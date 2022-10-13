@@ -1,5 +1,5 @@
 (ns nosana-node.solana
-  (:require [nosana-node.util :refer [hex->bytes] :as util]
+  (:require [nosana-node.util :refer [hex->bytes base58] :as util]
             [cheshire.core :as json]
             [clojure.edn :as edn]
             [taoensso.timbre :refer [log]]
@@ -20,6 +20,8 @@
 (def rpc {:testnet "https://api.testnet.solana.com"
           :devnet  "https://api.devnet.solana.com"
           :mainnet "https://solana-api.projectserum.com"})
+
+(defn account [] (Account.))
 
 (defn rpc-call
   "Make a solana RPC call.
@@ -96,7 +98,15 @@
 
   For user defined methods the namespace is \"global\"."
   [method]
-  (->> method (str "global:") util/sha256 (take 16) (reduce str)))
+  (->> (str "global:" method) util/sha256 (take 16) (reduce str)))
+
+(defn anchor-account-discriminator
+  "Get the Anchor discriminator for an account.
+
+  The first 8 bytes of the account data in an Anchor account match
+  this value: `Sha256(account:<name>)[..8]`."
+  [account-name]
+  (->> (str "account:" account-name) util/sha256 (take 16) (reduce str)))
 
 (defn idl-type->size
   "Get the size in bytes of an IDL data type.
@@ -107,7 +117,7 @@
     (= type "i64")       8
     (= type "u32")       4
     (= type "u8")        1
-    (= type "publicKey") 40
+    (= type "publicKey") 32
 
     ;; array is fixed length
     (:array type)
@@ -190,32 +200,6 @@
    "nft"       (PublicKey. "BSCogYjj6tAfK5S6wm6oGMda5s72qW3SJvbDvAV5sdQ2")
    "metadata"  (PublicKey. "6pYVk617FEPdgiPzrpNLRrq7L9c66y91AEUMJtLjkbEi")})
 
-(defn build-idl-tx
-  "Build a transaction using the IDL of a program.
-  The IDL is fetched from the blockchain using the Anchor standard."
-  [program-id ins accounts network]
-  (let [idl           (fetch-idl program-id network)
-        discriminator (hex->bytes (anchor-dispatch-id ins))
-        ins           (->> idl :instructions (filter #(= (:name %) ins)) first)
-        ins-keys      (java.util.ArrayList.)
-        args-size     (reduce #(+ %1 (idl-type->size (:type %2) idl)) 0 (:args ins))
-        ins-data      (byte-array (+ 8 args-size))]
-
-    ;; build up the insturctions ArrayList
-    (doseq [{:keys [name isMut isSigner]} (:accounts ins)]
-      (when (not (contains? accounts name))
-        (throw (ex-info "Missing required account for instruction" {:missing name})))
-      (.add ins-keys (AccountMeta. (get accounts name) isSigner isMut)))
-
-    ;; in anchor the instruction data always starts with 8 bytes id
-    ;; TODO: copy arguments into ins-data
-    (System/arraycopy discriminator 0 ins-data 0 8)
-
-    (let [txi (TransactionInstruction. program-id ins-keys ins-data)
-        tx  (doto (Transaction.)
-              (.addInstruction txi))]
-      tx)))
-
 (defn read-type
   "Reads a single IDL parameter of `type` from byte array `data`.
 
@@ -271,11 +255,77 @@
      ;; if not prefix-size? skip size
      (not prefix-size?) second)))
 
-(defn get-idl-account
-  "Fetches and decodes a program account using its IDL."
-  [program-id account-type addr network]
-  (let [idl      (fetch-idl program-id network)
-        acc-data (get-account-data addr network)
+(defn write-type
+  "Writes a single IDL parameter of `type` to byte array `data`."
+  [data ofs type value idl]
+  (cond
+    (= type "u8") (aset-byte data ofs (unchecked-byte value))
+    (= type "u64")
+    (let [bos (ByteArrayOutputStream.)]
+      (ByteUtils/uint64ToByteStreamLE (BigInteger. value) bos)
+      (System/arraycopy (.toByteArray bos) 0 data ofs 8))
+
+    ;; arrays are static sized
+    (:array type)
+    (let [[elm-type elm-count] (:array type)
+          elm-size             (idl-type->size elm-type idl)]
+      (doseq [i (range elm-count)
+              :let [idx (+ ofs (* i elm-size))]]
+        (write-type data idx elm-type (nth value i) idl)))
+
+    :else (throw (ex-info "Unkown IDL type " {:type type}))))
+
+(defn build-idl-tx
+  "Build a transaction using the IDL of a program.
+  The IDL is fetched from the blockchain using the Anchor standard."
+  [program-id ins args accounts network]
+  (let [idl           (fetch-idl program-id network)
+        discriminator (hex->bytes (anchor-dispatch-id ins))
+        ins           (->> idl :instructions (filter #(= (:name %) ins)) first)
+        ins-keys      (java.util.ArrayList.)
+        args-size     (reduce #(+ %1 (idl-type->size (:type %2) idl)) 0 (:args ins))
+        ins-data      (byte-array (+ 8 args-size))]
+
+    ;; build up the instructions ArrayList
+    (doseq [{:keys [name isMut isSigner]} (:accounts ins)]
+      (when (not (contains? accounts name))
+        (throw (ex-info "Missing required account for instruction" {:missing name})))
+      (.add ins-keys (AccountMeta. (get accounts name) isSigner isMut)))
+
+    ;; in anchor the instruction data always starts with 8 bytes id
+    (System/arraycopy discriminator 0 ins-data 0 8)
+    (doseq [[arg-value {:keys [name type]}] (zipmap args (:args ins))]
+      (write-type ins-data 8 type arg-value idl))
+
+    (let [txi (TransactionInstruction. program-id ins-keys ins-data)
+        tx  (doto (Transaction.)
+              (.addInstruction txi))]
+      tx)))
+
+;; (let [data (byte-array 30)] (sol/write-type data  0  {:array ["u8" 30]}  (range 30) {}) data)
+;; (def tx (nos/build-idl-tx :job "work" [] conf {"job" (.getPublicKey (:dummy-signer conf))}))
+;; (def tx (nos/build-idl-tx :job "list" [(range 32)] conf {"job" (.getPublicKey (:dummy-signer conf))}))
+;; (sol/send-tx tx [(:signer conf) (:dummy-signer conf)] :devnet)
+
+;; (def job (Account.))
+;; (def tx (nos/build-idl-tx :job "list" [(range 32)] conf {"job" (.getPublicKey job)}))
+;; (sol/send-tx tx [(:signer conf) job)] :devnet)
+
+(defn get-idl-field-offset [program-id account-type field-name network]
+  (let [idl (fetch-idl program-id network)
+        fields
+        (->> idl :accounts (filter #(= (:name %) account-type)) first :type :fields)]
+    (loop [[{:keys [name type]} & remaining] fields
+           ofs             8]
+      (if (= name field-name)
+        ofs
+        (recur remaining
+               (+ ofs (idl-type->size type idl)))))))
+
+(defn decode-idl-account
+  "Decode an accounts byte array to a map using its IDL."
+  [acc-data program-id account-type network]
+  (let [idl (fetch-idl program-id network)
         {:keys [type fields]}
         (->> idl :accounts (filter #(= (:name %) account-type)) first :type)]
     (loop [ofs                 8
@@ -287,6 +337,48 @@
                  remaining
                  (assoc data (keyword (:name field)) value)))
         data))))
+
+(defn get-idl-account
+  "Fetches and decodes a program account using its IDL."
+  [program-id account-type addr network]
+  (let [idl      (fetch-idl program-id network)
+        acc-data (get-account-data addr network)]
+    (decode-idl-account acc-data program-id account-type network)))
+
+(defn get-program-accounts
+  "RPC call to `getProgramAccounts`"
+  [network account filters]
+  (->
+   (rpc-call "getProgramAccounts"
+             [(.toString account)
+              {:encoding "jsonParsed"
+               :filters filters}]
+             network)
+   :body
+   (json/decode true)
+   :result))
+
+(defn get-idl-program-accounts
+  "Gets and decode a program account of a specific IDL with filters.
+  Filters can be specified as a map of attribute to base58 encoded
+  value."
+  [network account type filters]
+  (let [disc-filter {:memcmp {:offset 0
+                               :bytes (-> type anchor-account-discriminator
+                                          hex->bytes base58)}}
+        accounts  (get-program-accounts
+                   network account
+                   (-> (map
+                        (fn [[name bytes]]
+                          {:memcmp {:offset (get-idl-field-offset account type name network)
+                                    :bytes  bytes}})
+                        filters)
+                       (conj disc-filter)))
+        decoded   (->> accounts
+                       (map #(-> % :account :data first util/base64->bytes))
+                       (map #(decode-idl-account % account type network)))
+        addresses (map :pubkey accounts)]
+    (zipmap addresses decoded)))
 
 (defn send-tx
   "Sign and send a transaction using solanaj rpc.

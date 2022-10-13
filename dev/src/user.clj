@@ -10,6 +10,7 @@
    [integrant.repl.state :refer [config system]]
    [nos.core :as flow]
    nos.module.http
+   [nosana-node.util :as util]
    nos.ops.git
    [nos.ops.docker :as docker]
    nos.system
