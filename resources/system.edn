@@ -1,0 +1,40 @@
+{:duct.profile/base
+ {:duct.core/project-ns  nos
+  :duct.core/environment :production
+
+  :nos/program-loader
+  {:store #ig/ref :nos/store
+   :path  "resources/programs"}
+
+  :nos/vault {:path    #duct/env [ "NOS_SECRETS_FILE" :or #duct/resource "config.edn" ]
+              :profile :prod}
+  :nos/store {:path #duct/env [ "NOS_STORE_DIR" :or "/tmp/store" ]}
+
+  :nos/flow-chan   {}
+  :nos/flow-engine {:vault   #ig/ref :nos/vault
+                    :chan    #ig/ref :nos/flow-chan
+                    :store   #ig/ref :nos/store
+                    :log-dir #duct/env [ "NOS_LOG_DIR" :or "/tmp/logs/" ]}
+
+  :nos.handler/health {}
+
+  :duct.server.http/jetty {:port #duct/env ["NOS_HTTP_PORT" :or 3000]}
+
+  :duct.router/ataraxy
+  {:routes     {"/health" [:health]}
+   :handlers   {:health #ig/ref :nos.handler/health}
+   :middleware {}}}
+
+ :duct.profile/prod {:nos/vault                {:profile :prod}
+                     :nosana-node/nrepl-server {:port 7888}
+
+                     :nos/jobs {:flow-ch #ig/ref :nos/flow-chan
+                                :store   #ig/ref :nos/store
+                                :vault   #ig/ref :nos/vault}}
+
+ :duct.profile/dev    {:nos/vault {:profile :dev}
+                       :nos/jobs  {:flow-ch #ig/ref :nos/flow-chan
+                                   :store   #ig/ref :nos/store
+                                   :vault   #ig/ref :nos/vault}}
+ :duct.module/web     {}
+ :duct.module/logging {}}
