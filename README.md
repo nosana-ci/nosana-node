@@ -66,8 +66,8 @@ The solanaj classes have to be compiled once before we start:
 clj -X:compile
 ```
 
-
-This will print the node configuration and check if it's healthy.
+This compiles the solanaj class files and puts them in the `target`
+folder. You can now [start a repl](#hacking-locally).
 
 ### Docker
 
@@ -82,7 +82,8 @@ clj -T:container "$(< jib-local.edn)"
 ```
 
 The `jib.edn` file can be adjusted to push to a different registry or
-supply a different tagger. For more info check the jibbit docs.
+supply a different tagger. For more info check the jibbit docs. For
+CI/CD the [jib-gitlab.edn](jib-gitlab.edn) file is used.
 
 ## Usage
 
@@ -106,19 +107,18 @@ Clojure 1.10.0
 user=> (go)
 ```
 
-Make sure that your node is health and fix any configuration issues
+Make sure that your node is healthy and fix any configuration issues
 that are reported.
 
 This is the fun part! You are now able to interact with the Nosana
 network directly through this interface.
 
-Here are some example commands to check:
+Here are some example commands to check. Note that our repl defined
+the `conf` variable that contains the network configuration, and
+`system` which contains all the components of the server:
 
 ```
-;; create a config object to use from the repl
-user=> (def conf (nos/make-config system))
-
-;; displays your the current market and queue
+;; displays the current market and queue
 user=> (nos/get-market conf)
 
 ;; see you if you have any jobs claimed
@@ -127,8 +127,11 @@ user=> (nos/find-my-runs conf)
 ;; enter the market queue
 user=> (nos/enter-market conf)
 
-;; or: just run the main loop, that will process work (polls after 30 seconds)
-user=> (<!! (nos/work-loop conf system))
+;; or: just run the main loop, that will process jobs (polls after 30 seconds)
+user=> (start-work-loop!)
+
+;; to cancel the main loop
+user=> (nos/exit-work-loop! system)
 ```
 
 ### Production nodes

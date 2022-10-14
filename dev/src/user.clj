@@ -6,11 +6,11 @@
    [clojure.pprint :refer [pprint]]
    [taoensso.timbre :as timbre]
    [duct.core :as duct]
-   [integrant.repl :refer [halt reset resume set-prep! prep init go]]
+   [integrant.repl :refer [halt reset resume set-prep! prep init]]
    [integrant.repl.state :refer [config system]]
    [nos.core :as flow]
    nos.module.http
-   [nosana-node.util :as util]
+   [nosana-node.util :refer [bytes->hex hex->bytes base58] :as util]
    nos.ops.git
    [nos.ops.docker :as docker]
    nos.system
@@ -25,6 +25,13 @@
             Account Message AccountMeta]))
 
 (duct/load-hierarchy)
+
+(def conf nil)
+
+(defn go []
+  (integrant.repl/go)
+  (alter-var-root #'conf (fn [_] (nos/make-config system)))
+  :ready)
 
 (defn get-config []
   (duct/read-config (io/resource "system.edn")))
@@ -63,6 +70,12 @@
   "Get the signer keypair"
   []
   (-> system :nos/vault nos/get-signer-key))
+
+(defn start-work-loop!
+  "Start the polling for jobs in a background thread."
+  []
+  (clojure.core.async/go (nos/work-loop conf system))
+  true)
 
 ;; (defn finish-stuck-job!
 ;;   "Finish a job that this node has claimed but never finished"

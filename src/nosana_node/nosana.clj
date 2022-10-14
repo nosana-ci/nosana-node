@@ -4,7 +4,8 @@
             [chime.core :as chime]
             [clojure.edn :as edn]
             [clj-http.client :as http]
-            [clojure.core.async :as async :refer [<!! <! >!! put! go go-loop >! timeout take! chan]]
+            [clojure.core.async :as async :refer
+             [<!! <! >!! go go-loop >! timeout take! chan put!]]
             [taoensso.timbre :as logg :refer [log]]
             [nos.vault :as vault]
             [chime.core-async :refer [chime-ch]]
@@ -445,7 +446,7 @@ Running Nosana Node %s
   (go-loop [active-flow nil]
     (async/alt!
       ;; put anything on :exit-ch to stop the loop
-      (:exit-chan jobs) nil
+      (:exit-chan jobs) (log :info "Work loop exited")
       ;; otherwise we will loop onwards with a timeout
       (timeout (:poll-delay jobs))
       (let [runs (find-my-runs conf)]
@@ -467,7 +468,10 @@ Running Nosana Node %s
 (derive :nos/jobs :duct/daemon)
 (derive :nos.nosana/complete-job ::flow/fx)
 
-
+(defn exit-work-loop!
+  "Stop the main work loop for the system"
+  [{:keys [nos/jobs]}]
+  (put! (:exit-chan jobs) true))
 
 (defmethod ig/init-key :nos/jobs
   [_ {:keys [store flow-ch vault]}]
