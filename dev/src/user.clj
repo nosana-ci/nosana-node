@@ -19,6 +19,7 @@
    [integrant.core :as ig]
    [clojure.core.async :as async :refer [<!! <! >!!]]
    [nos.store :as store]
+   [nosana-node.pipeline :as pl]
    [nosana-node.nosana :as nos]
    [nosana-node.solana :as sol])
   (:import [org.p2p.solanaj.core Transaction TransactionInstruction PublicKey

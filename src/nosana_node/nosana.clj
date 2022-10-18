@@ -8,6 +8,7 @@
              [<!! <! >!! go go-loop >! timeout take! chan put!]]
             [taoensso.timbre :as logg :refer [log]]
             [nos.vault :as vault]
+            [nosana-node.pipeline :as pipeline]
             [chime.core-async :refer [chime-ch]]
             [konserve.core :as kv]
             [clojure.string :as string]
@@ -26,39 +27,6 @@
            [org.p2p.solanaj.rpc RpcClient Cluster]
            [org.bitcoinj.core Utils Base58]))
 
-(def example-job
-  {:type "Github"
-   :url "https://github.com/nosana-ci/nosana.io"
-   :commit "ef840c0614b0abd2de0816304febeff0296926e0"
-   :pipeline "commands:\n  - yarn install --immutable\n  - yarn lint\n#  - yarn test:ci:storage-ui\n# docker image to run above commands\nimage: node"})
-
-(def base-flow
-  {:ops
-   [{:op :nos.git/ensure-repo
-     :id :clone
-     :args [(flow/ref :input/repo) (flow/ref :input/path)]
-     :deps []}
-    {:op :nos.git/checkout
-     :id :checkout
-     :args [(flow/ref :clone) (flow/ref :input/commit-sha)]
-     :deps []}]})
-
-(defn hex->bytes [string]
-  (javax.xml.bind.DatatypeConverter/parseHexBinary string))
-
-(defn bytes->hex [arr]
-  (javax.xml.bind.DatatypeConverter/printHexBinary arr))
-
-(defn make-cli-ops [cmds podman-conn image]
-  [{:op :docker/run
-    :id :docker-cmds
-    :args [{:cmd cmds
-            :image image
-            :conn {:uri [::flow/vault :podman-conn-uri]}
-            :work-dir [::flow/str "/root" (flow/ref :checkout)]
-            :resources [{:source (flow/ref :checkout) :dest "/root"}]
-            }]
-    :deps [:checkout]}])
 
 ;; (def ipfs-base-url "https://cloudflare-ipfs.com/ipfs/")
 (def pinata-api-url "https://api.pinata.cloud")
@@ -80,13 +48,6 @@
              :pool        (PublicKey. "nosPdZrfDzND1LAR28FLMDEATUPK53K8xbRBXAirevD")
              :reward-pool (PublicKey. "miF9saGY5WS747oia48WR3CMFZMAGG8xt6ajB7rdV3e")
              :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")}})
-
-(defn bytes-to-hex-str
-  "Convert a seq of bytes into a hex encoded string."
-  [bytes]
-  (apply str (for [b bytes] (format "%02x" b))))
-
-
 
 (def download-ipfs
   "Download a file from IPFS by its hash."
@@ -112,27 +73,6 @@
   [name]
   (->> name sha256 (take 20) (reduce str)))
 
-(defn make-job-flow [job job-addr run-addr]
-  (let [new-flow (-> base-flow
-                     (assoc-in [:results :input/repo] (:url job))
-                     (assoc-in [:results :input/path] (str "/tmp/repos/"
-                                                           (hash-repo-url (:url job))))
-                     (assoc-in [:results :input/commit-sha] (:commit job))
-                     (assoc-in [:results :input/job-addr] (.toString job-addr))
-                     (assoc-in [:results :input/run-addr] (.toString run-addr))
-                     (assoc-in [:results :input/commands] (:commands job))
-                     (update :ops concat (make-cli-ops
-                                          (-> job :pipeline :commands)
-                                          {:uri "http://localhost:8080"}
-                                          (-> job :pipeline :image))))
-        last-op-id (-> new-flow :ops last :id)
-        wrap-up-op {:op :fx :id :wrap-up :args [[:nos.nosana/complete-job]] :deps [last-op-id]}]
-    (->
-     new-flow
-     (update :ops concat [wrap-up-op])
-     (update :ops #(into [] %))
-     flow/build)))
-
 (defn get-signer-key
   "Retreive the signer key from the vault"
   [vault]
@@ -144,8 +84,6 @@
   This is when it contains an error object in its metadata"
   [tx]
   (-> tx :meta :err nil? not))
-
-
 
 (defn ipfs-upload
   "Converts a map to a JSON string and pins it using Pinata"
@@ -202,14 +140,17 @@
         ;; we'll slurp the content of the docker logs as they're only on the
         ;; local file system.
         res (-> flow :results
-                (select-keys op-ids)
+                ;; (select-keys op-ids)
                 (update-in [:docker-cmds]
                            (fn [[status results]]
                              (if (= status :error)
                                results
-                               [status (map #(if (:log %) (update %
-                                                                  :log
-                                                                  (fn [l] (-> l slurp json/decode))) %) results)]))))
+                               [status
+                                (map #(if (:log %)
+                                        (update %
+                                                :log
+                                                (fn [l] (-> l slurp json/decode))) %)
+                                     results)]))))
         job-result {:nos-id (:id flow)
                     :finished-at (flow/current-time)
                     :results res}
@@ -325,7 +266,7 @@ Running Nosana Node %s
    network))
 
 (defn list-job
-  "List a job, assuming there are nodes in the queue"
+  "List a job."
   [conf job]
   (let [hash (ipfs-upload job conf)
         job  (sol/account)
@@ -335,6 +276,15 @@ Running Nosana Node %s
                                  "run" (.getPublicKey run)})]
     (log :info "Listing job with hash " (-> job .getPublicKey .toString) hash)
     (sol/send-tx tx [(:signer conf) job run] (:network conf))))
+
+(defn list-cicd-job
+  "List a job in the market from a pipeline yaml file."
+  [conf url commit pipeline-file]
+  (let [job {:type     "Github"
+             :url      url
+             :commit   commit
+             :pipeline (slurp pipeline-file)}]
+    (list-job conf job)))
 
 (defn enter-market
   "Enter market, assuming there are no jobs in the queue."
@@ -361,7 +311,17 @@ Running Nosana Node %s
                        "run"   run-addr
                        "payer" (:payer run)})
         (sol/send-tx [signer] network))))
-;; (let [[run-addr run] (first (nos/find-my-runs conf))] (nos/finish-job conf (:job run) (PublicKey.  run-addr) "QmSM84ChKhuAMMJr4B6gdU22smbkVjVhsVN4aN3rSNzLhX"))
+
+(defn quit-job
+  "Quit a job."
+  [{:keys [network signer] :as conf} run-addr]
+  (let [run (get-run conf run-addr)]
+    (-> (build-idl-tx :job "finish" [] conf
+                      {"job"   (:job run)
+                       "run"   run-addr
+                       "payer" (:payer run)})
+        (sol/send-tx [signer] network))))
+
 (defn find-my-jobs
   "Find job accounts owned by this node"
   [{:keys [network programs address]}]
@@ -407,6 +367,7 @@ Running Nosana Node %s
                    flow)
             _    (<! (kv/assoc store flow-id flow))]
         (if (flow-finished? flow)
+          ;; TODO: when the flow is malformed this will always error: what to do?
           (let [_           (log :info "Flow finished, posting results")
                 job-addr    (get-in flow [:results :input/job-addr])
                 run-addr    (get-in flow [:results :input/run-addr])
@@ -426,7 +387,7 @@ Running Nosana Node %s
   [job-pub run-pub conf]
   (let [job      (get-job conf job-pub)
         job-info (download-job-ipfs (:ipfsJob job) conf)]
-    (make-job-flow job-info job-pub run-pub)))
+    (pipeline/make-from-job job-info job-pub run-pub)))
 
 (defn start-flow-for-run!
   "Start running a new Nostromo flow and return its flow ID."
@@ -462,7 +423,7 @@ Running Nosana Node %s
                               (recur nil))
           :else             (do
                               (log :info "Entering the queue")
-                              (sol/await-tx< (enter-market conf) (:network conf))
+                              (<! (sol/await-tx< (enter-market conf) (:network conf)))
                               (recur nil)))))))
 
 (derive :nos/jobs :duct/daemon)
@@ -508,5 +469,5 @@ Running Nosana Node %s
      :poll-delay (:poll-delay-ms vault)}))
 
 (defmethod ig/halt-key! :nos/jobs
-  [_ {:keys [loop-chan refresh-jobs-chime exit-chan project-addrs]}]
+  [_ {:keys [exit-chan]}]
   (put! exit-chan true))

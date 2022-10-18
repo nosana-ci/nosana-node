@@ -132,6 +132,9 @@ user=> (start-work-loop!)
 
 ;; to cancel the main loop
 user=> (nos/exit-work-loop! system)
+
+;; to list a compute job on the market
+user=> (nos/list-job conf nos/example-job)
 ```
 
 ### Production nodes
