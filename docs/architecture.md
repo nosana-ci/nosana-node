@@ -21,7 +21,7 @@ Nostromo is a leightweight automation framework that manages long-running, compo
 #### Nostromo Flows
 
 A Nostromo `flow` is a sequence of `ops`.
-An `op` can be any in piece of executebale code, but Nosana Pipeliens are composed solely out of `:docker/run`.
+An `op` can be any piece of executebale code, but Nosana Pipeliens are composed solely out of `:docker/run`.
 
 ```
 {:id      "RiSNBpIY0CQokvl7hekJS"
@@ -42,3 +42,13 @@ An `op` can be any in piece of executebale code, but Nosana Pipeliens are compos
 #### Nosana Pipelines
 
 The Node maps the Nosnana Pipelines format to the flow structure.
+
+### Secrets
+
+The Nosana Node uses a [config file](../resources/config.edn) to store secrets.
+This file uses [aero](https://github.com/juxt/aero) to load environment variables and local private files.
+The config file is available as a Nostromo Vault, so flows can reference values using `[:nos.core/vault :secret-key-id]`,
+Secret values get injected in the pipeline only at the very end, right before they are run.
+
+This is an area of development:
+at the moment the Nosana Pipeline format does not support secrets yet, and the Node still has to implement other backends its Vault.
