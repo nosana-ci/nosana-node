@@ -2,9 +2,9 @@
 
  :deps
  {org.clojure/clojure {:mvn/version "1.10.0"}
-  nostromo/nostromo {:git/url "https://github.com/nosana-ci/nostromo"
-                     :sha "914eb1636fd5d108665e8a9b7bfcac4e08f77b08"}
   clj-http/clj-http {:mvn/version "3.12.3"}
+  nostromo/nostromo    {:git/url "https://github.com/nosana-ci/nostromo"
+                        :sha     "de0831dbba50d9267faddaaeb7e1f16b82e43f7e"}
   clj-commons/clj-yaml {:mvn/version "0.7.108"}
   jarohen/chime {:mvn/version "0.3.2"}
 
