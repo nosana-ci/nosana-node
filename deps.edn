@@ -36,6 +36,7 @@
            :compile
            {:replace-deps {io.github.clojure/tools.build {:git/tag "v0.7.7" :sha "1474ad69bbb70d4ac9c7601f9bdb2c189dd28477"}}
 
+            :extra-paths ["."]
             :ns-default build
             :exec-fn build/compile}
 
