@@ -1,0 +1,44 @@
+trigger:
+  repo: https://github.com/nosana-ci/docs.nosana.io.git
+  commit-sha: ff42fc1da6f10319c134beea32c79102f9b971fd
+
+nosana:
+  description: Build Nosana Documentation
+  wallet: nosana1234...7890
+  market: nosana123...123
+  storage: IPFS
+
+global:
+  image: registry.hub.docker.com/library/node:16
+
+  environment:
+    APP_ENV: production
+  allow_failure: true
+
+jobs:
+  - name: setup-node
+    commands:
+      - npm ci
+    artifacts:
+      - name: node_modules
+        path: ./node_modules/
+
+  - name: lint-and-fix
+    commands:
+      - npm run eslint:fix
+      - npm run prettier:fix
+    resources:
+      - node_modules
+    artifacts:
+      - name: src_folder
+        path: ./docs/
+
+  - name: generate-docs
+    commands:
+      - npm run generate
+    resources:
+      - node_modules
+      - src_folder
+    artifacts:
+      - name: dist_folder
+        path: ./dist/

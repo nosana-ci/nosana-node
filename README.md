@@ -135,6 +135,9 @@ user=> (nos/exit-work-loop! system)
 
 ;; to list a compute job on the market
 user=> (nos/list-job conf nos/example-job)
+
+;; run an example pipeline from the repl
+user=> (run-flow (flow/build (io/resource "pipeline2.yml")))
 ```
 
 ### Production nodes

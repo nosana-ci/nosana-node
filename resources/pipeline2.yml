@@ -1,0 +1,30 @@
+# Trigger info is not part of pipeline syntax, just convenience
+trigger:
+  repo: https://github.com/unraveled/dummy.git
+  commit-sha: 324921ccbfb5c04cca80429fe0d7eceb4210c732
+
+nosana:
+  description: Build Nosana Documentation
+  wallet: nosana1234...7890
+  market: nosana123...123
+  storage: IPFS
+
+global:
+  image: registry.hub.docker.com/library/node:16
+
+  environment:
+    APP_ENV: production
+    MY_ENV: adhoc
+
+jobs:
+  - name: install-deps
+    commands:
+      - npm ci
+      - npm run test
+
+  - name: list-directory
+    commands:
+      - ls -l
+      - env
+
+# (nos/list-cicd-job conf "https://github.com/unraveled/dummy.git" "324921ccbfb5c04cca80429fe0d7eceb4210c732" (io/resource "pipeline2.yml"))
