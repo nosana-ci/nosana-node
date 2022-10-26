@@ -1,5 +1,7 @@
 (ns nosana-node.pipeline
   (:require [clojure.edn :as edn]
+            [taoensso.timbre :refer [log]]
+            [clj-http.client :as http]
             [cheshire.core :as json]
             [clojure.java.io :as io]
             [clj-yaml.core :as yaml]
@@ -7,11 +9,13 @@
             [clj-yaml.core :as yaml]
             [clojure.string :as string]))
 
+(def pinata-api-url "https://api.pinata.cloud")
+
 (def example-job
   {:type     "Github"
-   :url      "https://github.com/nosana-ci/nosana.io"
-   :commit   "ef840c0614b0abd2de0816304febeff0296926e0"
-   :pipeline "commands:\n  - yarn install --immutable\n  - yarn lint\n#  - yarn test:ci:storage-ui\n# docker image to run above commands\nimage: node"})
+   :url      "https://github.com/unraveled/dummy"
+   :commit   "ce02322afff927af93ba298a9300800e64ae2d9d"
+   :pipeline "nosana:\n  description: Run Test \n\nglobal:\n  image: registry.hub.docker.com/library/node:16\n  trigger:\n    branch:\n      - all\n\njobs:\n  - name: install-deps and run test\n    commands: \n      - npm ci\n      - npm run test\n"})
 
 (def base-flow
   {:ops
@@ -57,10 +61,55 @@
         (assoc-in [:results :input/repo] (:repo trigger))
         (assoc-in [:results :input/commit-sha] (:commit-sha trigger)))))
 
+(defn ipfs-upload
+  "Converts a map to a JSON string and pins it using Pinata"
+  [obj {:keys [pinata-jwt]}]
+  (log :trace "Uploading object to ipfs")
+  (->
+   (http/post (str pinata-api-url "/pinning/pinJSONToIPFS")
+              {:headers {:Authorization (str "Bearer " pinata-jwt)}
+               :content-type :json
+               :body (json/encode obj)})
+   :body
+   json/decode
+   (get "IpfsHash")))
+
+;; this coerces the flow results for Nosana and uploads them to IPFS. then
+;; finalizes the Solana transactions for the job
+(defmethod nos/handle-fx :nos.nosana/complete-job
+  [{:keys [vault] :as fe} op fx flow]
+  (let [end-time   (nos/current-time)
+        ;; put the results of some operators in map to upload to IPFS. also
+        ;; we'll slurp the content of the docker logs as they're only on the
+        ;; local file system.
+        res        (->> flow
+                        :results
+                        (reduce-kv
+                         (fn [m k [status results]]
+                           (when (not (qualified-keyword? k))
+                             (assoc m k
+
+                                    (if (= status :error)
+                                      results
+                                      [status
+                                       (map #(if (:log %)
+                                               (update %
+                                                       :log
+                                                       (fn [l] (-> l slurp json/decode))) %)
+                                            results)]))))
+                         {}))
+        job-result {:nos-id      (:id flow)
+                    :finished-at (nos/current-time)
+                    :results     res}
+        _          (log :info "Uploading job result")
+        ipfs       (ipfs-upload job-result vault)]
+    (log :info "Job results uploaded to " ipfs)
+    (assoc-in flow [:results :result/ipfs] ipfs)))
+
 (defn make-from-job
   [job job-addr run-addr]
   (let [flow   (-> base-flow
-                   (update :ops concat (pipeline->flow-ops (:pipeline job)))
+                   (update :ops #(into [] (concat % (pipeline->flow-ops (:pipeline job)))))
                    (assoc-in [:results :input/repo] (:url job))
                    (assoc-in [:results :input/commit-sha] (:commit job))
                    (assoc-in [:results :input/job-addr] (.toString job-addr))

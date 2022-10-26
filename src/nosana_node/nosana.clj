@@ -85,18 +85,7 @@
   [tx]
   (-> tx :meta :err nil? not))
 
-(defn ipfs-upload
-  "Converts a map to a JSON string and pins it using Pinata"
-  [obj {:keys [pinata-jwt]}]
-  (log :trace "Uploading object to ipfs")
-  (->
-   (http/post (str pinata-api-url "/pinning/pinJSONToIPFS")
-              {:headers {:Authorization (str "Bearer " pinata-jwt)}
-               :content-type :json
-               :body (json/encode obj)})
-   :body
-   json/decode
-   (get "IpfsHash")))
+
 
 (defn format-nos [v]
   (BigDecimal. (BigInteger. v)  6))
@@ -127,37 +116,6 @@
 
       :else [:success health])))
 
-;; this coerces the flow results for Nosana and uploads them to IPFS. then
-;; finalizes the Solana transactions for the job
-(defmethod flow/handle-fx :nos.nosana/complete-job
-  [{:keys [vault] :as fe} op fx flow]
-  (let [end-time (flow/current-time)
-        ;; here we collect the op IDs of which we want to include the results in
-        ;; the final JSON
-        op-ids (->> [:docker-cmds]
-                    (concat [:clone :checkout]))
-        ;; put the results of some operators in map to upload to IPFS. also
-        ;; we'll slurp the content of the docker logs as they're only on the
-        ;; local file system.
-        res (-> flow :results
-                ;; (select-keys op-ids)
-                (update-in [:docker-cmds]
-                           (fn [[status results]]
-                             (if (= status :error)
-                               results
-                               [status
-                                (map #(if (:log %)
-                                        (update %
-                                                :log
-                                                (fn [l] (-> l slurp json/decode))) %)
-                                     results)]))))
-        job-result {:nos-id (:id flow)
-                    :finished-at (flow/current-time)
-                    :results res}
-        _ (log :info "Uploading job result")
-        ipfs (ipfs-upload job-result vault)]
-    (log :info "Job results uploaded to " ipfs)
-    (assoc-in flow [:results :result/ipfs] ipfs)))
 
 (defn flow-finished? [flow]
   (contains? (:results flow) :result/ipfs))
@@ -268,7 +226,7 @@ Running Nosana Node %s
 (defn list-job
   "List a job."
   [conf job]
-  (let [hash (ipfs-upload job conf)
+  (let [hash (pipeline/ipfs-upload job conf)
         job  (sol/account)
         run  (sol/account)
         tx   (build-idl-tx :job "list" [(ipfs-hash->bytes hash)]
