@@ -201,6 +201,11 @@
    "nft"       (PublicKey. "BSCogYjj6tAfK5S6wm6oGMda5s72qW3SJvbDvAV5sdQ2")
    "metadata"  (PublicKey. "6pYVk617FEPdgiPzrpNLRrq7L9c66y91AEUMJtLjkbEi")})
 
+
+(def uint-128-length 16)
+(defn read-uint128 [buf offset]
+  (BigInteger. (Utils/reverseBytes (ByteUtils/readBytes buf offset uint-128-length))))
+
 (defn read-type
   "Reads a single IDL parameter of `type` from byte array `data`.
 
@@ -214,6 +219,7 @@
    (cond->
      (cond
        (= type "u64")       [8 (ByteUtils/readUint64 data ofs)]
+       (= type "u128")      [16 (read-uint128 data ofs)]
        (= type "i64")       [8 (Utils/readInt64 data ofs)]
        (= type "u32")       [4 (Utils/readUint32 data ofs)]
        (= type "u8")        [1 (get data ofs)]
