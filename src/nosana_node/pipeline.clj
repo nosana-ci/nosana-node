@@ -86,25 +86,27 @@
                         :results
                         (reduce-kv
                          (fn [m k [status results]]
-                           (when (not (qualified-keyword? k))
+                           (if (not (qualified-keyword? k))
                              (assoc m k
-
                                     (if (= status :error)
-                                      results
+                                      [:error results]
                                       [status
                                        (map #(if (:log %)
                                                (update %
                                                        :log
                                                        (fn [l] (-> l slurp json/decode))) %)
-                                            results)]))))
+                                            results)]))
+                             m))
                          {}))
+        _ (prn "hihi " res)
         job-result {:nos-id      (:id flow)
                     :finished-at (nos/current-time)
                     :results     res}
         _          (log :info "Uploading job result")
         ipfs       (ipfs-upload job-result vault)]
     (log :info "Job results uploaded to " ipfs)
-    (assoc-in flow [:results :result/ipfs] ipfs)))
+    (assoc-in flow [:results :result/ipfs] ipfs)
+    res))
 
 (defn make-from-job
   [job job-addr run-addr]
