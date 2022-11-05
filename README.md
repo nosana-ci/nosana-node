@@ -137,7 +137,7 @@ user=> (nos/exit-work-loop! system)
 user=> (nos/list-job conf nos/example-job)
 
 ;; run an example pipeline from the repl
-user=> (run-flow (flow/build (io/resource "pipeline2.yml")))
+user=> (run-flow (flow/build (pl/load-yml (io/resource "pipeline2.yml"))))
 ```
 
 ### Production nodes

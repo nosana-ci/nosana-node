@@ -110,3 +110,18 @@
 ;;               (recur (inc tries))))
 ;;           (prn ">> Not finished after timeout!!!")))
 ;;       flow-flow)))
+
+
+(comment
+  (run-flow
+   (flow/build {:ops
+                [{:op :docker/run
+                  :id :bla
+                  :args [{:image     "alpine"
+                          :resources [{:source "/tmp/logs" :dest "/root"}]
+                          :artifacts [{:source "/root" :dest "/tmp/myxy.tar"}]
+                          :cmds      ["touch /root/test" "ls -l /root/tmp"]
+                          :conn      {:uri "http://localhost:8080"}}]}]})))
+
+;; to quit active run:
+;; (->> (nos/find-my-runs conf) keys first PublicKey. (nos/quit-job conf))

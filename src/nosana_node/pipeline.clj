@@ -21,11 +21,11 @@
   {:ops
    [{:op   :docker/run
      :id   :checkout
-     :args [{:cmds [{:cmd [::nos/str "git clone " [::nos/ref :input/repo] " project"]}
-                    {:cmd      [::nos/str "git checkout " [::nos/ref :input/commit-sha]]
-                     :work-dir "/root/project"}]
+     :args [{:cmds      [{:cmd [::nos/str "git clone " [::nos/ref :input/repo] " project"]}
+                         {:cmd      [::nos/str "git checkout " [::nos/ref :input/commit-sha]]
+                          :work-dir "/root/project"}]
              :artifacts [{:source "project" :dest "checkout"}]
-             :image "registry.hub.docker.com/bitnami/git:latest"}]}]})
+             :image     "registry.hub.docker.com/bitnami/git:latest"}]}]})
 
 (defn make-job
   "Create flow segment for a `job` entry of the pipeline."
@@ -56,13 +56,16 @@
   [path]
   (let [{:keys [trigger global jobs] :as pipeline}
         (-> path slurp yaml/parse-string)]
-    (-> base-flow
-        (update :ops concat (pipeline->flow-ops pipeline))
-        (assoc-in [:results :input/repo] (:repo trigger))
-        (assoc-in [:results :input/commit-sha] (:commit-sha trigger)))))
+    (cond->
+        (-> base-flow
+            (update :ops concat (pipeline->flow-ops pipeline))
+            (assoc-in [:results :input/repo] (:repo trigger))
+            (assoc-in [:results :input/commit-sha] (:commit-sha trigger)))
+      (:allow-failure? global) (assoc :allow-failure? (:allow-failure? global)))))
 
 (defn ipfs-upload
-  "Converts a map to a JSON string and pins it using Pinata"
+  "Converts a map to a JSON string and pins it using Pinata.
+  Returns the CID string of the IPFS object."
   [obj {:keys [pinata-jwt]}]
   (log :trace "Uploading object to ipfs")
   (->
@@ -76,8 +79,8 @@
 
 ;; this coerces the flow results for Nosana and uploads them to IPFS. then
 ;; finalizes the Solana transactions for the job
-(defmethod nos/handle-fx :nos.nosana/complete-job
-  [{:keys [vault] :as fe} op fx flow]
+(defn upload-flow-results
+  [{:nos/keys [vault]} flow]
   (let [end-time   (nos/current-time)
         ;; put the results of some operators in map to upload to IPFS. also
         ;; we'll slurp the content of the docker logs as they're only on the
@@ -85,11 +88,15 @@
         res        (->> flow
                         :results
                         (reduce-kv
-                         (fn [m k [status results]]
+                         (fn [m k [status results & more]]
+                           ;; qualified keywords are most likely
+                           ;; nostromo intrinsics we can ignore
                            (if (not (qualified-keyword? k))
-                             (assoc m k
-                                    (if (= status :error)
-                                      [:error results]
+                             (let [[status results]
+                                   (if (= status :nos.core/error)
+                                     [:pipeline-failed (first more)]
+                                       [status results])]
+                               (assoc m k
                                       [status
                                        (map #(if (:log %)
                                                (update %
@@ -98,27 +105,20 @@
                                             results)]))
                              m))
                          {}))
-        _ (prn "hihi " res)
         job-result {:nos-id      (:id flow)
                     :finished-at (nos/current-time)
                     :results     res}
-        _          (log :info "Uploading job result")
+
         ipfs       (ipfs-upload job-result vault)]
     (log :info "Job results uploaded to " ipfs)
-    (assoc-in flow [:results :result/ipfs] ipfs)
-    res))
+    (assoc-in flow [:results :result/ipfs] ipfs)))
 
 (defn make-from-job
   [job job-addr run-addr]
-  (let [flow   (-> base-flow
-                   (update :ops #(into [] (concat % (pipeline->flow-ops (:pipeline job)))))
-                   (assoc-in [:results :input/repo] (:url job))
-                   (assoc-in [:results :input/commit-sha] (:commit job))
-                   (assoc-in [:results :input/job-addr] (.toString job-addr))
-                   (assoc-in [:results :input/run-addr] (.toString run-addr)))
-        last-op-id (-> flow :ops last :id)
-        wrap-up-op {:op :fx :id :wrap-up :args [[:nos.nosana/complete-job]] :deps [last-op-id]}]
-    (->
-     flow
-     (update :ops conj wrap-up-op)
-     nos/build)))
+  (-> base-flow
+      (update :ops #(into [] (concat % (pipeline->flow-ops (:pipeline job)))))
+      (assoc-in [:results :input/repo] (:url job))
+      (assoc-in [:results :input/commit-sha] (:commit job))
+      (assoc-in [:results :input/job-addr] (.toString job-addr))
+      (assoc-in [:results :input/run-addr] (.toString run-addr))
+      nos/build

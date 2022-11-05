@@ -118,7 +118,7 @@
 
 
 (defn flow-finished? [flow]
-  (contains? (:results flow) :result/ipfs))
+  (flow/finished? flow))
 
 (defn flow-git-failed?
   "Check if one of the git operations in a flow falied
@@ -224,9 +224,13 @@ Running Nosana Node %s
    network))
 
 (defn list-job
-  "List a job."
+  "List a job.
+  If `job` is a map it will be uploaded to IPFS, if it is a string it
+  will be used as the IPFS CID."
   [conf job]
-  (let [hash (pipeline/ipfs-upload job conf)
+  (let [hash (if (map? job)
+               (pipeline/ipfs-upload job conf)
+               job)
         job  (sol/account)
         run  (sol/account)
         tx   (build-idl-tx :job "list" [(ipfs-hash->bytes hash)]
@@ -310,28 +314,19 @@ Running Nosana Node %s
   "Check the state of a flow and finalize its job if finished.
   Returns nil if successful, `flow-id` if not finished or if an
   exception occured."
-  [flow-id conf {:nos/keys [store flow-chan vault]}]
+  [flow-id conf {:nos/keys [store flow-chan vault] :as sys}]
   (go
     (try
-      (let [flow (<! (kv/get store flow-id))
-            ;; TODO: here we manually detect a flow failure and trigger
-            ;; an FX and then restore the flow. this should be handled
-            ;; by Nostromo error handlers when implemented there.
-            flow (if (flow-git-failed? flow)
-                   (flow/handle-fx {:store store :chan flow-chan :vault vault}
-                                   nil
-                                   [:nos.nosana/complete-job]
-                                   flow)
-                   flow)
-            _    (<! (kv/assoc store flow-id flow))]
+      (let [flow (<! (kv/get store flow-id))]
         (if (flow-finished? flow)
           ;; TODO: when the flow is malformed this will always error: what to do?
-          (let [_           (log :info "Flow finished, posting results")
-                job-addr    (get-in flow [:results :input/job-addr])
-                run-addr    (get-in flow [:results :input/run-addr])
-                result-ipfs (get-in flow [:results :result/ipfs])
-                sig         (finish-job conf (PublicKey. job-addr) (PublicKey. run-addr) result-ipfs)
-                tx          (<! (sol/await-tx< sig (:network conf)))]
+          (let [_             (log :info "Flow finished, posting results")
+                finished-flow (pipeline/upload-flow-results sys flow)
+                job-addr      (get-in finished-flow [:results :input/job-addr])
+                run-addr      (get-in finished-flow [:results :input/run-addr])
+                result-ipfs   (get-in finished-flow [:results :result/ipfs])
+                sig           (finish-job conf (PublicKey. job-addr) (PublicKey. run-addr) result-ipfs)
+                tx            (<! (sol/await-tx< sig (:network conf)))]
             (log :info "Job results posted " result-ipfs sig)
             nil)
           (let [_ (log :trace "Flow still running")]

@@ -27,7 +27,7 @@
   It prepends the 0x1220 to make it 34 bytes and Base58 encodes it. This result
   is IPFS addressable."
   [bytes]
-  (->>  bytes bytes->hex (str "1220") hex->bytes Base58/encode ))
+  (->>  bytes byte-array bytes->hex (str "1220") hex->bytes Base58/encode ))
 
 (defn ipfs-hash->bytes
   "Convert IPFS hash to a jobs byte array
