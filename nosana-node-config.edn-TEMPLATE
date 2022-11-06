@@ -1,5 +1,5 @@
-{:nft               nil
- :pinata-jwt        nil
- :solana-network    :devnet
- :nosana-market     "2U7VPHR3CHDAEi1e8hiF2tvpQYohbHojANwJAuB58yKM"
- :nft-collection    "CBLH5YsCPhaQ79zDyzqxEMNMVrE5N7J6h4hrtYNahPLU"}
+{:nft            nil         ; leave empty if market does not require
+ :pinata-jwt     nil
+ :solana-network :devnet     ; or :mainnet
+ :nosana-market  "8fAB6xNLwQXDGUhoPtzeaJtppDvPA3VM7Fqb8xXnYhZM" ; empty market on devnet
+ }

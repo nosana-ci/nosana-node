@@ -14,9 +14,6 @@
  :nft
  #or [#env NOSANA_NFT #ref [:local-config :nft]]
 
- :nft-collection
- #or [#env NOSANA_NFT_COLLECTION #ref [:local-config :nft-collection]]
-
  :ipfs-url
  #or [#env IPFS_URL "https://nosana.mypinata.cloud/ipfs/"]
 

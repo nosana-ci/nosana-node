@@ -85,8 +85,6 @@
   [tx]
   (-> tx :meta :err nil? not))
 
-
-
 (defn format-nos [v]
   (BigDecimal. (BigInteger. v)  6))
 
@@ -94,8 +92,10 @@
   "Queuery health statistics for the node."
   [{:keys [address network nos-ata accounts]}]
   {:sol (sol/format-sol (str (sol/get-balance address network)))
-   :nos (format-nos (sol/get-token-balance nos-ata network))
-   :nft (Integer/parseInt (sol/get-token-balance (get accounts "nft") network))})
+   :nos (format-nos (or (sol/get-token-balance nos-ata network) "0"))
+   :nft (Integer/parseInt
+         (or (sol/get-token-balance (get accounts "nft") network)
+             "0"))})
 
 (def  min-sol-balance
   "Minimum Solana balance to be healthy" (sol/format-sol "100000000"))
@@ -104,18 +104,19 @@
   "Check if the current node is healthy."
   [conf]
   (let [{:keys [sol nos nft] :as health} (get-health conf)]
-    (cond
-      (< sol min-sol-balance)
-      [:error health (str "SOL balance is too low to operate.")]
+    (let [msgs (cond-> []
+                 (< sol min-sol-balance)
+                 (conj (str "SOL balance is too low to operate."))
 
-      (< nft 1.0)
-      [:error health (str "Burner Phone NFT is missing")]
+                 (and (< nft 1.0)
+                      (not= (:system sol/addresses) (:market-collection conf)))
+                 (conj (str "Burner Phone NFT is missing"))
 
-      (nil? (:pinata-jwt conf))
-      [:error health "Pinata JWT not found, node will not be able to submit any jobs."]
-
-      :else [:success health])))
-
+                 (nil? (:pinata-jwt conf))
+                 (conj "Pinata JWT not found, node will not be able to submit any jobs."))]
+      (if (empty? msgs)
+        [:success health]
+        [:error health msgs]))))
 
 (defn flow-finished? [flow]
   (flow/finished? flow))
@@ -134,7 +135,7 @@
  |_| |_|\\___/|___/\\__,_|_| |_|\\__,_|")
 
 ;;(nos/print-head "v0.3.19" "4HoZogbrDGwK6UsD1eMgkFKTNDyaqcfb2eodLLtS8NTx" "0.084275" "13,260.00")
-(defn print-head [version address network balance stake nft owned]
+(defn print-head [version address network market balance stake nft owned]
   (logg/infof "
 %s
 
@@ -142,6 +143,7 @@ Running Nosana Node %s
 
   Validator  \u001B[34m%s\u001B[0m
   Network    Solana \u001B[34m%s\u001B[0m
+  Market     \u001B[34m%s\u001B[0m
   Balance    \u001B[34m%s\u001B[0m SOL
   Stake      \u001B[34m%s\u001B[0m NOS
   Slashed    \u001B[34m0.00\u001B[0m NOS
@@ -152,6 +154,7 @@ Running Nosana Node %s
               version
               address
               network
+              market
               balance
               stake
               nft
@@ -175,43 +178,42 @@ Running Nosana Node %s
                        (.toByteArray (:nos-token programs))
                        (.toByteArray (.getPublicKey signer))]
                       (:stake programs))
-        nft          (PublicKey. (:nft vault))
-        nft-ata      (sol/get-ata signer-pub nft)
         nos-ata      (sol/get-ata signer-pub (:nos-token programs))
-        dummy        (-> vault :dummy-private-key byte-array Account.)]
-    {:network      network
-     :signer       signer
-     :dummy-signer dummy
-     :pinata-jwt   (:pinata-jwt vault)
-     :ipfs-url     (:ipfs-url vault)
-     :dummy        (.getPublicKey dummy)
-     :market       market-pub
-     :address      signer-pub
-     :programs     programs
-     :nft          nft
-     :nos-ata      nos-ata
-     :stake-vault  (sol/pda [(.getBytes "vault")
-                             (.toByteArray (:nos-token programs))
-                             (.toByteArray signer-pub)]
-                            (:stake programs))
-     :accounts     {"tokenProgram"      (:token sol/addresses)
-                    "systemProgram"     (:system sol/addresses)
-                    "rent"              (:rent sol/addresses)
-                    "accessKey"         (PublicKey. (:nft-collection vault))
-                    "authority"         signer-pub
-                    "user"              nos-ata
-                    "payer"             signer-pub
-                    "market"            market-pub
-                    "mint"              (:nos-token programs)
-                    "vault"             market-vault
-                    "stake"             stake
-                    "nft"               nft-ata
-                    "metadata"          (sol/get-metadata-pda nft)
-                    "rewardsProgram"    (:reward programs)
-                    "rewardsVault"      (sol/pda [(.toByteArray (:nos-token programs))]
-                                                 (:reward programs))
-                    "rewardsReflection" (sol/pda [(.getBytes "reflection")]
-                                                 (:reward programs))}}))
+        market       (sol/get-idl-account (:job programs) "MarketAccount" market-pub network)
+        nft          (if (:nft vault) (PublicKey. (:nft vault)) (:system sol/addresses))
+        nft-ata      (sol/get-ata signer-pub nft)]
+    {:network     network
+     :signer      signer
+     :pinata-jwt  (:pinata-jwt vault)
+     :ipfs-url    (:ipfs-url vault)
+     :market      market-pub
+     :market-collection (:accessKey market)
+     :address     signer-pub
+     :programs    programs
+     :nft         nft
+     :nos-ata     nos-ata
+     :stake-vault (sol/pda [(.getBytes "vault")
+                                  (.toByteArray (:nos-token programs))
+                                  (.toByteArray signer-pub)]
+                                 (:stake programs))
+     :accounts    {"tokenProgram"      (:token sol/addresses)
+                   "systemProgram"     (:system sol/addresses)
+                   "rent"              (:rent sol/addresses)
+                   "accessKey"         (:nodeAccessKey market)
+                   "authority"         signer-pub
+                   "user"              nos-ata
+                   "payer"             signer-pub
+                   "market"            market-pub
+                   "mint"              (:nos-token programs)
+                   "vault"             market-vault
+                   "stake"             stake
+                   "nft"               nft-ata
+                   "metadata"          (sol/get-metadata-pda nft)
+                   "rewardsProgram"    (:reward programs)
+                   "rewardsVault"      (sol/pda [(.toByteArray (:nos-token programs))]
+                                                (:reward programs))
+                   "rewardsReflection" (sol/pda [(.getBytes "reflection")]
+                                                (:reward programs))}}))
 
 (defn build-idl-tx
   "Wrapper around `solana/build-idl-tx` using nosana config"
@@ -398,21 +400,22 @@ Running Nosana Node %s
         market-acc (get-market conf)
         exit-ch    (chan)
 
-        [status health msg] (healthy conf)]
-
+        [status health msgs] (healthy conf)]
     (print-head
      ;; TODO: version from env
      "v0.3.19"
      (:address conf)
      (:network conf)
+     (:market conf)
      (-> health :sol)
      (-> health :nos)
      (:nft conf)
      (-> health :nft))
 
     (case status
-      :success (println "Node started. LFG.")
-      :error   (println "\u001B[31mNode not healthy:\u001B[0m " msg))
+      :success (println "Node healthy. LFG.")
+      :error   (println (str "\u001B[31mNode not healthy:\u001B[0m\n- "
+                             (string/join "\n- " msgs))))
 
     ;; put any value to `exit-ch` to cancel the `loop-ch`:
     ;; (async/put! exit-ch true)

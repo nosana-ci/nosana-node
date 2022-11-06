@@ -121,4 +121,4 @@
       (assoc-in [:results :input/commit-sha] (:commit job))
       (assoc-in [:results :input/job-addr] (.toString job-addr))
       (assoc-in [:results :input/run-addr] (.toString run-addr))
-      nos/build
+      nos/build))

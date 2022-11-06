@@ -41,18 +41,17 @@ For now, log in to Pinata and generate new API credentials with the
 
 Below is the table of config values that can be set:
 
-| Name            | Description                                    | ENV                     | Default                                |
-|-----------------|------------------------------------------------|-------------------------|----------------------------------------|
-| **Private key** | **Private key for the node**                   | `SOLANA_PRIVATE_KEY`    | Read from `~/.config/solana/id.jon`    |
-| **NFT**         | **Address of the NFT of the node**             | `NOSANA_NFT`            | In `~/.nosana-node-config.edn`         |
-| Network         | Solana network to use                          | `SOLANA_NETWORK`        | In `~/.nosana-node-config.edn`         |
-| Podman          | Connection string to Podman                    | `PODMAN_CONN_URI`       | `"http://localhost8080"`               |
-| Pinata JWT      | Access token for IPFS pinning                  | `PINATA_JWT`            | In `~/.nosana-node-config.edn`         |
-| Market          | Address of the Nosana market to use            | `NOSANA_MARKET`         | In `~/.nosana-node-config.edn`         |
-| NFT Collection  | Address of the NFT collection                  | `NOSANA_NFT_COLLECTION` | In `~/.nosana-node-config.edn`         |
-| IPFS Url        | URL downloading IPFS content                   | `IPFS_URL`              | `"https://nosana.mypinata.cloud/ipfs"` |
-| Job loop        | If the node should automatically poll for jobs | -                       | Only enabled in `prod`                 |
-| Poll delay      | How often to poll for jobs in ms               | `NOSANA_POLL_DELAY_MS`  | `30000`                                |
+| Name            | Description                                    | ENV                    | Default                                |
+|-----------------|------------------------------------------------|------------------------|----------------------------------------|
+| **Private key** | **Private key for the node**                   | `SOLANA_PRIVATE_KEY`   | Read from `~/.config/solana/id.jon`    |
+| **Market**      | **Address of the Nosana market to use**        | `NOSANA_MARKET`        | In `~/.nosana-node-config.edn`         |
+| NFT             | Address of the NFT of the node                 | `NOSANA_NFT`           | In `~/.nosana-node-config.edn`         |
+| Network         | Solana network to use                          | `SOLANA_NETWORK`       | In `~/.nosana-node-config.edn`         |
+| Podman          | Connection string to Podman                    | `PODMAN_CONN_URI`      | `"http://localhost8080"`               |
+| Pinata JWT      | Access token for IPFS pinning                  | `PINATA_JWT`           | In `~/.nosana-node-config.edn`         |
+| IPFS Url        | URL downloading IPFS content                   | `IPFS_URL`             | `"https://nosana.mypinata.cloud/ipfs"` |
+| Job loop        | If the node should automatically poll for jobs | -                      | Only enabled in `prod`                 |
+| Poll delay      | How often to poll for jobs in ms               | `NOSANA_POLL_DELAY_MS` | `30000`                                |
 
 ### Local development
 
