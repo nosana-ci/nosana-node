@@ -40,7 +40,8 @@
              :reward      (PublicKey. "nosRB8DUV67oLNrL45bo2pFLrmsWPiewe2Lk2DRNYCp")
              :pool        (PublicKey. "nosPdZrfDzND1LAR28FLMDEATUPK53K8xbRBXAirevD")
              :reward-pool (PublicKey. "mineHEHiHxWS8pVkNc5kFkrvv5a9xMVgRY9wfXtkMsS")
-             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")}
+             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")
+             :market      (PublicKey. "Har2dBQTZLtnMkeSdxxmaUj5A6Eke8fq7Yiq75EfuAPi")}
    :devnet  {:nos-token   (PublicKey. "devr1BGQndEW5k5zfvG5FsLyZv1Ap73vNgAHcQ9sUVP")
              :stake       (PublicKey. "nosScmHY2uR24Zh751PmGj9ww9QRNHewh9H59AfrTJE")
              :collection  (PublicKey. "CBLH5YsCPhaQ79zDyzqxEMNMVrE5N7J6h4hrtYNahPLU")
@@ -48,7 +49,8 @@
              :reward      (PublicKey. "nosRB8DUV67oLNrL45bo2pFLrmsWPiewe2Lk2DRNYCp")
              :pool        (PublicKey. "nosPdZrfDzND1LAR28FLMDEATUPK53K8xbRBXAirevD")
              :reward-pool (PublicKey. "miF9saGY5WS747oia48WR3CMFZMAGG8xt6ajB7rdV3e")
-             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")}})
+             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")
+             :market      (PublicKey. "8fAB6xNLwQXDGUhoPtzeaJtppDvPA3VM7Fqb8xXnYhZM")}})
 
 (def download-ipfs
   "Download a file from IPFS by its hash."
@@ -110,6 +112,9 @@
                            (catch Exception e false))
 
           msgs (cond-> []
+                 (nil? (:signer conf))
+                 (conj "No signer keypair provided, please run `solana-keygen new`")
+
                  (< sol min-sol-balance)
                  (conj (str "SOL balance is too low to operate."))
 
@@ -173,19 +178,26 @@ Running Nosana Node %s
   "Build the node's config to interact with the Nosana Network."
   [{:keys [:nos/vault]}]
   (let [network      (:solana-network vault)
-        signer       (get-signer-key vault)
-        signer-pub   (.getPublicKey signer)
+        signer       (try (get-signer-key vault)
+                          (catch Exception e
+                            nil))
+        signer-pub   (if signer
+                       (.getPublicKey signer)
+                       (:system sol/addresses))
         programs     (network nos-accounts)
-        market-pub   (PublicKey. (:nosana-market vault))
+        market-pub   (if (:nosana-market vault)
+                       (PublicKey. (:nosana-market vault))
+                       (get-in nos-accounts [network :market]))
         market-vault (sol/pda
                       [(.toByteArray market-pub)
                        (.toByteArray (:nos-token programs))]
                       (:job programs))
-        stake        (sol/pda
-                      [(.getBytes "stake")
-                       (.toByteArray (:nos-token programs))
-                       (.toByteArray (.getPublicKey signer))]
-                      (:stake programs))
+        stake        (when signer
+                       (sol/pda
+                        [(.getBytes "stake")
+                         (.toByteArray (:nos-token programs))
+                         (.toByteArray (.getPublicKey signer))]
+                        (:stake programs)))
         nos-ata      (sol/get-ata signer-pub (:nos-token programs))
         market       (sol/get-idl-account (:job programs) "MarketAccount" market-pub network)
         nft          (if (:nft vault) (PublicKey. (:nft vault)) (:system sol/addresses))
@@ -202,9 +214,9 @@ Running Nosana Node %s
      :podman-uri        (:podman-conn-uri vault)
      :nos-ata           nos-ata
      :stake-vault       (sol/pda [(.getBytes "vault")
-                            (.toByteArray (:nos-token programs))
-                            (.toByteArray signer-pub)]
-                           (:stake programs))
+                                  (.toByteArray (:nos-token programs))
+                                  (.toByteArray signer-pub)]
+                                 (:stake programs))
      :accounts          {"tokenProgram"      (:token sol/addresses)
                          "systemProgram"     (:system sol/addresses)
                          "rent"              (:rent sol/addresses)
