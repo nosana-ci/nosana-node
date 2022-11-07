@@ -441,8 +441,10 @@ Running Nosana Node %s
     ;; put any value to `exit-ch` to cancel the `loop-ch`:
     ;; (async/put! exit-ch true)
     {:loop-ch    (when (and (:start-job-loop? vault) (= :success status))
-                   (work-loop conf system))
-     :exit-chan  (chan)
+                   (work-loop conf (merge  system
+                                           {:nos/jobs {:exit-chan  exit-ch
+                                                       :poll-delay (:poll-delay-ms vault)}})))
+     :exit-chan  exit-ch
      :poll-delay (:poll-delay-ms vault)}))
 
 (defmethod ig/halt-key! :nos/jobs
