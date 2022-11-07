@@ -9,6 +9,7 @@
    [duct.core :as duct]
    [integrant.repl :refer [halt reset resume set-prep! prep init]]
    [integrant.repl.state :refer [config system]]
+   [contajners.core :as c]
    [nos.core :as flow]
    nos.module.http
    [nosana-node.util :refer [bytes->hex hex->bytes base58] :as util]

@@ -1,5 +1,6 @@
 (ns nosana-node.nosana
   (:require [integrant.core :as ig]
+            [nos.ops.docker :as docker]
             [nos.core :as flow]
             [chime.core :as chime]
             [clojure.edn :as edn]
@@ -104,7 +105,11 @@
   "Check if the current node is healthy."
   [conf]
   (let [{:keys [sol nos nft] :as health} (get-health conf)]
-    (let [msgs (cond-> []
+    (let [has-docker? (try (docker/get-info {:uri (:podman-uri conf)})
+                           true
+                           (catch Exception e false))
+
+          msgs (cond-> []
                  (< sol min-sol-balance)
                  (conj (str "SOL balance is too low to operate."))
 
@@ -113,7 +118,10 @@
                  (conj (str "Burner Phone NFT is missing"))
 
                  (nil? (:pinata-jwt conf))
-                 (conj "Pinata JWT not found, node will not be able to submit any jobs."))]
+                 (conj "Pinata JWT not found, node will not be able to submit any jobs.")
+
+                 (not has-docker?)
+                 (conj "Could not connect to Podman."))]
       (if (empty? msgs)
         [:success health]
         [:error health msgs]))))
@@ -182,38 +190,39 @@ Running Nosana Node %s
         market       (sol/get-idl-account (:job programs) "MarketAccount" market-pub network)
         nft          (if (:nft vault) (PublicKey. (:nft vault)) (:system sol/addresses))
         nft-ata      (sol/get-ata signer-pub nft)]
-    {:network     network
-     :signer      signer
-     :pinata-jwt  (:pinata-jwt vault)
-     :ipfs-url    (:ipfs-url vault)
-     :market      market-pub
+    {:network           network
+     :signer            signer
+     :pinata-jwt        (:pinata-jwt vault)
+     :ipfs-url          (:ipfs-url vault)
+     :market            market-pub
      :market-collection (:accessKey market)
-     :address     signer-pub
-     :programs    programs
-     :nft         nft
-     :nos-ata     nos-ata
-     :stake-vault (sol/pda [(.getBytes "vault")
-                                  (.toByteArray (:nos-token programs))
-                                  (.toByteArray signer-pub)]
-                                 (:stake programs))
-     :accounts    {"tokenProgram"      (:token sol/addresses)
-                   "systemProgram"     (:system sol/addresses)
-                   "rent"              (:rent sol/addresses)
-                   "accessKey"         (:nodeAccessKey market)
-                   "authority"         signer-pub
-                   "user"              nos-ata
-                   "payer"             signer-pub
-                   "market"            market-pub
-                   "mint"              (:nos-token programs)
-                   "vault"             market-vault
-                   "stake"             stake
-                   "nft"               nft-ata
-                   "metadata"          (sol/get-metadata-pda nft)
-                   "rewardsProgram"    (:reward programs)
-                   "rewardsVault"      (sol/pda [(.toByteArray (:nos-token programs))]
-                                                (:reward programs))
-                   "rewardsReflection" (sol/pda [(.getBytes "reflection")]
-                                                (:reward programs))}}))
+     :address           signer-pub
+     :programs          programs
+     :nft               nft
+     :podman-uri        (:podman-conn-uri vault)
+     :nos-ata           nos-ata
+     :stake-vault       (sol/pda [(.getBytes "vault")
+                            (.toByteArray (:nos-token programs))
+                            (.toByteArray signer-pub)]
+                           (:stake programs))
+     :accounts          {"tokenProgram"      (:token sol/addresses)
+                         "systemProgram"     (:system sol/addresses)
+                         "rent"              (:rent sol/addresses)
+                         "accessKey"         (:nodeAccessKey market)
+                         "authority"         signer-pub
+                         "user"              nos-ata
+                         "payer"             signer-pub
+                         "market"            market-pub
+                         "mint"              (:nos-token programs)
+                         "vault"             market-vault
+                         "stake"             stake
+                         "nft"               nft-ata
+                         "metadata"          (sol/get-metadata-pda nft)
+                         "rewardsProgram"    (:reward programs)
+                         "rewardsVault"      (sol/pda [(.toByteArray (:nos-token programs))]
+                                                      (:reward programs))
+                         "rewardsReflection" (sol/pda [(.getBytes "reflection")]
+                                                      (:reward programs))}}))
 
 (defn build-idl-tx
   "Wrapper around `solana/build-idl-tx` using nosana config"
