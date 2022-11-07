@@ -119,7 +119,7 @@
                  (conj (str "SOL balance is too low to operate."))
 
                  (and (< nft 1.0)
-                      (not= (:system sol/addresses) (:market-collection conf)))
+                      (not= (.toString (:system sol/addresses)) (.toString (:market-collection conf))))
                  (conj (str "Burner Phone NFT is missing"))
 
                  (nil? (:pinata-jwt conf))
@@ -207,7 +207,7 @@ Running Nosana Node %s
      :pinata-jwt        (:pinata-jwt vault)
      :ipfs-url          (:ipfs-url vault)
      :market            market-pub
-     :market-collection (:accessKey market)
+     :market-collection (:nodeAccessKey market)
      :address           signer-pub
      :programs          programs
      :nft               nft
