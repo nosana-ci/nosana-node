@@ -1,10 +1,16 @@
 include:
   - project: nosana-ci/tools/cicd/gitlab-ci
+    file: templates/semver.yml
+  - project: nosana-ci/tools/cicd/gitlab-ci
     file: templates/release.yml
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   CI_IMAGE_NAME: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}
+  RUN_AUTO_BUMP: ok
+  AUTO_BUMP_REPO: nosana-ci/apps/platform/k8s
+  AUTO_BUMP_FILE: helm-nostromo.tf
+  AUTO_BUMP_SCG_PREFIX: image_tag [^}]*= { dev = \"
 
 release:
   stage: deploy
