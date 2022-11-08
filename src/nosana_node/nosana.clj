@@ -101,7 +101,7 @@
              "0"))})
 
 (def  min-sol-balance
-  "Minimum Solana balance to be healthy" (sol/format-sol "100000000"))
+  "Minimum Solana balance to be healthy" (sol/format-sol "10000000"))
 
 (defn healthy
   "Check if the current node is healthy."
