@@ -126,7 +126,7 @@
                  (conj "Pinata JWT not found, node will not be able to submit any jobs.")
 
                  (not has-docker?)
-                 (conj "Could not connect to Podman."))]
+                 (conj (str "Could not connect to Podman at " (:podman-uri conf))))]
       (if (empty? msgs)
         [:success health]
         [:error health msgs]))))
@@ -412,6 +412,9 @@ Running Nosana Node %s
 
 (defmethod ig/init-key :nos/jobs
   [_ {:keys [store flow-ch vault]}]
+  ;; Wait a bit for podman to boot
+  (log :info "Waiting 5s for podman")
+  (Thread/sleep 5000)
   (let [system     {:nos/store     store
                     :nos/flow-chan flow-ch
                     :nos/vault     vault}
@@ -422,6 +425,7 @@ Running Nosana Node %s
         exit-ch    (chan)
 
         [status health msgs] (healthy conf)]
+
     (print-head
      ;; TODO: version from env
      "v0.3.19"
