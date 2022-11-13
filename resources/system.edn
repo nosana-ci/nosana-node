@@ -26,7 +26,7 @@
    :middleware {}}}
 
  :duct.profile/prod {:nos/vault                {:profile :prod}
-                     ;; :nosana-node/nrepl-server {:port 7888}
+                     :nosana-node/nrepl-server {:port 7888}
 
                      :nos/jobs {:flow-ch #ig/ref :nos/flow-chan
                                 :store   #ig/ref :nos/store
