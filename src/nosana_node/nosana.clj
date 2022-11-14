@@ -204,6 +204,7 @@ Running Nosana Node %s
         nft-ata      (sol/get-ata signer-pub nft)]
     {:network           network
      :signer            signer
+     :secrets-endpoint  "http://localhost:4124"
      :pinata-jwt        (:pinata-jwt vault)
      :ipfs-url          (:ipfs-url vault)
      :market            market-pub
