@@ -27,19 +27,33 @@
              :artifacts [{:source "project" :dest "checkout"}]
              :image     "registry.hub.docker.com/bitnami/git:latest"}]}]})
 
+(defn prep-env
+  "Process job env entries"
+  [env]
+  (->> env
+       (map (fn [[k v]]
+              (case (:type v)
+                "secret" [k [:nosana-node.core/secret (:endpoint v) (:value v)]]
+                "string" [k v]
+                [k v])))
+       (into {})))
+
 (defn make-job
-  "Create flow segment for a `job` entry of the pipeline."
-  [{:keys [name commands artifacts resources environment image]
-    :or   {resources []}}
+  "Create flow segment for a `job` entry of the pipeline.
+  Input is a yaml job entry, parsed to a keywordized map and some
+  global data."
+  [{:keys [name commands artifacts resources environment image work-dir]
+    :or   {resources []
+           work-dir  "/root/project"}}
    global-image
    global-environment]
   {:op   :docker/run
    :id   (keyword name)
    :args [{:cmds      (map (fn [c] {:cmd c}) commands)
            :image     (or image global-image)
-           :env       (merge global-environment environment)
+           :env       (prep-env (merge global-environment environment))
            :conn      {:uri [::nos/vault :podman-conn-uri]}
-           :work-dir  "/root/project"
+           :work-dir  work-dir
            :resources (cons {:source "checkout" :dest "/root"}
                             (map (fn [r] {:source r :dest "/root"}) resources))
            :artifacts (map (fn [a] {:source (:path a) :dest (:name a)}) artifacts)}]

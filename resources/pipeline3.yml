@@ -1,0 +1,27 @@
+# This pipeline shows how to retreive and print a secret
+
+# Trigger info is not part of pipeline syntax, just convenience
+trigger:
+  repo: https://github.com/unraveled/dummy.git
+  commit-sha: 324921ccbfb5c04cca80429fe0d7eceb4210c732
+
+global:
+  image: registry.hub.docker.com/library/node:16
+
+  environment:
+    APP_ENV: production
+    MY_ENV: adhoc
+
+jobs:
+  - name: list-directory
+    environment:
+      SECRET_VALUE:
+        type: "secret"
+        endpoint: "http://localhost:4124"
+        value: "key-of-secret-that-should-be-set-in-proxy"
+    commands:
+      - ls -l
+      - env
+      - sh -c 'echo test secret manager value $SECRET_VALUE'
+
+# (run-flow (flow/build (pl/load-yml (io/resource "pipeline3.yml"))))

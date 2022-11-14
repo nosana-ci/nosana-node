@@ -23,6 +23,8 @@
           :devnet  "https://api.devnet.solana.com"
           :mainnet "https://solana-api.projectserum.com"})
 
+(defn public-key [address] (PublicKey. address))
+
 (defn account [] (Account.))
 
 (defn rpc-call
