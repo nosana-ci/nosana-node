@@ -38,6 +38,14 @@
                 [k v])))
        (into {})))
 
+(defn trigger->env
+  "Convert a pipeline trigger object to environment variable map."
+  [{:keys [commit repo job run]}]
+  {"NOS_COMMIT_SHA"  commit
+   "NOS_REPOSITORY"  repo
+   "NOS_JOB_ADDRESS" job
+   "NOS_RUN_ADDRESS" run})
+
 (defn make-job
   "Create flow segment for a `job` entry of the pipeline.
   Input is a yaml job entry, parsed to a keywordized map and some
@@ -45,8 +53,8 @@
   [{:keys [name commands artifacts resources environment image work-dir]
     :or   {resources []
            work-dir  "/root/project"}}
-   global-image
-   global-environment]
+   {{global-image :image global-environment :environment} :global
+    :as pipeline}]
   {:op   :docker/run
    :id   (keyword name)
    :args [{:cmds      (map (fn [c] {:cmd c}) commands)
@@ -60,10 +68,10 @@
    :deps [:checkout]})
 
 (defn pipeline->flow-ops
-  [{:keys [nos global jobs]}]
+  [{:keys [nos global jobs] :as pipeline}]
   (let [work-dir "/root"
         {:keys [environment allow-failure image]} global]
-    (map #(make-job % image environment) jobs)))
+    (map #(make-job % pipeline) jobs)))
 
 (defn load-yml
   "Expects a trigger section in the yaml"
@@ -129,10 +137,12 @@
 
 (defn make-from-job
   [job job-addr run-addr]
-  (-> base-flow
-      (update :ops #(into [] (concat % (pipeline->flow-ops (:pipeline job)))))
-      (assoc-in [:results :input/repo] (:url job))
-      (assoc-in [:results :input/commit-sha] (:commit job))
-      (assoc-in [:results :input/job-addr] (.toString job-addr))
-      (assoc-in [:results :input/run-addr] (.toString run-addr))
-      nos/build))
+  (let [pipeline (-> (:pipeline job)
+                     (update-in [:global :environment] merge (trigger->env job)))]
+    (-> base-flow
+        (update :ops #(into [] (concat % (pipeline->flow-ops pipeline))))
+        (assoc-in [:results :input/repo] (:url job))
+        (assoc-in [:results :input/commit-sha] (:commit job))
+        (assoc-in [:results :input/job-addr] (.toString job-addr))
+        (assoc-in [:results :input/run-addr] (.toString run-addr))
+        nos/build)))
