@@ -16,11 +16,14 @@
    [java.math BigDecimal BigInteger]
    [java.util.zip Inflater InflaterInputStream]
    [org.p2p.solanaj.core Transaction TransactionInstruction PublicKey
-    Account Message AccountMeta]))
+    Account Message AccountMeta]
+   [org.p2p.solanaj.utils TweetNaclFast TweetNaclFast$Signature]))
 
 (def rpc {:testnet "https://api.testnet.solana.com"
           :devnet  "https://api.devnet.solana.com"
           :mainnet "https://solana-api.projectserum.com"})
+
+(defn public-key [address] (PublicKey. address))
 
 (defn account [] (Account.))
 
@@ -419,6 +422,12 @@
 
 (defn format-sol [v]
   (BigDecimal. (BigInteger. v)  9))
+
+(defn sign [msg account]
+  ;; (new TweetNaclFast.Signature (byte-array) (.getSecretKey account))
+  (let [provider (TweetNaclFast$Signature. (byte-array 0) (.getSecretKey account))
+        signature (.detached provider msg)]
+    signature))
 
 ;;=================
 ;; EXAMPLES
