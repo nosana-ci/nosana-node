@@ -25,7 +25,7 @@
   :alias  :build
   :fn     build/compile}
 
- :aliases {:dev {:extra-deps  {integrant/repl {:mvn/version "0.3.1"}}
+ :aliases {:dev {:extra-deps  {integrant/repl {:mvn/version "0.3.2"}}
                  :extra-paths ["dev/src"]
                  :jvm-opts    ["-XX:-OmitStackTraceInFastThrow"]}
 
