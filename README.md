@@ -88,10 +88,10 @@ CI/CD the [jib-gitlab.edn](jib-gitlab.edn) file is used.
 
 ### Start Podman
 
-As a requirement you will have to run a local non-privileged Podman container:
+You will have to run a local non-privileged Podman container:
 
 ```
-docker run -d --name podman --device /dev/fuse --security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt label=disable --cap-add sys_admin --cap-add mknod -p 8080:8080 quay.io/podman/stable bash -c 'dnf install -y socat && (podman system service -t 0 unix:///tmp/pod.sock &) && socat TCP-LISTEN:8080,fork UNIX-CONNECT:/tmp/pod.sock'
+sudo docker run -d --pids-limit=0 --name podman --device /dev/fuse --security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt label=disable --cap-add sys_admin --cap-add mknod -p 8080:8080 quay.io/podman/stable podman system service --time 0 tcp:0.0.0.0:8080
 ```
 
 Podman will be used to spin up containers for Nosana jobs.
