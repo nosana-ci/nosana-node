@@ -45,4 +45,4 @@
             :exec-fn      jibbit.core/build}
 
            :production
-           {:jvm-opts ["-Xms:256m -Xmx:1g"]}}}
+           {:jvm-opts ["-Xms256M" "-Xmx1g"]}}}
