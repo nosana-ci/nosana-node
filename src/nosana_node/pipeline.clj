@@ -63,7 +63,7 @@
            :conn      {:uri [::nos/vault :podman-conn-uri]}
            :work-dir  work-dir
            :resources (cons {:source "checkout" :dest "/root"}
-                            (map (fn [r] {:source r :dest "/root"}) resources))
+                            (map (fn [r] {:source r :dest "/root/project"}) resources))
            :artifacts (map (fn [a] {:source (:path a) :dest (:name a)}) artifacts)}]
    :deps [:checkout]})
 
