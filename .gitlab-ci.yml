@@ -10,7 +10,6 @@ variables:
   RUN_AUTO_BUMP: ok
   AUTO_BUMP_REPO: nosana-ci/apps/platform/k8s
   AUTO_BUMP_FILE: helm-nostromo.tf
-  AUTO_BUMP_SCG_PREFIX: image_tag [^}]*= { dev = \"
 
 release:
   stage: deploy
@@ -30,3 +29,16 @@ build:
       - .m2/repository
   rules:
     - if: $CI_COMMIT_TAG
+
+auto deploy dev:
+  stage: .post
+  extends: .auto-deploy
+  variables:
+    AUTO_BUMP_SCG_PREFIX: image_tag [^}]*= { dev = \"
+
+auto deploy prd:
+  stage: .post
+  extends: .auto-deploy
+  variables:
+    AUTO_BUMP_SCG_PREFIX: image_tag [^}]* prd = \"
+  when: manual
