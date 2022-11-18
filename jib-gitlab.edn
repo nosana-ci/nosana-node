@@ -3,6 +3,7 @@
               :authorizer {:fn jibbit.creds/load-edn
                            :args {:local ".creds.edn"}}}
  :main "nosana-node.main"
+ :aliases [:production]
  :aot true
  :target-image {:type :registry
                 :image-name "registry.gitlab.com/nosana-ci/apps/platform/nosana-node"

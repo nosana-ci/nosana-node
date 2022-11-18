@@ -42,4 +42,7 @@
                            {:git/sha "ca4f7d33b1e8dc0f20c26bc4f6c6b8aa8098293f"}}
             :ns-default   jibbit.core
             :ns-aliases   {jib jibbit.core}
-            :exec-fn      jibbit.core/build}}}
+            :exec-fn      jibbit.core/build}
+
+           :production
+           {:jvm-opts ["-Xms:256m -Xmx:1g"]}}}
