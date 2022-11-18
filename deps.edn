@@ -1,7 +1,7 @@
 {:paths ["src" "resources" "target/classes"]
 
  :deps
- {org.clojure/clojure  {:mvn/version "1.10.0"}
+ {org.clojure/clojure  {:mvn/version "1.11.0"}
   nostromo/nostromo    {:git/url "https://github.com/nosana-ci/nostromo"
                         :sha     "47a9b9c34822531bc318201063320c3ce5cdf520"}
   ;; nostromo/nostromo    {:local/root "../nostromo"}
@@ -10,7 +10,7 @@
   jarohen/chime        {:mvn/version "0.3.2"}
 
   ;; nrepl
-  cider/cider-nrepl {:mvn/version "0.27.3"}
+  cider/cider-nrepl {:mvn/version "0.28.7"}
 
   ;; solanaj deps
   org.java-websocket/Java-WebSocket {:mvn/version "1.5.1"}
