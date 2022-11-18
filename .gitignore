@@ -5,3 +5,4 @@ logs
 resources/nosana/.secrets.edn
 .creds.edn
 .m2
+.clj-kondo/
