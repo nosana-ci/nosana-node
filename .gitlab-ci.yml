@@ -37,12 +37,14 @@ docker hub:
     - docker:20.10.20-dind
   before_script:
     - echo $REG_TOKEN | docker login -u $REG_USERNAME --password-stdin $REG_ENDPOINT
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - docker pull $CI_IMAGE_NAME
     - docker tag $CI_IMAGE_NAME $REG_REPOSITORY/$CI_COMMIT_TAG
     - docker push $REG_REPOSITORY/$CI_COMMIT_TAG
   after_script:
     - docker logout $REG_ENDPOINT
+    - docker logout $CI_REGISTRY
   rules:
     - if: $CI_COMMIT_TAG
 
