@@ -14,10 +14,13 @@ build:
   image: clojure:latest
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+  before_script:
+    - echo '{:username "'${CI_REGISTRY_USER}'" :password "'${CI_REGISTRY_PASSWORD}'"}' > .creds.edn
   script:
     - clj -X:compile
-    - echo '{:username "'${CI_REGISTRY_USER}'" :password "'${CI_REGISTRY_PASSWORD}'"}' > .creds.edn
     - clj -Sdeps '{:mvn/local-repo "'${CI_PROJECT_DIR}'/.m2/repository"}' -T:container "$(< jib-gitlab.edn)"
+  after_script:
+    - rm .creds.edn
   cache:
     paths:
       - .m2/repository
