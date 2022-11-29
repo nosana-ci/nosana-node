@@ -1,58 +1,32 @@
 include:
   - project: nosana-ci/tools/cicd/gitlab-ci
-    file: templates/semver.yml
-  - project: nosana-ci/tools/cicd/gitlab-ci
-    file: templates/release.yml
+    file: docker-container.yml
 
 variables:
-  GIT_SUBMODULE_STRATEGY: recursive
-  CI_IMAGE_NAME: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}
+  SKIP_AUTO_BUILD: ok
   RUN_AUTO_BUMP: ok
   AUTO_BUMP_REPO: nosana-ci/apps/platform/k8s
   AUTO_BUMP_FILE: helm-nostromo.tf
-
-release:
-  stage: deploy
-  extends: .release
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  AUTO_BUMP_SCG_PREFIX: image_tag [^}]*= { dev = \"
 
 build:
   stage: build
   image: clojure:latest
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  before_script:
+    - echo '{:username "'${CI_REGISTRY_USER}'" :password "'${CI_REGISTRY_PASSWORD}'"}' > .creds.edn
   script:
     - clj -X:compile
-    - echo '{:username "'${CI_REGISTRY_USER}'" :password "'${CI_REGISTRY_PASSWORD}'"}' > .creds.edn
     - clj -Sdeps '{:mvn/local-repo "'${CI_PROJECT_DIR}'/.m2/repository"}' -T:container "$(< jib-gitlab.edn)"
+  after_script:
+    - rm .creds.edn
   cache:
     paths:
       - .m2/repository
   rules:
-    - if: $CI_COMMIT_TAG
-
-docker hub:
-  stage: deploy
-  image: docker:20.10.20
-  services:
-    - docker:20.10.20-dind
-  before_script:
-    - echo $REG_TOKEN | docker login -u $REG_USERNAME --password-stdin $REG_ENDPOINT
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-  script:
-    - docker pull $CI_IMAGE_NAME
-    - docker tag $CI_IMAGE_NAME $REG_REPOSITORY/$CI_COMMIT_TAG
-    - docker push $REG_REPOSITORY/$CI_COMMIT_TAG
-  after_script:
-    - docker logout $REG_ENDPOINT
-    - docker logout $CI_REGISTRY
-  rules:
-    - if: $CI_COMMIT_TAG
-
-auto deploy dev:
-  stage: .post
-  extends: .auto-deploy
-  variables:
-    AUTO_BUMP_SCG_PREFIX: image_tag [^}]*= { dev = \"
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 auto deploy prd:
   stage: .post

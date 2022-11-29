@@ -8,6 +8,6 @@
  :target-image {:type :registry
                 :image-name "registry.gitlab.com/nosana-ci/apps/platform/nosana-node"
                 :tagger {:fn jibbit.tagger/environment
-                         :args {:varname "CI_IMAGE_NAME"}}
+                         :args {:varname "CONTAINER_TEST"}}
                 :authorizer {:fn jibbit.creds/load-edn
                              :args {:local ".creds.edn"}}}}
