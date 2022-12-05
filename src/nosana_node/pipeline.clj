@@ -33,7 +33,7 @@
   (->> env
        (map (fn [[k v]]
               (case (:type v)
-                "nos/secret" [k [:nosana-node.core/secret (:endpoint v) (:value v)]]
+                "nosana/secret" [k [:nosana-node.core/secret (:endpoint v) (:value v)]]
                 "string" [k v]
                 [k v])))
        (into {})))
