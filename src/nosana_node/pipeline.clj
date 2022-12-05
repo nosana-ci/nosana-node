@@ -25,6 +25,7 @@
                          {:cmd      [::nos/str "git checkout " [::nos/ref :input/commit-sha]]
                           :work-dir "/root/project"}]
              :artifacts [{:source "project" :dest "checkout"}]
+             :conn      {:uri [::nos/vault :podman-conn-uri]}
              :image     "registry.hub.docker.com/bitnami/git:latest"}]}]})
 
 (defn prep-env
