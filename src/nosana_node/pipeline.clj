@@ -27,6 +27,7 @@
                          {:cmd      [::nos/str "git checkout " [::nos/ref :input/commit-sha]]
                           :work-dir "/root/project"}]
              :artifacts [{:source "project" :dest "checkout"}]
+             :conn      {:uri [::nos/vault :podman-conn-uri]}
              :image     "registry.hub.docker.com/bitnami/git:latest"}]}]})
 
 (defn prep-env
@@ -35,7 +36,7 @@
   (->> env
        (map (fn [[k v]]
               (case (:type v)
-                "nos/secret" [k [:nosana-node.core/secret (:endpoint v) (:value v)]]
+                "nosana/secret" [k [:nosana-node.core/secret (:endpoint v) (:value v)]]
                 "string" [k v]
                 [k v])))
        (into {})))
