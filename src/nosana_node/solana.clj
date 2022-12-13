@@ -118,6 +118,7 @@
   [type idl]
   (cond
     (= type "u64")       8
+    (= type "u128")      16
     (= type "i64")       8
     (= type "u32")       4
     (= type "u8")        1
@@ -270,10 +271,20 @@
   [data ofs type value idl]
   (cond
     (= type "u8") (aset-byte data ofs (unchecked-byte value))
+    ;; TODO: implement i64 (using LE two's complement encoding)
+    (= type "i64")
+    (throw (ex-info "i64 type not supported for IDL write" {:value value}))
     (= type "u64")
     (let [bos (ByteArrayOutputStream.)]
       (ByteUtils/uint64ToByteStreamLE (BigInteger. value) bos)
       (System/arraycopy (.toByteArray bos) 0 data ofs 8))
+    (= type "u128")
+    (let [bos (ByteArrayOutputStream.)
+          bytes (Utils/reverseBytes (.toByteArray (BigInteger. value)))]
+      (.write bos bytes)
+      (doseq [i (range (- 16 (count bytes)))]
+        (.write bos (byte 0)))
+      (System/arraycopy (.toByteArray bos) 0 data ofs 16))
 
     ;; arrays are static sized
     (:array type)

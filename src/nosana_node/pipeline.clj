@@ -18,6 +18,8 @@
    :pipeline "nosana:\n  description: Run Test \n\nglobal:\n  image: registry.hub.docker.com/library/node:16\n  trigger:\n    branch:\n      - all\n\njobs:\n  - name: install-deps and run test\n    commands: \n      - npm ci\n      - npm run test\n"})
 
 (def base-flow
+  "The default flow for a pipeline which includes cloning of the
+  repository."
   {:ops
    [{:op   :docker/run
      :id   :checkout
@@ -29,7 +31,7 @@
              :image     "registry.hub.docker.com/bitnami/git:latest"}]}]})
 
 (defn prep-env
-  "Process job env entries"
+  "Process job env entries."
   [env]
   (->> env
        (map (fn [[k v]]
@@ -49,8 +51,7 @@
 
 (defn make-job
   "Create flow segment for a `job` entry of the pipeline.
-  Input is a yaml job entry, parsed to a keywordized map and some
-  global data."
+  Input is a keywordized map that is a parsed yaml job entry."
   [{:keys [name commands artifacts resources environment image work-dir]
     :or   {resources []
            work-dir  "/root/project"}}
@@ -75,7 +76,10 @@
     (map #(make-job % pipeline) jobs)))
 
 (defn load-yml
-  "Expects a trigger section in the yaml"
+  "Load a pipeline from a YAML file.
+  Useful for local testing. Expects an extra `trigger` section in the
+  yaml with `trigger:` and `commit-sha:` keys, to indicate which repo
+  must be cloned."
   [path]
   (let [{:keys [trigger global jobs] :as pipeline}
         (-> path slurp yaml/parse-string)]

@@ -330,6 +330,15 @@ Running Nosana Node %s
 (defn get-market [{:keys [network programs market]}]
   (sol/get-idl-account (:job programs) "MarketAccount" market network))
 
+(defn create-market
+  "Create a Nosana market.
+  TODO: This function does not work yet because i64 support has to be
+  added."
+  [{:keys [network signer] :as conf}]
+  (let [market-acc (sol/account)]
+    (-> (build-idl-tx :job "open" ["360" "0" "360" 1 "0"] conf {:market (.getPublicKey market-acc)})
+        (sol/send-tx [signer] network))))
+
 (defn is-queued? [conf]
   (let [market (get-market conf)]
     (not-empty (filter #(.equals %1 (:address conf)) (:queue market)))))
