@@ -1,0 +1,66 @@
+# Trigger info for local testing
+trigger:
+    repo: https://github.com/djmbritt/anchor-ts-generator/
+    commit-sha: eb440b998e74703d090f7345bbbf998ce988afb5
+
+# .nosana-ci.yml
+nosana:
+    description: Build and Generate Indexer Runtime
+
+global:
+    # image: registry.hub.docker.com/library/rancher/rancher
+    # image: registry.hub.docker.com/library/docker:dind
+    # image: registry.hub.docker.com/library/ubuntu:latest
+    image: registry.hub.docker.com/teracy/ubuntu:20.04-dind-latest
+
+    # Trigger pipeline on these branches:
+    #trigger:
+        # branch:
+        #     - main
+
+jobs:
+
+    - name: Build 
+      commands:
+        # Install Docker
+        - echo "Hello Docker"
+
+        - apt-get update
+        # - apt-get -qy full-upgrade
+        
+        # Check version
+        - docker version
+        - docker buildx version
+
+        # Setup QEMU
+        - docker run --rm --privileged ghcr.io/dpsigs/tonistiigi-binfmt:latest --install all
+
+        # List processes in binfmt
+        - ls -la /proc/sys/fs/binfmt_misc
+
+        # Create and inspect BuildX instance
+        - docker buildx create --use --name mybuilder --driver docker-container --driver-opt image=ghcr.io/dpsigs/moby-buildkit:master
+        - docker buildx inspect --bootstrap
+
+        # Use BuildXto build indexer
+        - docker buildx build --build-arg INDEXER=marinade_finance --output type=docker,dest=/tmp/indexer-framework.tar --tag indexer-framework:latest .
+        
+        # Load in Indexer
+        - docker load --input /tmp/indexer-framework.tar
+        
+        # List Docker images
+        - docker image list
+        
+        # Tar and gzip Docker image contents
+        - tar cvzf /tmp/indexer-framework.tar /var/lib/docker/image /var/lib/docker/vfs
+      
+      # artifacts:
+      #   - name: indexer_framework
+      #     path: $INDEXER_TAR_PATH
+      # env:
+      #   - INDEXER_TAR_PATH: /tmp/indexer-framework.tar
+      #   - INDEXER: marinade_finance
+
+
+
+      
