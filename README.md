@@ -1,19 +1,29 @@
+<h1 align="center">
+  <br>
+   <img width="400" src="https://nosana.io/img/Nosana_Logo_vertical_color_black.svg" />
+  <br>
+</h1>
+
+# Nosana Node
+
+Nosana container engine used for running jobs on the Nosana network.
+Learn more at [nosana.io](https://nosana.io).
+
 ## Building
 
 It's recommended to use Clojure version 1.10.x and JVM 11.
 
 ### Config
 
-The configuration of the node is read from a few different places. On
-a production environment the configuration values are passed as
-enironment variables. Locally it is most convenient to use the
-`~/.nosana-node-config.edn` file:
+The configuration of the node is read from a few different places.
+In a production environment, the configuration values are passed as environment variables.
+Locally it is most convenient to use the `~/.nosana-node-config.edn` file:
 
-```
+```bash
 cp nosana-node-config.edn-TEMPLATE ~/.nosana-node-config.edn
 ```
 
-In development you will only have to enter you node's NFT address in
+In development you will only have to enter your node's NFT address in
 the `.nosana-node-config.edn` and configure Solana and Pinata.
 
 ##### Solana
@@ -21,7 +31,7 @@ the `.nosana-node-config.edn` and configure Solana and Pinata.
 If you do not have a default Solana keypair yet you can generate one
 with:
 
-```
+```bash
 solana-keygen new
 ```
 
@@ -31,7 +41,7 @@ Make sure your Solana account has enough staked and holds an NFT.
 
 The node uses Pinata to upload job results to IPFS. If you do not have
 Pinata credentials set your node will fail to upload job results and
-get slashed. In the future we will support multiple storage backends -
+get slashed. In the future, we will support multiple storage backends -
 feel free to open a GitHub issue with suggestions.
 
 For now, log in to Pinata and generate new API credentials with the
@@ -61,7 +71,7 @@ recursively.
 
 The solanaj classes have to be compiled once before we start:
 
-```
+```bash
 clj -X:compile
 ```
 
@@ -76,13 +86,13 @@ container image on the JVM without a Docker daemon.
 To build a docker container and import it to your local docker daemon,
 tagged as `nos/node`:
 
-```
+```bash
 clj -T:container "$(< jib-local.edn)"
 ```
 
 The `jib.edn` file can be adjusted to push to a different registry or
-supply a different tagger. For more info check the jibbit docs. For
-CI/CD the [jib-gitlab.edn](jib-gitlab.edn) file is used.
+supply a different tagger. For more info check the [jibbit docs](https://github.com/atomisthq/jibbit). 
+For CI/CD the [jib-gitlab.edn](jib-gitlab.edn) file is used.
 
 ## Usage
 
@@ -90,7 +100,7 @@ CI/CD the [jib-gitlab.edn](jib-gitlab.edn) file is used.
 
 You will have to run a local non-privileged Podman container:
 
-```
+```bash
 sudo docker run -d \
   --name podman \
   --device /dev/fuse \
@@ -110,10 +120,10 @@ Podman will be used to spin up containers for Nosana jobs.
 
 To quickly start a development REPL, and spin up the node:
 
-```
-$ clj -M:dev -r
-Clojure 1.10.0
-user=> (go)
+```bash
+clj -M:dev -r
+# Clojure 1.10.0
+# user=> (go)
 ```
 
 Make sure that your node is healthy and fix any configuration issues
@@ -126,7 +136,7 @@ Here are some example commands to check. Note that our repl defined
 the `conf` variable that contains the network configuration, and
 `system` which contains all the components of the server:
 
-```
+```clojure
 ;; displays the current market and queue
 user=> (nos/get-market conf)
 
@@ -151,13 +161,11 @@ user=> (run-flow (flow/build (pl/load-yml (io/resource "pipeline2.yml"))))
 
 ### Production nodes
 
-Prodcution nodes can run on any device with a JVM and Podman
+Production nodes can run on any device with a JVM and Podman
 available. For simplicity we recommend running the node through
-docker. Below is an example of how you could start a Docker based
-Nosana node, in which you will have to fillout the correct environment
-variables:
+docker. Below is an example of how you could start a Docker-based Nosana node, in which you will have to fill out the correct environment variables:
 
-```
+```bash
 docker run --rm -it \
   -e "SOLANA_PRIVATE_KEY=$(< ~/.config/solana/id.json)"
   -e "PODMAN_CONN_URI=http://$(docker inspect -f '{{ .NetworkSettings.IPAddress }}' podman):8080" \
