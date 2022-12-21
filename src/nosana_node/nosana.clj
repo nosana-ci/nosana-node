@@ -14,7 +14,6 @@
             [konserve.core :as kv]
             [clojure.string :as string]
             [cheshire.core :as json]
-            [clj-yaml.core :as yaml]
             [nosana-node.util
              :refer [ipfs-hash->bytes bytes->ipfs-hash]
              :as util]
@@ -64,8 +63,7 @@
   (-> bytes
       byte-array
       bytes->ipfs-hash
-      (download-ipfs conf)
-      (update :pipeline yaml/parse-string)))
+      (download-ipfs conf)))
 
 (defn sha256 [string]
   (let [digest (.digest (MessageDigest/getInstance "SHA-256") (.getBytes string "UTF-8"))]
@@ -82,8 +80,7 @@
   (Account. (byte-array (edn/read-string (vault/get-secret vault :solana-private-key)))))
 
 (defn solana-tx-failed?
-  "Return true if a solana transaction failed
-
+  "Return true if a solana transaction failed.
   This is when it contains an error object in its metadata"
   [tx]
   (-> tx :meta :err nil? not))

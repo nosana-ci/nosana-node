@@ -108,42 +108,47 @@
 ;; finalizes the Solana transactions for the job
 (defn upload-flow-results
   [{:nos/keys [vault]} flow]
-  (let [end-time   (nos/current-time)
+  (let [end-time (nos/current-time)
+
         ;; put the results of some operators in map to upload to IPFS. also
         ;; we'll slurp the content of the docker logs as they're only on the
         ;; local file system.
-        res        (->> flow
-                        :results
-                        (reduce-kv
-                         (fn [m k [status results & more]]
-                           ;; qualified keywords are most likely
-                           ;; nostromo intrinsics we can ignore
-                           (if (not (qualified-keyword? k))
-                             (let [[status results]
-                                   (if (= status :nos.core/error)
-                                     [:pipeline-failed (first more)]
-                                       [status results])]
-                               (assoc m k
-                                      [status
-                                       (map #(if (:log %)
-                                               (update %
-                                                       :log
-                                                       (fn [l] (-> l slurp json/decode))) %)
-                                            results)]))
-                             m))
-                         {}))
+        res
+        (->> flow
+             :results
+             (reduce-kv
+              (fn [m k [status results & more]]
+                ;; qualified keywords are most likely
+                ;; nostromo intrinsics we can ignore
+                (if (not (qualified-keyword? k))
+                  (let [[status results]
+                        (if (= status :nos.core/error)
+                          [:pipeline-failed (first more)]
+                          [status results])]
+                    (assoc m k
+                           [status
+                            (map #(if (:log %)
+                                    (update %
+                                            :log
+                                            (fn [l] (-> l slurp json/decode))) %)
+                                 results)]))
+                  m))
+              {}))
+
         job-result {:nos-id      (:id flow)
                     :finished-at (nos/current-time)
                     :results     res}
 
-        ipfs       (ipfs-upload job-result vault)]
+        ipfs (ipfs-upload job-result vault)]
     (log :info "Job results uploaded to " ipfs)
     (assoc-in flow [:results :result/ipfs] ipfs)))
 
 (defn make-from-job
   [job job-addr run-addr]
   (let [pipeline (-> (:pipeline job)
-                     (update-in [:global :environment] merge (trigger->env job)))]
+                     yaml/parse-string
+                     (update-in [:global :environment]
+                                merge (trigger->env job)))]
     (-> base-flow
         (update :ops #(into [] (concat % (pipeline->flow-ops pipeline))))
         (assoc-in [:results :input/repo] (:url job))
