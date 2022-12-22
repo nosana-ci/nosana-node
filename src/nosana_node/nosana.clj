@@ -201,7 +201,10 @@ Running Nosana Node %s
         nos-ata      (sol/get-ata signer-pub (:nos-token programs))
         market       (sol/get-idl-account (:job programs) "MarketAccount" market-pub network)
         nft          (if (:nft vault) (PublicKey. (:nft vault)) (:system sol/addresses))
-        nft-ata      (sol/get-ata signer-pub nft)]
+        nft-ata      (if (:nft vault)
+                       (do (println "Use ATA of NFT") (sol/get-ata signer-pub nft))
+                       (do (println "Use System address of NFT") (:system sol/addresses)))
+        ]
     {:network           network
      :signer            signer
      :secrets-endpoint  "http://localhost:4124"
