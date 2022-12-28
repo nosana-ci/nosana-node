@@ -1,0 +1,45 @@
+nosana:
+  description: Nosana-Node Pipeline
+      
+global:
+  image: registry.hub.docker.com/library/clojure:latest
+
+  trigger:
+    branch:
+      - all
+
+  environment:
+    # Specify that apt will be used in noninteractive env. https://www.debian.org/releases/sarge/s390/ch05s02.html.en
+    DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  - name: install and build container
+
+    USERNAME: nosana
+
+    DOCKER_ENV_PAT:
+      type: nosana/secret
+      endpoint: https://secrets.k8s.dev.nos.ci
+      value: DOCKER_PAT 
+
+    commands:
+
+      # Update apt in order to download deps for installing clj-kondo
+      - apt-get update
+      - apt-get install unzip
+
+      # Intall clj-kondo
+      - curl -sLO https://raw.githubusercontent.com/clj-kondo/clj-kondo/master/script/install-clj-kondo
+      - chmod +x install-clj-kondo
+      - ./install-clj-kondo
+      - clj-kondo --lint src --dependencies --parallel --copy-configs
+      
+      # Pull in solanj submodule
+      - git submodule init
+      - git submodule update
+
+      # Compile Nosana
+      - clj -X:compile
+
+      # Use jib to publish Docker Container
+      - clj -T:container build :config '{:main "nosana-node.main" :aliases [:production] :aot true :target-image {:image-name "nosana/nosana-node" :type :registry :username $USERNAME :password $DOCKER_ENV_PAT}}'
