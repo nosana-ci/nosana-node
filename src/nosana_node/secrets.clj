@@ -6,28 +6,28 @@
             [nos.core :as flow]
             [cheshire.core :as json]))
 
-(defn- make-login-payload [{:keys [signer] :as conf}]
+(defn- make-login-payload [{:keys [signer] :as conf} job-addr]
   (let [ts  (quot (System/currentTimeMillis) 1000)
         msg (-> (str "nosana_secret_" ts) (.getBytes "UTF-8"))
         sig (sol/sign msg signer)
-        payload {:address
-                 (.toString (:address conf))
-                 :signature
-                 (util/base58 sig)
-                 :timestamp ts
-                 ;;:job "addr" ;; TODO: access secrets for project of assigned job
-                 }]
+        payload (cond-> {:address   (.toString (:address conf))
+                         :signature  (util/base58 sig)
+                         :timestamp ts }
+                  job-addr (assoc :job job-addr))] 
     payload))
 
-(defn login [{:keys [secrets-endpoint]:as conf}]
-  (let [payload (make-login-payload conf)]
-    (->
-     (http/post (str secrets-endpoint "/login")
-                {:form-params (make-login-payload conf)
-                 :content-type :json})
-     :body
-     (json/decode true)
-     :token)))
+(defn login 
+  ([conf] (login conf nil))
+  ( [{:keys [secrets-endpoint] :as conf} job-addr]
+   (let [payload (make-login-payload conf job-addr)]
+    ;;  (prn payload)
+     (->
+      (http/post (str secrets-endpoint "/login")
+                 {:form-params payload
+                  :content-type :json})
+      :body
+      (json/decode true)
+      :token))))
 
 (defn set-secrets
   "Set a secrets map in the nosana secret proxy."
@@ -40,26 +40,34 @@
                 :accept :json})))
 
 (defn get-secrets [{:keys [secrets-endpoint] :as conf} jwt]
-  (->
-   (http/get (str secrets-endpoint "/secrets")
-             {:headers {"Authorization" jwt}})
-   :body
-   (json/decode false)))
+  (try
+    (->
+     (http/get (str secrets-endpoint "/secrets")
+               {:headers {"Authorization" jwt}})
+     :body
+     (json/decode false))
+    (catch Exception e
+      ;; (prn "Error fetching secerts" (ex-data e))
+      (throw (ex-info "Error fetching secrets" (ex-data e))))))
 
 (derive :nosana-node.core/secret ::flow/ref)
 (defmethod flow/ref-val :nosana-node.core/secret
   [[_ endpoint value] flow-state vault]
+  ;; (prn "========== getting a sccret" endpoint value)
   (let [account (nos/get-signer-key vault)
         conf    {:signer           account
                  :secrets-endpoint endpoint
                  :address          (.getPublicKey account)}
-        jwt     (login conf)
+        jwt     (login conf (:input/job-addr flow-state))
         secrets (get-secrets conf jwt)]
-    (get secrets value)))
+    ;; (prn secrets )
+    (if (contains? secrets value) 
+      (get secrets value) 
+      (throw (ex-info "Could not find secret" {:value value})))))
 
 ;; nosana-node.core/secret can be used to retreive values from the secret engine
 ;; example:
 #_(flow/run-flow!
    (:nos/flow-engine system)
    (flow/build
-    {:ops [{:op :prn :args [[:nosana-node.core/secret "http://localhost:4124" "jesse"]]}]}))
+    {:ops [{:op :prn :args [[:nosana-node.core/secret "http://localhost:4124" "jesse"]]}]}));

@@ -198,7 +198,9 @@ Running Nosana Node %s
         nos-ata      (sol/get-ata signer-pub (:nos-token programs))
         market       (sol/get-idl-account (:job programs) "MarketAccount" market-pub network)
         nft          (if (:nft vault) (PublicKey. (:nft vault)) (:system sol/addresses))
-        nft-ata      (sol/get-ata signer-pub nft)]
+        nft-ata      (if (:nft vault)
+                       (sol/get-ata signer-pub nft)
+                       (:system sol/addresses))]
     {:network           network
      :signer            signer
      :secrets-endpoint  "https://secrets.k8s.dev.nos.ci"

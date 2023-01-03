@@ -82,6 +82,16 @@
   (clojure.core.async/go (nos/work-loop conf system))
   true)
 
+(defn start-first-run!
+  "Find our first run and run in the REPL."
+  []
+  (let [runs (nos/find-my-runs conf)]
+    (prn "Found runs" runs)
+    (when-let [[run-addr run] (first runs)]
+      (let [flow    (nos/job->flow (:job run) run-addr conf)
+            flow-id (:id flow)]
+        (run-flow flow)))))
+
 ;; (defn finish-stuck-job!
 ;;   "Finish a job that this node has claimed but never finished"
 ;;   [job-addr network]

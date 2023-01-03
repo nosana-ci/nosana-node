@@ -94,6 +94,8 @@
   "Converts a map to a JSON string and pins it using Pinata.
   Returns the CID string of the IPFS object."
   [obj {:keys [pinata-jwt]}]
+  (when (not pinata-jwt)
+    (throw (ex-info "Pinata JWT not set" {})))
   (log :trace "Uploading object to ipfs")
   (->
    (http/post (str pinata-api-url "/pinning/pinJSONToIPFS")
