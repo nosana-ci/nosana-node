@@ -42,4 +42,4 @@ jobs:
       - clj -X:compile
 
       # Use jib to publish Docker Container
-      - clj -T:container build :config '{:main "nosana-node.main" :aliases [:production] :aot true :target-image {:image-name "nosana/nosana-node" :type :registry :username $USERNAME :password $DOCKER_ENV_PAT}}'
+      # - clj -T:container build :config '{:main "nosana-node.main" :aliases [:production] :aot true :target-image {:image-name "nosana/nosana-node" :type :registry :username $USERNAME :password $DOCKER_ENV_PAT}}'
