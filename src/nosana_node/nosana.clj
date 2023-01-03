@@ -305,15 +305,8 @@ Running Nosana Node %s
                        "payer" (:payer run)})
         (sol/send-tx [signer] network))))
 
-(defn find-my-jobs
-  "Find job accounts owned by this node"
-  [{:keys [network programs address]}]
-  (sol/get-idl-program-accounts
-   network
-   (:job programs)
-   "JobAccount"
-   {"node"  (.toString address)
-    "state" "2"}))
+(defn get-market [{:keys [network programs market]}]
+  (sol/get-idl-account (:job programs) "MarketAccount" market network))
 
 (defn find-my-runs
   "Find job accounts owned by this node"
@@ -324,8 +317,35 @@ Running Nosana Node %s
    "RunAccount"
    {"node"  (.toString address)}))
 
-(defn get-market [{:keys [network programs market]}]
-  (sol/get-idl-account (:job programs) "MarketAccount" market network))
+(defn clear-market
+  "Claim all the jobs that are queued in the configured market.
+  Can be combined with `quit-my-runs`."
+  [conf]
+  (let [queue (:queue (get-market conf))
+        job (first queue)]
+    (logg/info "Market has " (count queue) " jobs")
+    (doseq [i (range (count queue))]
+      (logg/info "Entering market i = " i)
+      (enter-market conf))))
+
+(defn find-my-jobs
+  "Find job accounts owned by this node"
+  [{:keys [network programs address]}]
+  (sol/get-idl-program-accounts
+   network
+   (:job programs)
+   "JobAccount"
+   {"node"  (.toString address)
+    "state" "2"}))
+
+(defn quit-my-runs
+  "Quit all the jobs that are claimed by this node."
+  [conf]
+  (let [my-runs (find-my-runs conf)]
+    (logg/info "Node has " (count my-runs) " claimed jobs")
+    (doseq [[pub _] my-runs]
+      (logg/info "Quiting run " pub)
+      (quit-job conf (sol/public-key pub)))))
 
 (defn create-market
   "Create a Nosana market.
@@ -336,7 +356,9 @@ Running Nosana Node %s
     (-> (build-idl-tx :job "open" ["360" "0" "360" 1 "0"] conf {:market (.getPublicKey market-acc)})
         (sol/send-tx [signer] network))))
 
-(defn is-queued? [conf]
+(defn is-queued?
+  "Returns `true` if the node is queued in the configured market."
+  [conf]
   (let [market (get-market conf)]
     (not-empty (filter #(.equals %1 (:address conf)) (:queue market)))))
 
