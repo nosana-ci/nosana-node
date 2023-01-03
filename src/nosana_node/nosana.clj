@@ -394,7 +394,11 @@ Running Nosana Node %s
   [job-pub run-pub conf]
   (let [job      (get-job conf job-pub)
         job-info (download-job-ipfs (:ipfsJob job) conf)]
-    (pipeline/make-from-job job-info job-pub run-pub)))
+    (if (contains? job-info :state)
+      (-> job-info
+          (assoc-in [:state :input/job-addr] (.toString job-pub))
+          (assoc-in [:state :input/run-addr] (.toString run-pub)))
+      (pipeline/make-from-job job-info job-pub run-pub))))
 
 (defn start-flow-for-run!
   "Start running a new Nostromo flow and return its flow ID."
