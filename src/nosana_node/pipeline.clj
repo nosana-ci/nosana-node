@@ -3,6 +3,7 @@
             [taoensso.timbre :refer [log]]
             [clj-http.client :as http]
             [cheshire.core :as json]
+            [nosana-node.nosana :refer [finish-flow]]
             [clojure.java.io :as io]
             [clj-yaml.core :as yaml]
             [nos.core :as nos]
@@ -108,7 +109,7 @@
 
 ;; this coerces the flow results for Nosana and uploads them to IPFS. then
 ;; finalizes the Solana transactions for the job
-(defn upload-flow-results
+(defn make-flow-results
   [{:nos/keys [vault]} flow]
   (let [end-time (nos/current-time)
 
@@ -117,12 +118,12 @@
         ;; local file system.
         res
         (->> flow
-             :results
+             :state
              (reduce-kv
               (fn [m k [status results & more]]
                 ;; qualified keywords are most likely
                 ;; nostromo intrinsics we can ignore
-                (if (not (qualified-keyword? k))
+                (if (and k (not (qualified-keyword? k)))
                   (let [[status results]
                         (if (= status :nos.core/error)
                           [:pipeline-failed (first more)]
@@ -135,15 +136,17 @@
                                             (fn [l] (-> l slurp json/decode))) %)
                                  results)]))
                   m))
-              {}))
+              {}))]
+    res))
 
+(defmethod finish-flow "Pipeline" [flow {:keys [vault]}]
+  (let [results    (make-flow-results flow)
         job-result {:nos-id      (:id flow)
                     :finished-at (nos/current-time)
-                    :results     res}
-
-        ipfs (ipfs-upload job-result vault)]
+                    :results     results}
+        ipfs       (ipfs-upload job-result vault)]
     (log :info "Job results uploaded to " ipfs)
-    (assoc-in flow [:results :result/ipfs] ipfs)))
+    ipfs))
 
 (defn make-from-job
   [job job-addr run-addr]

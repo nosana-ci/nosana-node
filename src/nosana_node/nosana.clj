@@ -364,6 +364,24 @@ Running Nosana Node %s
   (let [market (get-market conf)]
     (not-empty (filter #(.equals %1 (:address conf)) (:queue market)))))
 
+(defn- finish-flow-dispatch [flow conf]
+  (or (get-in flow [:state :nosana/job-type])
+      :nosana/pipeline))
+(defmulti finish-flow
+  "Process a finished flow by its [:state :nosana/job-type] value.
+  Returns a document of the flow results."
+  #'finish-flow-dispatch)
+
+(defn finish-flow-2 [flow conf]
+  (go
+    (let [job-addr    (get-in flow [:state :input/job-addr])
+          run-addr    (get-in flow [:state :input/run-addr])
+          result-ipfs (finish-flow flow conf)
+          sig         (finish-job conf (PublicKey. job-addr) (PublicKey. run-addr) result-ipfs)
+          tx          (<! (sol/await-tx< sig (:network conf)))]
+      (log :info "Job results posted " result-ipfs sig)
+      nil)))
+
 (defn process-flow!
   "Check the state of a flow and finalize its job if finished.
   Returns nil if successful, `flow-id` if not finished or if an
@@ -374,15 +392,9 @@ Running Nosana Node %s
       (let [flow (<! (kv/get store flow-id))]
         (if (flow-finished? flow)
           ;; TODO: when the flow is malformed this will always error: what to do?
-          (let [_             (log :info "Flow finished, posting results")
-                finished-flow (pipeline/upload-flow-results sys flow)
-                job-addr      (get-in finished-flow [:results :input/job-addr])
-                run-addr      (get-in finished-flow [:results :input/run-addr])
-                result-ipfs   (get-in finished-flow [:results :result/ipfs])
-                sig           (finish-job conf (PublicKey. job-addr) (PublicKey. run-addr) result-ipfs)
-                tx            (<! (sol/await-tx< sig (:network conf)))]
-            (log :info "Job results posted " result-ipfs sig)
-            nil)
+          (do
+            (log :info "Flow finished, posting results")
+            (<! (finish-flow-2 flow conf)))
           (let [_ (log :trace "Flow still running")]
             flow-id)))
       (catch Exception e

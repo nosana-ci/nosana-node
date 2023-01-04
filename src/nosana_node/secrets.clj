@@ -27,7 +27,7 @@
    (let [payload (make-login-payload conf job-addr)]
      (->
       (http/post (str secrets-endpoint "/login")
-                 {:form-params payload
+                 {:form-params  payload
                   :content-type :json})
       :body
       (json/decode true)
@@ -38,33 +38,33 @@
   [{:keys [secrets-endpoint] :as conf} secrets]
   (let [jwt (login conf)]
     (http/post (str secrets-endpoint "/secrets")
-               {:form-params {:secrets secrets}
+               {:form-params  {:secrets secrets}
                 :content-type :json
-                :headers {"Authorization" jwt}
-                :accept :json})))
+                :headers      {"Authorization" jwt}
+                :accept       :json})))
 
 (defn get-secrets
-  ([conf jwt] (get-secrets conf jwt false))
-  ([{:keys [secrets-endpoint] :as conf} jwt keywordize?]
-   (try
-     (->
-      (http/get (str secrets-endpoint "/secrets")
-                {:headers {"Authorization" jwt}})
-      :body
-      (json/decode keywordize?))
-     (catch Exception e
-       ;; (prn "Error fetching secerts" (ex-data e))
-       (throw (ex-info "Error fetching secrets" (ex-data e)))))))
+  [{:keys [secrets-endpoint] :as conf} jwt]
+  (try
+    (->
+     (http/get (str secrets-endpoint "/secrets")
+               {:headers {"Authorization" jwt}})
+     :body
+     (json/decode false))
+    (catch Exception e
+      (throw (ex-info "Error fetching secrets" (ex-data e))))))
 
 (derive :nos/secret ::flow/ref)
 (defmethod flow/ref-val :nos/secret
   [[_ endpoint value keywordize?] flow-state vault]
-  (let [account (nos/get-signer-key vault)
-        conf    {:signer           account
-                 :secrets-endpoint endpoint
-                 :address          (.getPublicKey account)}
-        jwt     (login conf (:input/job-addr flow-state))
-        secrets (get-secrets conf jwt false)]
+  (let [account     (nos/get-signer-key vault)
+        conf        {:signer           account
+                     :secrets-endpoint endpoint
+                     :address          (.getPublicKey account)}
+        jwt         (login conf (:input/job-addr flow-state))
+        secrets     (get-secrets conf jwt)
+        keywordize? true]
+    ;; (prn "Found Secrets for job " (:input/job-addr flow-state) secrets)
     (if (contains? secrets value)
       (cond-> (get secrets value)
         keywordize? clojure.walk/keywordize-keys)
