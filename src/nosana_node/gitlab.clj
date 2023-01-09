@@ -20,12 +20,13 @@
     (-> job
         (assoc-in [:state :input/job-addr] (.toString job-addr))
         (assoc-in [:state :input/run-addr] (.toString run-addr))
-        flow/build)))
+        flow/build
+        (assoc :default-args (:nos-default-args conf)))))
 
 (defmethod finish-flow "Gitlab"
   [flow {:keys [secrets-endpoint] :as conf}]
   (let [job-addr (get-in flow [:state :input/job-addr])
-        results  (pipeline/make-flow-results flow)
+        results  (:state flow)
         secret   (str job-addr "/result")]
     (log :info "Storing job results in secret")
     (secrets/set-secrets conf {secret results})

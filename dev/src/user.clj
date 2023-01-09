@@ -51,7 +51,8 @@
 (defn run-flow [flow]
   (prn ">> Starting flow from REPL >>" (:id flow))
   (->>
-   (flow/run-flow! (:nos/flow-engine system) flow)
+   (assoc flow :default-args (:nos-default-args conf))
+   (flow/run-flow! (:nos/flow-engine system))
    (kv/assoc-in (:nos/store system) [(:id flow)])
    <!!
    second))
@@ -106,6 +107,12 @@
             flow    (nos/create-flow job run-addr run conf)
             flow-id (:id flow)]
         (run-flow flow)))))
+
+(defn get-job-result-secret
+  "Get the job results form the secret manager."
+  [job]
+  (get (secrets/get-secrets conf (secrets/login conf)) (str job "/result")))
+;; (get-job-result-secret "7R67vVfRm5WsRUMzJo2NtyAkuFkB5aJ3ocFm6vAe8wQw")
 
 ;; (defn finish-stuck-job!
 ;;   "Finish a job that this node has claimed but never finished"

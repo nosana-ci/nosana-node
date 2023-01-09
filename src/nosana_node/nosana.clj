@@ -112,7 +112,7 @@
          (or (sol/get-token-balance (get accounts "nft") network)
              "0"))})
 
-(def  min-sol-balance
+(def min-sol-balance
   "Minimum Solana balance to be healthy" (sol/format-sol "10000000"))
 
 (defn healthy
@@ -222,6 +222,9 @@ Running Nosana Node %s
      :pinata-jwt        (:pinata-jwt vault)
      :ipfs-url          (:ipfs-url vault)
      :market            market-pub
+     :nos-default-args  {:container/run
+                         {:conn         {:uri [:nos/vault :podman-conn-uri]}
+                          :inline-logs? true}}
      :market-collection (:nodeAccessKey market)
      :address           signer-pub
      :programs          programs
@@ -479,7 +482,7 @@ Running Nosana Node %s
   [_ {:keys [store flow-ch vault]}]
   ;; Wait a bit for podman to boot
   (log :info "Waiting 5s for podman")
-  (Thread/sleep 5000)
+  ;; (Thread/sleep 5000)
   (let [system     {:nos/store     store
                     :nos/flow-chan flow-ch
                     :nos/vault     vault}
