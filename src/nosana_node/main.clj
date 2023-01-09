@@ -2,6 +2,7 @@
   (:require [nosana-node.nosana :as nosana]
             nosana-node.handler
             nos.ops.git
+            nosana-node.gitlab
             nos.ops.docker
             nos.system
             nos.module.http

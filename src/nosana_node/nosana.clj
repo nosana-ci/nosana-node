@@ -9,12 +9,10 @@
              [<!! <! >!! go go-loop >! timeout take! chan put!]]
             [taoensso.timbre :as logg :refer [log]]
             [nos.vault :as vault]
-            [nosana-node.pipeline :as pipeline]
             [chime.core-async :refer [chime-ch]]
             [konserve.core :as kv]
             [clojure.string :as string]
             [cheshire.core :as json]
-            [clj-yaml.core :as yaml]
             [nosana-node.util
              :refer [ipfs-hash->bytes bytes->ipfs-hash]
              :as util]
@@ -31,6 +29,22 @@
 
 ;; (def ipfs-base-url "https://cloudflare-ipfs.com/ipfs/")
 (def pinata-api-url "https://api.pinata.cloud")
+
+(defn ipfs-upload
+  "Converts a map to a JSON string and pins it using Pinata.
+  Returns the CID string of the IPFS object."
+  [obj {:keys [pinata-jwt]}]
+  (when (not pinata-jwt)
+    (throw (ex-info "Pinata JWT not set" {})))
+  (log :trace "Uploading object to ipfs")
+  (->
+   (http/post (str pinata-api-url "/pinning/pinJSONToIPFS")
+              {:headers {:Authorization (str "Bearer " pinata-jwt)}
+               :content-type :json
+               :body (json/encode obj)})
+   :body
+   json/decode
+   (get "IpfsHash")))
 
 (def nos-accounts
   {:mainnet {:nos-token   (PublicKey. "nosXBVoaCTtYdLvKY6Csb4AC8JCdQKKAaWYtx2ZMoo7")
@@ -64,8 +78,7 @@
   (-> bytes
       byte-array
       bytes->ipfs-hash
-      (download-ipfs conf)
-      (update :pipeline yaml/parse-string)))
+      (download-ipfs conf)))
 
 (defn sha256 [string]
   (let [digest (.digest (MessageDigest/getInstance "SHA-256") (.getBytes string "UTF-8"))]
@@ -82,8 +95,7 @@
   (Account. (byte-array (edn/read-string (vault/get-secret vault :solana-private-key)))))
 
 (defn solana-tx-failed?
-  "Return true if a solana transaction failed
-
+  "Return true if a solana transaction failed.
   This is when it contains an error object in its metadata"
   [tx]
   (-> tx :meta :err nil? not))
@@ -100,7 +112,7 @@
          (or (sol/get-token-balance (get accounts "nft") network)
              "0"))})
 
-(def  min-sol-balance
+(def min-sol-balance
   "Minimum Solana balance to be healthy" (sol/format-sol "10000000"))
 
 (defn healthy
@@ -206,10 +218,13 @@ Running Nosana Node %s
                        (:system sol/addresses))]
     {:network           network
      :signer            signer
-     :secrets-endpoint  "http://localhost:4124"
+     :secrets-endpoint  "https://secrets.k8s.dev.nos.ci"
      :pinata-jwt        (:pinata-jwt vault)
      :ipfs-url          (:ipfs-url vault)
      :market            market-pub
+     :nos-default-args  {:container/run
+                         {:conn         {:uri [:nos/vault :podman-conn-uri]}
+                          :inline-logs? true}}
      :market-collection (:nodeAccessKey market)
      :address           signer-pub
      :programs          programs
@@ -255,7 +270,7 @@ Running Nosana Node %s
   will be used as the IPFS CID."
   [conf job]
   (let [hash (if (map? job)
-               (pipeline/ipfs-upload job conf)
+               (ipfs-upload job conf)
                job)
         job  (sol/account)
         run  (sol/account)
@@ -310,15 +325,8 @@ Running Nosana Node %s
                        "payer" (:payer run)})
         (sol/send-tx [signer] network))))
 
-(defn find-my-jobs
-  "Find job accounts owned by this node"
-  [{:keys [network programs address]}]
-  (sol/get-idl-program-accounts
-   network
-   (:job programs)
-   "JobAccount"
-   {"node"  (.toString address)
-    "state" "2"}))
+(defn get-market [{:keys [network programs market]}]
+  (sol/get-idl-account (:job programs) "MarketAccount" market network))
 
 (defn find-my-runs
   "Find job accounts owned by this node"
@@ -329,8 +337,35 @@ Running Nosana Node %s
    "RunAccount"
    {"node"  (.toString address)}))
 
-(defn get-market [{:keys [network programs market]}]
-  (sol/get-idl-account (:job programs) "MarketAccount" market network))
+(defn clear-market
+  "Claim all the jobs that are queued in the configured market.
+  Can be combined with `quit-my-runs`."
+  [conf]
+  (let [queue (:queue (get-market conf))
+        job (first queue)]
+    (logg/info "Market has " (count queue) " jobs")
+    (doseq [i (range (count queue))]
+      (logg/info "Entering market i = " i)
+      (enter-market conf))))
+
+(defn find-my-jobs
+  "Find job accounts owned by this node"
+  [{:keys [network programs address]}]
+  (sol/get-idl-program-accounts
+   network
+   (:job programs)
+   "JobAccount"
+   {"node"  (.toString address)
+    "state" "2"}))
+
+(defn quit-my-runs
+  "Quit all the jobs that are claimed by this node."
+  [conf]
+  (let [my-runs (find-my-runs conf)]
+    (logg/info "Node has " (count my-runs) " claimed jobs")
+    (doseq [[pub _] my-runs]
+      (logg/info "Quiting run " pub)
+      (quit-job conf (sol/public-key pub)))))
 
 (defn create-market
   "Create a Nosana market.
@@ -341,9 +376,30 @@ Running Nosana Node %s
     (-> (build-idl-tx :job "open" ["360" "0" "360" 1 "0"] conf {:market (.getPublicKey market-acc)})
         (sol/send-tx [signer] network))))
 
-(defn is-queued? [conf]
+(defn is-queued?
+  "Returns `true` if the node is queued in the configured market."
+  [conf]
   (let [market (get-market conf)]
     (not-empty (filter #(.equals %1 (:address conf)) (:queue market)))))
+
+(defn- finish-flow-dispatch [flow conf]
+  (or (get-in flow [:state :nosana/job-type])
+      "Pipeline"))
+
+(defmulti finish-flow
+  "Process a finished flow by its [:state :nosana/job-type] value.
+  Returns a document of the flow results."
+  #'finish-flow-dispatch)
+
+(defn finish-flow-2 [flow conf]
+  (go
+    (let [job-addr    (get-in flow [:state :input/job-addr])
+          run-addr    (get-in flow [:state :input/run-addr])
+          result-ipfs (finish-flow flow conf)
+          sig         (finish-job conf (PublicKey. job-addr) (PublicKey. run-addr) result-ipfs)
+          tx          (<! (sol/await-tx< sig (:network conf)))]
+      (log :info "Job results posted " result-ipfs sig)
+      nil)))
 
 (defn process-flow!
   "Check the state of a flow and finalize its job if finished.
@@ -355,34 +411,34 @@ Running Nosana Node %s
       (let [flow (<! (kv/get store flow-id))]
         (if (flow-finished? flow)
           ;; TODO: when the flow is malformed this will always error: what to do?
-          (let [_             (log :info "Flow finished, posting results")
-                finished-flow (pipeline/upload-flow-results sys flow)
-                job-addr      (get-in finished-flow [:results :input/job-addr])
-                run-addr      (get-in finished-flow [:results :input/run-addr])
-                result-ipfs   (get-in finished-flow [:results :result/ipfs])
-                sig           (finish-job conf (PublicKey. job-addr) (PublicKey. run-addr) result-ipfs)
-                tx            (<! (sol/await-tx< sig (:network conf)))]
-            (log :info "Job results posted " result-ipfs sig)
-            nil)
+          (do
+            (log :info "Flow finished, posting results")
+            (<! (finish-flow-2 flow conf)))
           (let [_ (log :trace "Flow still running")]
             flow-id)))
       (catch Exception e
         (log :error "Failed processing flow " e)
         flow-id))))
 
-(defn job->flow
-  "Create a flow data structure for a job."
-  [job-pub run-pub conf]
-  (let [job      (get-job conf job-pub)
-        job-info (download-job-ipfs (:ipfsJob job) conf)]
-    (pipeline/make-from-job job-info job-pub run-pub)))
+(defn- create-flow-dispatch [job run-addr run conf]
+  (prn "Checking Type Of Job " job)
+  (or (get-in job [:state :nosana/job-type])
+      "Pipeline"))
+
+(defmulti create-flow
+  "Create a Nostromo flow from a Nosana job.
+  Dispatches on the [:state :nosana/job-type] value."
+  #'create-flow-dispatch)
 
 (defn start-flow-for-run!
   "Start running a new Nostromo flow and return its flow ID."
   [[run-addr run] conf {:keys [:nos/store :nos/flow-chan]}]
-  (let [flow    (job->flow (:job run) run-addr conf)
-        flow-id (:id flow)]
-    (log :info "Starting job" (-> run :job .toString ))
+  (let [job      (get-job conf (:job run))
+        job-info (download-job-ipfs (:ipfsJob job) conf)
+        flow     (create-flow job-info run-addr run conf)
+        _ (prn "created flow = " flow)
+        flow-id  (:id flow)]
+    (log :info "Starting job" (-> run :job .toString))
     (log :trace "Processing flow" flow-id)
     (go
       (<! (flow/save-flow flow store))
@@ -426,7 +482,7 @@ Running Nosana Node %s
   [_ {:keys [store flow-ch vault]}]
   ;; Wait a bit for podman to boot
   (log :info "Waiting 5s for podman")
-  (Thread/sleep 5000)
+  ;; (Thread/sleep 5000)
   (let [system     {:nos/store     store
                     :nos/flow-chan flow-ch
                     :nos/vault     vault}

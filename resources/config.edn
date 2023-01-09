@@ -26,7 +26,7 @@
                :devnet]
 
  :poll-delay-ms
- #long #or [#env NOSANA_POLL_DELAY_MS 30000]
+ #long #or [#env NOSANA_POLL_DELAY_MS 5000]
 
  :podman-conn-uri #profile {:prod #or [#env PODMAN_CONN_URI "http://podman:8080"]
                             :dev  "http://localhost:8080"}}

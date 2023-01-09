@@ -13,11 +13,25 @@
 (defn str->base64 [string] (.encodeToString (Base64/getEncoder) (.getBytes string)))
 (defn base64->bytes [base64] (.decode (Base64/getDecoder) base64))
 
-(defn hex->bytes [string]
-  (javax.xml.bind.DatatypeConverter/parseHexBinary string))
+(defn hex->bytes
+  "Convert hex string to byte sequence"
+  [string]
+  (letfn [(unhexify-2 [c1 c2]
+            (unchecked-byte
+             (+ (bit-shift-left (Character/digit c1 16) 4)
+                (Character/digit c2 16))))]
+    (->> (partition 2 string)
+         (map #(apply unhexify-2 %))
+         byte-array)))
 
-(defn bytes->hex [arr]
-  (javax.xml.bind.DatatypeConverter/printHexBinary arr))
+(defn bytes->hex
+  "Convert byte sequence to hex string"
+  [arr]
+  (let [hex [\0 \1 \2 \3 \4 \5 \6 \7 \8 \9 \a \b \c \d \e \f]]
+    (letfn [(hexify-byte [b]
+              (let [v (bit-and b 0xFF)]
+                [(hex (bit-shift-right v 4)) (hex (bit-and v 0x0F))]))]
+      (apply str (mapcat hexify-byte arr)))))
 
 (defn base58 [bytes] (Base58/encode bytes))
 

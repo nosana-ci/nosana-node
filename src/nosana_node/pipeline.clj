@@ -3,8 +3,8 @@
             [taoensso.timbre :refer [log]]
             [clj-http.client :as http]
             [cheshire.core :as json]
+            [nosana-node.nosana :refer [finish-flow create-flow ipfs-upload]]
             [clojure.java.io :as io]
-            [clj-yaml.core :as yaml]
             [nos.core :as nos]
             [clj-yaml.core :as yaml]
             [clojure.string :as string]))
@@ -21,13 +21,13 @@
   "The default flow for a pipeline which includes cloning of the
   repository."
   {:ops
-   [{:op   :docker/run
+   [{:op   :container/run
      :id   :checkout
-     :args [{:cmds      [{:cmd [::nos/str "git clone " [::nos/ref :input/repo] " project"]}
-                         {:cmd      [::nos/str "git checkout " [::nos/ref :input/commit-sha]]
+     :args [{:cmds      [{:cmd [:nos/str "git clone " [:nos/ref :input/repo] " project"]}
+                         {:cmd      [:nos/str "git checkout " [:nos/ref :input/commit-sha]]
                           :work-dir "/root/project"}]
-             :artifacts [{:source "project" :dest "checkout"}]
-             :conn      {:uri [::nos/vault :podman-conn-uri]}
+             :artifacts [{:path "project" :name "checkout"}]
+             :conn      {:uri [:nos/vault :podman-conn-uri]}
              :image     "registry.hub.docker.com/bitnami/git:latest"}]}]})
 
 (defn prep-env
@@ -36,7 +36,7 @@
   (->> env
        (map (fn [[k v]]
               (case (:type v)
-                "nosana/secret" [k [:nosana-node.core/secret (:endpoint v) (:value v)]]
+                "nosana/secret" [k [:nosana/secret (:endpoint v) (:value v)]]
                 "string" [k v]
                 [k v])))
        (into {})))
@@ -57,15 +57,15 @@
            work-dir  "/root/project"}}
    {{global-image :image global-environment :environment} :global
     :as pipeline}]
-  {:op   :docker/run
+  {:op   :container/run
    :id   (keyword name)
    :args [{:cmds      (map (fn [c] {:cmd c}) commands)
            :image     (or image global-image)
            :env       (prep-env (merge global-environment environment))
-           :conn      {:uri [::nos/vault :podman-conn-uri]}
+           :conn      {:uri [:nos/vault :podman-conn-uri]}
            :work-dir  work-dir
-           :resources (cons {:source "checkout" :dest "/root"}
-                            (map (fn [r] {:source r :dest "/root/project"}) resources))
+           :resources (cons {:name "checkout" :path "/root"}
+                            (map (fn [r] {:name r :path "/root/project"}) resources))
            :artifacts (map (fn [a] {:source (:path a) :dest (:name a)}) artifacts)}]
    :deps [:checkout]})
 
@@ -86,70 +86,65 @@
     (cond->
         (-> base-flow
             (update :ops concat (pipeline->flow-ops pipeline))
-            (assoc-in [:results :input/repo] (:repo trigger))
-            (assoc-in [:results :input/commit-sha] (:commit-sha trigger)))
+            (assoc-in [:state :input/repo] (:repo trigger))
+            (assoc-in [:state :input/commit-sha] (:commit-sha trigger)))
       (:allow-failure? global) (assoc :allow-failure? (:allow-failure? global)))))
 
-(defn ipfs-upload
-  "Converts a map to a JSON string and pins it using Pinata.
-  Returns the CID string of the IPFS object."
-  [obj {:keys [pinata-jwt]}]
-  (when (not pinata-jwt)
-    (throw (ex-info "Pinata JWT not set" {})))
-  (log :trace "Uploading object to ipfs")
-  (->
-   (http/post (str pinata-api-url "/pinning/pinJSONToIPFS")
-              {:headers {:Authorization (str "Bearer " pinata-jwt)}
-               :content-type :json
-               :body (json/encode obj)})
-   :body
-   json/decode
-   (get "IpfsHash")))
+
+(defmethod create-flow "Pipeline"
+  [job run-addr run conf]
+  (let [pipeline (-> (:pipeline job)
+                     yaml/parse-string
+                     (update-in [:global :environment]
+                                merge (trigger->env job)))]
+    (-> base-flow
+        (update :ops #(into [] (concat % (pipeline->flow-ops pipeline))))
+        (assoc-in [:state :input/repo] (:url job))
+        (assoc-in [:state :input/commit-sha] (:commit job))
+        (assoc-in [:state :input/job-addr] (.toString (:job run)))
+        (assoc-in [:state :input/run-addr] (.toString run-addr))
+        nos/build)))
 
 ;; this coerces the flow results for Nosana and uploads them to IPFS. then
 ;; finalizes the Solana transactions for the job
-(defn upload-flow-results
-  [{:nos/keys [vault]} flow]
-  (let [end-time   (nos/current-time)
+(defn make-flow-results
+  [flow]
+  (let [end-time (nos/current-time)
+
         ;; put the results of some operators in map to upload to IPFS. also
         ;; we'll slurp the content of the docker logs as they're only on the
         ;; local file system.
-        res        (->> flow
-                        :results
-                        (reduce-kv
-                         (fn [m k [status results & more]]
-                           ;; qualified keywords are most likely
-                           ;; nostromo intrinsics we can ignore
-                           (if (not (qualified-keyword? k))
-                             (let [[status results]
-                                   (if (= status :nos.core/error)
-                                     [:pipeline-failed (first more)]
-                                       [status results])]
-                               (assoc m k
-                                      [status
-                                       (map #(if (:log %)
-                                               (update %
-                                                       :log
-                                                       (fn [l] (-> l slurp json/decode))) %)
-                                            results)]))
-                             m))
-                         {}))
+        res
+        (->> flow
+             :state
+             (reduce-kv
+              (fn [m k [status results-raw & more]]
+                ;; qualified keywords are most likely
+                ;; nostromo intrinsics we can ignore
+                (if (and k (not (qualified-keyword? k)))
+                  (let [[status results]
+                        (if (= status :nos/error)
+                          [:pipeline-failed more]
+                          [status results-raw])]
+                    (assoc m k
+                           [status
+                            (->> results
+                                 (map #(if (:log %)
+                                         (update %
+                                                 :log
+                                                 (fn [l] (->> l slurp json/decode (into []))))
+                                         %))
+                                 (into []))
+                            (when (string? results-raw) results-raw)]))
+                  m))
+              {}))]
+    res))
+
+(defmethod finish-flow "Pipeline" [flow {:keys [vault] :as conf}]
+  (let [results    (make-flow-results flow)
         job-result {:nos-id      (:id flow)
                     :finished-at (nos/current-time)
-                    :results     res}
-
+                    :results     results}
         ipfs       (ipfs-upload job-result vault)]
     (log :info "Job results uploaded to " ipfs)
-    (assoc-in flow [:results :result/ipfs] ipfs)))
-
-(defn make-from-job
-  [job job-addr run-addr]
-  (let [pipeline (-> (:pipeline job)
-                     (update-in [:global :environment] merge (trigger->env job)))]
-    (-> base-flow
-        (update :ops #(into [] (concat % (pipeline->flow-ops pipeline))))
-        (assoc-in [:results :input/repo] (:url job))
-        (assoc-in [:results :input/commit-sha] (:commit job))
-        (assoc-in [:results :input/job-addr] (.toString job-addr))
-        (assoc-in [:results :input/run-addr] (.toString run-addr))
-        nos/build)))
+    ipfs))
