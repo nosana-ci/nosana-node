@@ -6,6 +6,7 @@
             nos.ops.docker
             nos.system
             nos.module.http
+            duct.module.web
             [duct.core :as duct]
             [integrant.core :as ig]
             [nrepl.server :as nrepl-server]
