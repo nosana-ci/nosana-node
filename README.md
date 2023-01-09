@@ -91,8 +91,22 @@ clj -T:container "$(< jib-local.edn)"
 ```
 
 The `jib.edn` file can be adjusted to push to a different registry or
-supply a different tagger. For more info check the [jibbit docs](https://github.com/atomisthq/jibbit). 
+supply a different tagger. For more info check the [jibbit docs](https://github.com/atomisthq/jibbit).
 For CI/CD the [jib-gitlab.edn](jib-gitlab.edn) file is used.
+
+### UberJAR
+
+The project can also be compiled as a standalone jar:
+
+```bash
+clj -X:compile uber
+```
+
+The resulting jar file can be run in a JVM like:
+
+```bash
+java -jar target/node-0.0.189-standalone.jar
+```
 
 ## Usage
 

@@ -16,8 +16,9 @@
             :basis basis
             :javac-opts ["-source" "11" "-target" "11"]}))
 
-(defn uber [_]
+(defn uberjar [_]
   (clean nil)
+  (compile nil)
   (b/copy-dir {:src-dirs ["src" "resources"]
                :target-dir class-dir})
   (b/compile-clj {:basis basis
@@ -26,4 +27,4 @@
   (b/uber {:class-dir class-dir
            :uber-file uber-file
            :basis basis
-           :main 'nos.main}))
+           :main 'nosana-node.main}))
