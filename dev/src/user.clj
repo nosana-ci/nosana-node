@@ -10,6 +10,7 @@
    [taoensso.timbre :as timbre]
    [duct.core :as duct]
    [integrant.repl :refer [halt reset resume set-prep! prep init]]
+   [cognitect.test-runner :refer [test]]
    [integrant.repl.state :refer [config system]]
    [contajners.core :as c]
    [nos.core :as flow]
@@ -31,7 +32,7 @@
 
 (duct/load-hierarchy)
 
-(def conf nil)
+(defonce conf nil)
 
 (defn go []
   (integrant.repl/go)
@@ -82,13 +83,27 @@
   (clojure.core.async/go (nos/work-loop conf system))
   true)
 
+(defn start-run!
+  "Start running a new Nostromo flow and return its flow ID."
+  [run-addr]
+  (let [run      (nos/get-run conf run-addr)
+        job      (nos/get-job conf  (:job run))
+        job-info (nos/download-job-ipfs (:ipfsJob job) conf)
+        flow     (nos/create-flow job-info run-addr run conf)
+        flow-id  (:id flow)]
+    (log :info "Starting job" (-> run :job .toString))
+    (log :trace "Processing flow" flow-id)
+    (run-flow flow)))
+
+;;(start-run! "AEBJMrNLvPE41GSvJvoMh2Zequt3CjWUpmLMgDphwwxU" )
 (defn start-first-run!
   "Find our first run and run in the REPL."
   []
   (let [runs (nos/find-my-runs conf)]
     (prn "Found runs" runs)
     (when-let [[run-addr run] (first runs)]
-      (let [flow    (nos/job->flow (:job run) run-addr conf)
+      (let [job     (nos/download-ipfs (:job run) conf)
+            flow    (nos/create-flow job run-addr run conf)
             flow-id (:id flow)]
         (run-flow flow)))))
 

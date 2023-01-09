@@ -9,7 +9,6 @@
              [<!! <! >!! go go-loop >! timeout take! chan put!]]
             [taoensso.timbre :as logg :refer [log]]
             [nos.vault :as vault]
-            [nosana-node.pipeline :as pipeline]
             [chime.core-async :refer [chime-ch]]
             [konserve.core :as kv]
             [clojure.string :as string]
@@ -30,6 +29,22 @@
 
 ;; (def ipfs-base-url "https://cloudflare-ipfs.com/ipfs/")
 (def pinata-api-url "https://api.pinata.cloud")
+
+(defn ipfs-upload
+  "Converts a map to a JSON string and pins it using Pinata.
+  Returns the CID string of the IPFS object."
+  [obj {:keys [pinata-jwt]}]
+  (when (not pinata-jwt)
+    (throw (ex-info "Pinata JWT not set" {})))
+  (log :trace "Uploading object to ipfs")
+  (->
+   (http/post (str pinata-api-url "/pinning/pinJSONToIPFS")
+              {:headers {:Authorization (str "Bearer " pinata-jwt)}
+               :content-type :json
+               :body (json/encode obj)})
+   :body
+   json/decode
+   (get "IpfsHash")))
 
 (def nos-accounts
   {:mainnet {:nos-token   (PublicKey. "nosXBVoaCTtYdLvKY6Csb4AC8JCdQKKAaWYtx2ZMoo7")
@@ -252,7 +267,7 @@ Running Nosana Node %s
   will be used as the IPFS CID."
   [conf job]
   (let [hash (if (map? job)
-               (pipeline/ipfs-upload job conf)
+               (ipfs-upload job conf)
                job)
         job  (sol/account)
         run  (sol/account)
@@ -366,7 +381,8 @@ Running Nosana Node %s
 
 (defn- finish-flow-dispatch [flow conf]
   (or (get-in flow [:state :nosana/job-type])
-      :nosana/pipeline))
+      "Pipeline"))
+
 (defmulti finish-flow
   "Process a finished flow by its [:state :nosana/job-type] value.
   Returns a document of the flow results."
@@ -401,23 +417,25 @@ Running Nosana Node %s
         (log :error "Failed processing flow " e)
         flow-id))))
 
-(defn job->flow
-  "Create a flow data structure for a job."
-  [job-pub run-pub conf]
-  (let [job      (get-job conf job-pub)
-        job-info (download-job-ipfs (:ipfsJob job) conf)]
-    (if (contains? job-info :state)
-      (-> job-info
-          (assoc-in [:state :input/job-addr] (.toString job-pub))
-          (assoc-in [:state :input/run-addr] (.toString run-pub)))
-      (pipeline/make-from-job job-info job-pub run-pub))))
+(defn- create-flow-dispatch [job run-addr run conf]
+  (prn "Checking Type Of Job " job)
+  (or (get-in job [:state :nosana/job-type])
+      "Pipeline"))
+
+(defmulti create-flow
+  "Create a Nostromo flow from a Nosana job.
+  Dispatches on the [:state :nosana/job-type] value."
+  #'create-flow-dispatch)
 
 (defn start-flow-for-run!
   "Start running a new Nostromo flow and return its flow ID."
   [[run-addr run] conf {:keys [:nos/store :nos/flow-chan]}]
-  (let [flow    (job->flow (:job run) run-addr conf)
-        flow-id (:id flow)]
-    (log :info "Starting job" (-> run :job .toString ))
+  (let [job      (get-job conf (:job run))
+        job-info (download-job-ipfs (:ipfsJob job) conf)
+        flow     (create-flow job-info run-addr run conf)
+        _ (prn "created flow = " flow)
+        flow-id  (:id flow)]
+    (log :info "Starting job" (-> run :job .toString))
     (log :trace "Processing flow" flow-id)
     (go
       (<! (flow/save-flow flow store))

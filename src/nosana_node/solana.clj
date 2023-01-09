@@ -1,6 +1,5 @@
 (ns nosana-node.solana
   (:require [nosana-node.util :refer [hex->bytes base58] :as util]
-            [cheshire.core :as json]
             [clojure.edn :as edn]
             [taoensso.timbre :refer [log]]
             [clojure.core.async :as async :refer [<!! <! >!! put! go go-loop >! timeout take! chan]]

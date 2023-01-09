@@ -2,6 +2,7 @@
   (:require [clj-http.client :as http]
             [nosana-node.solana :as sol]
             [nosana-node.nosana :as nos]
+            [taoensso.timbre :as log]
             [nosana-node.util :as util]
             [nos.core :as flow]
             [cheshire.core :as json]))
@@ -25,13 +26,17 @@
   ([conf] (login conf nil))
   ([{:keys [secrets-endpoint] :as conf} job-addr]
    (let [payload (make-login-payload conf job-addr)]
-     (->
-      (http/post (str secrets-endpoint "/login")
-                 {:form-params  payload
-                  :content-type :json})
-      :body
-      (json/decode true)
-      :token))))
+     (try
+       (->
+        (http/post (str secrets-endpoint "/login")
+                   {:form-params  payload
+                    :content-type :json})
+        :body
+        (json/decode true)
+        :token)
+       (catch Exception e
+         (log/errorf "Error when logging in to secrets %s" e)
+         (throw (ex-info "Error when logging in to secrets" (ex-data e))))))))
 
 (defn set-secrets
   "Sets a secrets map in the nosana secret proxy."
@@ -55,23 +60,28 @@
       (throw (ex-info "Error fetching secrets" (ex-data e))))))
 
 (derive :nos/secret ::flow/ref)
+
 (defmethod flow/ref-val :nos/secret
   [[_ endpoint value keywordize?] flow-state vault]
-  (let [account     (nos/get-signer-key vault)
-        conf        {:signer           account
-                     :secrets-endpoint endpoint
-                     :address          (.getPublicKey account)}
-        jwt         (login conf (:input/job-addr flow-state))
-        secrets     (get-secrets conf jwt)
-        keywordize? true]
-    ;; (prn "Found Secrets for job " (:input/job-addr flow-state) secrets)
-    (if (contains? secrets value)
-      (cond-> (get secrets value)
-        keywordize? clojure.walk/keywordize-keys)
-      (throw (ex-info "Could not find secret" {:value value})))))
+  (try
+    (let [account     (nos/get-signer-key vault)
+          conf        {:signer           account
+                       :secrets-endpoint endpoint
+                       :address          (.getPublicKey account)}
+          jwt         (login conf (:input/job-addr flow-state))
+          secrets     (get-secrets conf jwt)
+          keywordize? true]
+      (if (contains? secrets value)
+        (cond-> (get secrets value)
+          keywordize? clojure.walk/keywordize-keys)
+        [:nos/error "Could not find secret" value]))
+    (catch Exception e
+      [:nos/error "Error contacting secrets manager" (ex-message e)])))
+
 
 ;; nosana-node.core/secret can be used to retreive values from the secret engine
-;; example:
+;; examples:
+
 #_(flow/run-flow!
    (:nos/flow-engine system)
    (flow/build
