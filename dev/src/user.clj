@@ -103,9 +103,10 @@
   (let [runs (nos/find-my-runs conf)]
     (prn "Found runs" runs)
     (when-let [[run-addr run] (first runs)]
-      (let [job     (nos/download-ipfs (:job run) conf)
-            flow    (nos/create-flow job run-addr run conf)
-            flow-id (:id flow)]
+      (let [job      (nos/get-job conf (:job run))
+            job-info (nos/download-ipfs (util/bytes->ipfs-hash (:ipfsJob job)) conf)
+            flow     (nos/create-flow job-info run-addr run conf)
+            flow-id  (:id flow)]
         (run-flow flow)))))
 
 (defn get-job-result-secret

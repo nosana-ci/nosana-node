@@ -167,7 +167,7 @@ user=> (start-work-loop!)
 user=> (nos/exit-work-loop! system)
 
 ;; to list a compute job on the market
-user=> (nos/list-job conf nos/example-job)
+user=> (nos/list-job conf pl/example-job)
 
 ;; run an example pipeline from the repl
 user=> (run-flow (flow/build (pl/load-yml (io/resource "pipeline2.yml"))))

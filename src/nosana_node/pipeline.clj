@@ -23,12 +23,13 @@
   {:ops
    [{:op   :container/run
      :id   :checkout
-     :args [{:cmds      [{:cmd [:nos/str "git clone " [:nos/ref :input/repo] " project"]}
-                         {:cmd      [:nos/str "git checkout " [:nos/ref :input/commit-sha]]
-                          :work-dir "/root/project"}]
-             :artifacts [{:path "project" :name "checkout"}]
-             :conn      {:uri [:nos/vault :podman-conn-uri]}
-             :image     "registry.hub.docker.com/bitnami/git:latest"}]}]})
+     :args {:cmds      [{:cmd [:nos/str "git clone " [:nos/ref :input/repo] " project"]}
+                        {:cmd      [:nos/str "git checkout " [:nos/ref :input/commit-sha]]
+                         :workdir "/root/project"}]
+            :workdir   "/root"
+            :artifacts [{:path "project" :name "checkout"}]
+            :conn      {:uri [:nos/vault :podman-conn-uri]}
+            :image     "registry.hub.docker.com/bitnami/git:latest"}}]})
 
 (defn prep-env
   "Process job env entries."
@@ -59,14 +60,14 @@
     :as pipeline}]
   {:op   :container/run
    :id   (keyword name)
-   :args [{:cmds      (map (fn [c] {:cmd c}) commands)
-           :image     (or image global-image)
-           :env       (prep-env (merge global-environment environment))
-           :conn      {:uri [:nos/vault :podman-conn-uri]}
-           :work-dir  work-dir
-           :resources (cons {:name "checkout" :path "/root"}
-                            (map (fn [r] {:name r :path "/root/project"}) resources))
-           :artifacts (map (fn [a] {:source (:path a) :dest (:name a)}) artifacts)}]
+   :args {:cmds      (map (fn [c] {:cmd c}) commands)
+          :image     (or image global-image)
+          :env       (prep-env (merge global-environment environment))
+          :conn      {:uri [:nos/vault :podman-conn-uri]}
+          :workdir   work-dir
+          :resources (cons {:name "checkout" :path "/root"}
+                           (map (fn [r] {:name r :path "/root/project"}) resources))
+          :artifacts (map (fn [a] {:source (:path a) :dest (:name a)}) artifacts)}
    :deps [:checkout]})
 
 (defn pipeline->flow-ops
@@ -105,43 +106,8 @@
         (assoc-in [:state :input/run-addr] (.toString run-addr))
         nos/build)))
 
-;; this coerces the flow results for Nosana and uploads them to IPFS. then
-;; finalizes the Solana transactions for the job
-(defn make-flow-results
-  [flow]
-  (let [end-time (nos/current-time)
-
-        ;; put the results of some operators in map to upload to IPFS. also
-        ;; we'll slurp the content of the docker logs as they're only on the
-        ;; local file system.
-        res
-        (->> flow
-             :state
-             (reduce-kv
-              (fn [m k [status results-raw & more]]
-                ;; qualified keywords are most likely
-                ;; nostromo intrinsics we can ignore
-                (if (and k (not (qualified-keyword? k)))
-                  (let [[status results]
-                        (if (= status :nos/error)
-                          [:pipeline-failed more]
-                          [status results-raw])]
-                    (assoc m k
-                           [status
-                            (->> results
-                                 (map #(if (:log %)
-                                         (update %
-                                                 :log
-                                                 (fn [l] (->> l slurp json/decode (into []))))
-                                         %))
-                                 (into []))
-                            (when (string? results-raw) results-raw)]))
-                  m))
-              {}))]
-    res))
-
 (defmethod finish-flow "Pipeline" [flow {:keys [vault] :as conf}]
-  (let [results    (make-flow-results flow)
+  (let [results    (:state flow)
         job-result {:nos-id      (:id flow)
                     :finished-at (nos/current-time)
                     :results     results}
