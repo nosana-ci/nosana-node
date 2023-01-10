@@ -106,11 +106,11 @@
         (assoc-in [:state :input/run-addr] (.toString run-addr))
         nos/build)))
 
-(defmethod finish-flow "Pipeline" [flow {:keys [vault] :as conf}]
+(defmethod finish-flow "Pipeline" [flow conf]
   (let [results    (:state flow)
         job-result {:nos-id      (:id flow)
                     :finished-at (nos/current-time)
                     :results     results}
-        ipfs       (ipfs-upload job-result vault)]
+        ipfs       (ipfs-upload job-result conf)]
     (log :info "Job results uploaded to " ipfs)
     ipfs))
