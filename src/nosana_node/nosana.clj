@@ -433,17 +433,21 @@ Running Nosana Node %s
 (defn start-flow-for-run!
   "Start running a new Nostromo flow and return its flow ID."
   [[run-addr run] conf {:keys [:nos/store :nos/flow-chan]}]
-  (let [job      (get-job conf (:job run))
-        job-info (download-job-ipfs (:ipfsJob job) conf)
-        flow     (create-flow job-info run-addr run conf)
-        _ (prn "created flow = " flow)
-        flow-id  (:id flow)]
-    (log :info "Starting job" (-> run :job .toString))
-    (log :trace "Processing flow" flow-id)
-    (go
-      (<! (flow/save-flow flow store))
-      (>! flow-chan [:trigger flow-id])
-      flow-id)))
+  (try
+    (let [job      (get-job conf (:job run))
+          job-info (download-job-ipfs (:ipfsJob job) conf)
+          flow     (create-flow job-info run-addr run conf)
+          _ (prn "created flow = " flow)
+          flow-id  (:id flow)]
+      (log :info "Starting job" (-> run :job .toString))
+      (log :trace "Processing flow" flow-id)
+      (go
+        (<! (flow/save-flow flow store))
+        (>! flow-chan [:trigger flow-id])
+        flow-id))
+    (catch Exception e
+      (log :error "Error starting flow" e)
+      (go))))
 
 (defn work-loop
   "Main loop."
