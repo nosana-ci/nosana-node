@@ -68,9 +68,8 @@
           :resources (cons {:name "checkout" :path "/root"}
                            (map (fn [r] {:name (:name r)
                                          :path
-                                         (if (string/starts-with?
-                                              (:path r) "./")
-                                           (string/replace (:path r) #"^\./" (str "/" work-dir))
+                                         (if (string/starts-with? (:path r) "./")
+                                           (string/replace (:path r) #"^\./" (str work-dir "/"))
                                            (:path r)) })
                                 resources))
           :artifacts (map (fn [a] {:path (:path a) :name (:name a)}) artifacts)}
