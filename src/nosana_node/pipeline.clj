@@ -104,7 +104,8 @@
         (assoc-in [:state :input/commit-sha] (:commit job))
         (assoc-in [:state :input/job-addr] (.toString (:job run)))
         (assoc-in [:state :input/run-addr] (.toString run-addr))
-        nos/build)))
+        nos/build
+        (assoc :default-args (:nos-default-args conf)))))
 
 (defmethod finish-flow "Pipeline" [flow conf]
   (let [results    (:state flow)
