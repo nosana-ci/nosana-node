@@ -66,8 +66,14 @@
           :conn      {:uri [:nos/vault :podman-conn-uri]}
           :workdir   work-dir
           :resources (cons {:name "checkout" :path "/root"}
-                           (map (fn [r] {:name r :path "/root/project"}) resources))
-          :artifacts (map (fn [a] {:source (:path a) :dest (:name a)}) artifacts)}
+                           (map (fn [r] {:name (:name r)
+                                         :path
+                                         (if (string/starts-with?
+                                              (:path r) "./")
+                                           (string/replace (:path r) #"^\./" (str "/" work-dir))
+                                           (:path r)) })
+                                resources))
+          :artifacts (map (fn [a] {:path (:path a) :name (:name a)}) artifacts)}
    :deps [:checkout]})
 
 (defn pipeline->flow-ops
@@ -90,7 +96,6 @@
             (assoc-in [:state :input/repo] (:repo trigger))
             (assoc-in [:state :input/commit-sha] (:commit-sha trigger)))
       (:allow-failure? global) (assoc :allow-failure? (:allow-failure? global)))))
-
 
 (defmethod create-flow "Pipeline"
   [job run-addr run conf]
