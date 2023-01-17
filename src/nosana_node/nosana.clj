@@ -486,7 +486,7 @@ Running Nosana Node %s
   [_ {:keys [store flow-ch vault]}]
   ;; Wait a bit for podman to boot
   (log :info "Waiting 5s for podman")
-  ;; (Thread/sleep 5000)
+  (Thread/sleep 5000)
   (let [system     {:nos/store     store
                     :nos/flow-chan flow-ch
                     :nos/vault     vault}
