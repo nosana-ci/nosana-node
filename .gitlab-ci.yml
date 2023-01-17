@@ -8,7 +8,7 @@ variables:
   AUTO_BUMP_REPO: nosana-ci/apps/platform/k8s
   AUTO_BUMP_FILE: helm-nostromo.tf
   AUTO_BUMP_SCG_PREFIX: image_tag [^}]*= { dev = \"
-  TRIVY_TIMEOUT: 20m
+  TRIVY_OFFLINE_SCAN: "true"
 
 build:
   stage: build
