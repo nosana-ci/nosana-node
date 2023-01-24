@@ -449,7 +449,8 @@ Running Nosana Node %s
       (log :error "Error starting flow" e)
       (go
         (log :info "Quit run because of error" (.toString run-addr))
-        (<! (quit-job conf (sol/public-key run-addr)))))))
+        (let [sig (quit-job conf (sol/public-key run-addr))]
+          (<! (sol/await-tx< sig (:network conf))))))))
 
 (defn work-loop
   "Main loop."
