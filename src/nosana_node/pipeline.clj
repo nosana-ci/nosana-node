@@ -38,9 +38,11 @@
        (map (fn [[k v]]
               (case (:type v)
                 "nosana/secret" [k [:nosana/secret (:endpoint v) (:value v)]]
-                "string" [k v]
+                "string"        [k v]
                 [k v])))
-       (into {})))
+       (into {"TERM"        "xterm-color"
+              "FORCE_COLOR" "1"
+              "CLICOLOR"    "1"} )))
 
 (defn trigger->env
   "Convert a pipeline trigger object to environment variable map."
