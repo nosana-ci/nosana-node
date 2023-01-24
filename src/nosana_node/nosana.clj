@@ -286,6 +286,7 @@ Running Nosana Node %s
   (let [job {:type     "Github"
              :url      url
              :commit   commit
+             :state {:nosana/secrets ["npm-deploy-key"]}
              :pipeline (slurp pipeline-file)}]
     (list-job conf job)))
 

@@ -59,24 +59,22 @@
     (catch Exception e
       (throw (ex-info "Error fetching secrets" (ex-data e))))))
 
-(derive :nos/secret ::flow/ref)
+(derive :nosana/secret ::flow/ref)
 
-(defmethod flow/ref-val :nos/secret
+(defmethod flow/ref-val :nosana/secret
   [[_ endpoint value keywordize?] flow-state vault]
-  (try
-    (let [account     (nos/get-signer-key vault)
-          conf        {:signer           account
-                       :secrets-endpoint endpoint
-                       :address          (.getPublicKey account)}
-          jwt         (login conf (:input/job-addr flow-state))
-          secrets     (get-secrets conf jwt)
-          keywordize? true]
-      (if (contains? secrets value)
-        (cond-> (get secrets value)
-          keywordize? clojure.walk/keywordize-keys)
-        [:nos/error "Could not find secret" value]))
-    (catch Exception e
-      [:nos/error "Error contacting secrets manager" (ex-message e)])))
+  (log/log :info "Fetching secret " value)
+  (let [account     (nos/get-signer-key vault)
+        conf        {:signer           account
+                     :secrets-endpoint endpoint
+                     :address          (.getPublicKey account)}
+        jwt         (login conf (:input/job-addr flow-state))
+        secrets     (get-secrets conf jwt)
+        keywordize? false]
+    (if (contains? secrets value)
+      (cond-> (get secrets value)
+        keywordize? clojure.walk/keywordize-keys)
+      (throw (ex-info (str "Could not find secret " value) {})))))
 
 
 ;; nosana-node.core/secret can be used to retreive values from the secret engine
