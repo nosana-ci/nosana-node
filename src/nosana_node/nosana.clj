@@ -447,7 +447,9 @@ Running Nosana Node %s
         flow-id))
     (catch Exception e
       (log :error "Error starting flow" e)
-      (go))))
+      (go
+        (log :info "Quit run because of error" (.toString run-addr))
+        (<! (quit-job conf run-addr))))))
 
 (defn work-loop
   "Main loop."
