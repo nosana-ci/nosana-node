@@ -52,6 +52,14 @@
    "NOS_JOB_ADDRESS" job
    "NOS_RUN_ADDRESS" run})
 
+(defn make-job-cmds [cmds]
+  (let [cmds-escaped
+        (->> cmds
+             (map (fn [cmd] [(str "echo \u001b[32m" "$ '" cmd "'\033[0m") cmd]))
+             flatten
+             (map #(string/replace % "'" "'\\''")))]
+    (str "sh -c '" (string/join " && " cmds-escaped) "'")))
+
 (defn make-job
   "Create flow segment for a `job` entry of the pipeline.
   Input is a keywordized map that is a parsed yaml job entry."
@@ -62,7 +70,7 @@
     :as pipeline}]
   {:op   :container/run
    :id   (keyword name)
-   :args {:cmds      (map (fn [c] {:cmd c}) commands)
+   :args {:cmds      [{:cmd (make-job-cmds commands)}]
           :image     (or image global-image)
           :env       (prep-env (merge global-environment environment))
           :conn      {:uri [:nos/vault :podman-conn-uri]}
