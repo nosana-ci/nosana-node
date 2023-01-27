@@ -56,7 +56,7 @@
 
 (defn use-jetty [{:keys [http/handler] :as system}]
   (let [server (jetty/run-jetty handler
-                                {:host  "localhost"
+                                {:host  "0.0.0.0"
                                  :port  3000
                                  :join? false})]
     (update system :system/stop conj #(.stop server))))
