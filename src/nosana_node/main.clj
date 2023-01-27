@@ -32,11 +32,11 @@
    system
    {:http/handler      #'nos-sys/handler
     :system/components [use-vault
-                        nos-sys/use-wrap-ctx
-                        use-jetty
                         store/use-fs-store
                         use-nostromo
-                        use-nosana]
+                        use-nosana
+                        nos-sys/use-wrap-ctx
+                        use-jetty]
     :system/profile    :prod
     :nos/log-dir       "/tmp/logs"
     :nos/store-path    "/tmp/store"
