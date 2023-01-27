@@ -42,7 +42,6 @@
        :body    "Not found"})))
 
 (defn handler [{:keys [uri] :as request}]
-  (prn uri)
   (cond
     (or (= uri "/health")
         (= uri "/"))
