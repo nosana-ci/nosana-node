@@ -42,7 +42,7 @@
                  (catch Exception e nil))]
     (if (and flow-id op-id log)
       {:status  200
-       :headers {"Content-Type" "text/plain"}
+       :headers {"Content-Type" "text/plain; charset=UTF-8"}
        :body    log}
       {:status  404
        :headers {"Content-Type" "text/plain"}

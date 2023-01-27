@@ -45,8 +45,7 @@
                         use-nostromo
                         use-nosana
                         use-wrap-ctx
-                        use-jetty
-                        ]
+                        use-jetty]
     :system/profile    :dev
     :nos/log-dir       "/tmp/logs"
     :nos/store-path    "/tmp/store"
