@@ -27,8 +27,6 @@
     (log/info "Started nrepl server on port " port)
     (update system :system/stop conj #(.close socket))))
 
-(derive :nosana-node/nrepl-server :duct/daemon)
-
 (defn -main [& args]
   (start-system
    system

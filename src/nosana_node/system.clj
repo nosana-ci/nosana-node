@@ -44,14 +44,14 @@
 (defn handler [{:keys [uri] :as request}]
   (prn uri)
   (cond
-    (= uri "/") {:status  200
-                 :headers {"content-type" "text/plain"}
-                 :body    "OK"}
+    (= uri "/health") {:status  200
+                       :headers {"content-type" "text/plain"}
+                       :body    "OK"}
     (string/starts-with? uri "/nosana/logs/")
     (get-op-log uri)
-    :else       {:status  404
-                 :headers {"content-type" "text/plain"}
-                 :body    "Not found"}))
+    :else             {:status  404
+                       :headers {"content-type" "text/plain"}
+                       :body    "Not found"}))
 
 (defn use-jetty [{:keys [http/handler] :as system}]
   (let [server (jetty/run-jetty handler

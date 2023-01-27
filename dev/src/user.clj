@@ -8,7 +8,6 @@
    nosana-node.handler
    [clojure.pprint :refer [pprint]]
    [taoensso.timbre :as timbre]
-   [cognitect.test-runner :refer [test]]
    [contajners.core :as c]
    [nos.core :as flow]
    nos.module.http
