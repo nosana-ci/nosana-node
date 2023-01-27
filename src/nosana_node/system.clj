@@ -44,9 +44,11 @@
 (defn handler [{:keys [uri] :as request}]
   (prn uri)
   (cond
-    (= uri "/health") {:status  200
-                       :headers {"content-type" "text/plain"}
-                       :body    "OK"}
+    (or (= uri "/health")
+        (= uri "/"))
+    {:status  200
+     :headers {"content-type" "text/plain"}
+     :body    "OK"}
     (string/starts-with? uri "/nosana/logs/")
     (get-op-log uri)
     :else             {:status  404
