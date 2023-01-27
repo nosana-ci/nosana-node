@@ -436,13 +436,16 @@ Running Nosana Node %s
   [[run-addr run] conf {:nos/keys [store flow-chan]}]
   (try
     (let [job      (get-job conf (:job run))
+          job-addr (-> run :job .toString)
           job-info (download-job-ipfs (:ipfsJob job) conf)
           flow     (create-flow job-info run-addr run conf)
-          _ (prn "created flow = " flow)
+          _        (prn "created flow = " flow)
           flow-id  (:id flow)]
-      (log :info "Starting job" (-> run :job .toString))
+      (log :info "Starting job" job-addr)
       (log :trace "Processing flow" flow-id)
+      (prn "STORING FLOW " [:job->flow job-addr] flow-id)
       (go
+        (<! (kv/assoc-in store [:job->flow job-addr] flow-id))
         (<! (flow/save-flow flow store))
         (>! flow-chan [:trigger flow-id])
         flow-id))

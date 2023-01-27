@@ -14,7 +14,8 @@
    [nos.vault :refer [use-vault]]
    [nosana-node.system :as nos-sys
     :refer [start-system
-            use-jetty]]
+            use-jetty
+            use-wrap-ctx]]
    [nosana-node.util :refer [bytes->hex hex->bytes base58] :as util]
    nos.ops.git
    [nos.ops.docker :as docker]
@@ -40,10 +41,11 @@
    system
    {:http/handler      #'nos-sys/handler
     :system/components [use-vault
-                        use-jetty
                         store/use-fs-store
                         use-nostromo
                         use-nosana
+                        use-wrap-ctx
+                        use-jetty
                         ]
     :system/profile    :dev
     :nos/log-dir       "/tmp/logs"
@@ -55,10 +57,10 @@
 (defn stop [] (nos-sys/stop-system @system))
 
 (defn kv-get [key]
-  (<!! (kv/get-in (:nos/store system) key)))
+  (<!! (kv/get-in (:nos/store @system) key)))
 
 (defn kv-set [key val]
-  (<!! (kv/assoc (:nos/store system) key val)))
+  (<!! (kv/assoc (:nos/store @system) key val)))
 
 (defn run-flow [flow]
   (prn ">> Starting flow from REPL >>" (:id flow))

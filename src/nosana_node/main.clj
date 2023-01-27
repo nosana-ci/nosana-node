@@ -32,6 +32,7 @@
    system
    {:http/handler      #'nos-sys/handler
     :system/components [use-vault
+                        nos-sys/use-wrap-ctx
                         use-jetty
                         store/use-fs-store
                         use-nostromo
