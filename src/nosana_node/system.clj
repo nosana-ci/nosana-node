@@ -50,7 +50,7 @@
      :body    "OK"}
     (string/starts-with? uri "/nosana/logs/")
     (get-op-log uri)
-    :else             {:status  404
+    :else             {:status  200
                        :headers {"content-type" "text/html"}
                        :body    "Not found"}))
 
