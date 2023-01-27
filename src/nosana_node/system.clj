@@ -46,12 +46,12 @@
     (or (= uri "/health")
         (= uri "/"))
     {:status  200
-     :headers {"content-type" "text/plain"}
+     :headers {"content-type" "text/html"}
      :body    "OK"}
     (string/starts-with? uri "/nosana/logs/")
     (get-op-log uri)
     :else             {:status  404
-                       :headers {"content-type" "text/plain"}
+                       :headers {"content-type" "text/html"}
                        :body    "Not found"}))
 
 (defn use-jetty [{:keys [http/handler] :as system}]
