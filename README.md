@@ -99,13 +99,13 @@ For CI/CD the [jib-gitlab.edn](jib-gitlab.edn) file is used.
 The project can also be compiled as a standalone jar:
 
 ```bash
-clj -X:compile uber
+clj -X:compile uberjar
 ```
 
 The resulting jar file can be run in a JVM like:
 
 ```bash
-java -jar target/node-0.0.189-standalone.jar
+PODMAN_URI=localhost:8080 java -jar target/node-0.0.189-standalone.jar
 ```
 
 ## Usage

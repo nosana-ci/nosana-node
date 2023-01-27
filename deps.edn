@@ -3,11 +3,12 @@
  :deps
  {org.clojure/clojure  {:mvn/version "1.11.0"}
   nostromo/nostromo    {:git/url "https://github.com/nosana-ci/nostromo"
-                        :sha     "3aa342a005a91d6894a237f29728e7042102ebe1"}
+                        :sha     "30867eb53a75ce0b6833e9705aeeb414c4caad4b"}
   ;; nostromo/nostromo    {:local/root "../nostromo"}
+
+  ring/ring {:mvn/version "1.9.6"}
   clj-http/clj-http    {:mvn/version "3.12.3"}
   clj-commons/clj-yaml {:mvn/version "0.7.169"}
-  jarohen/chime        {:mvn/version "0.3.3"}
 
   ;; nrepl
   cider/cider-nrepl {:mvn/version "0.28.7"}

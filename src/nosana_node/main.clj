@@ -1,39 +1,44 @@
 (ns nosana-node.main
-  (:require [nosana-node.nosana :as nosana]
+  (:require [nosana-node.nosana :as nosana :refer [use-nosana]]
             nosana-node.handler
             nos.ops.git
+            [nosana-node.system :refer [start-system use-jetty] :as nos-sys]
             nosana-node.gitlab
             nos.ops.docker
-            nos.system
+            [nos.store :as store]
+            [nos.vault :refer [use-vault]]
+            [nos.system :refer [use-nostromo]]
             nos.module.http
-            duct.module.web
-            [duct.core :as duct]
+            [clojure.java.io :as io]
+            [taoensso.timbre :as log]
             [integrant.core :as ig]
             [nrepl.server :as nrepl-server]
             [cider.nrepl :refer (cider-nrepl-handler)])
   (:gen-class))
 
-;; keep track of the global system so we can access it in the repl
-(defonce global-system (atom nil))
+(defonce system (atom nil))
 
-(defmethod ig/init-key :nosana-node/nrepl-server [_ {:keys [port] :or {port 7888}}]
-  (println ">> Starting nrepl server on port " port)
-  (nrepl-server/start-server :bind "0.0.0.0" :port port :handler cider-nrepl-handler))
-
-(defmethod ig/halt-key! :nosana-node/nrepl-server [_ {:keys [server-socket]}]
-  (.close server-socket))
+(defn use-nrepl [system]
+  (let [port   7888
+        socket (nrepl-server/start-server
+                :bind "0.0.0.0"
+                :port port
+                :handler cider-nrepl-handler)]
+    (log/info "Started nrepl server on port " port)
+    (update system :system/stop conj #(.close socket))))
 
 (derive :nosana-node/nrepl-server :duct/daemon)
 
-(duct/load-hierarchy)
-
 (defn -main [& args]
-  (println "Starting system")
-  (let [keys [:duct/daemon]
-        profiles [:duct.profile/prod]
-        system (-> (duct/resource "system.edn")
-                   (duct/read-config)
-                   (duct/prep-config profiles)
-                   (ig/init keys))]
-    (reset! global-system system)
-    (duct/await-daemons system)))
+  (start-system
+   system
+   {:http/handler      #'nos-sys/handler
+    :system/components [use-vault
+                        use-jetty
+                        store/use-fs-store
+                        use-nostromo
+                        use-nosana]
+    :system/profile    :prod
+    :nos/log-dir       "/tmp/logs"
+    :nos/store-path    "/tmp/store"
+    :nos/vault-path    (io/resource "config.edn")}))

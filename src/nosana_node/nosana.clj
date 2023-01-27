@@ -433,7 +433,7 @@ Running Nosana Node %s
 
 (defn start-flow-for-run!
   "Start running a new Nostromo flow and return its flow ID."
-  [[run-addr run] conf {:keys [:nos/store :nos/flow-chan]}]
+  [[run-addr run] conf {:nos/keys [store flow-chan]}]
   (try
     (let [job      (get-job conf (:job run))
           job-info (download-job-ipfs (:ipfsJob job) conf)
@@ -455,13 +455,13 @@ Running Nosana Node %s
 
 (defn work-loop
   "Main loop."
-  [conf {:nos/keys [jobs] :as system}]
+  [conf {:nos/keys [poll-delay exit-chan] :as system}]
   (go-loop [active-flow nil]
     (async/alt!
       ;; put anything on :exit-ch to stop the loop
-      (:exit-chan jobs) (log :info "Work loop exited")
+      exit-chan (log :info "Work loop exited")
       ;; otherwise we will loop onwards with a timeout
-      (timeout (:poll-delay jobs))
+      (timeout poll-delay)
       (let [runs (find-my-runs conf)]
         (cond
           active-flow       (do
@@ -478,23 +478,17 @@ Running Nosana Node %s
                               (<! (sol/await-tx< (enter-market conf) (:network conf)))
                               (recur nil)))))))
 
-(derive :nos/jobs :duct/daemon)
-(derive :nos.nosana/complete-job ::flow/fx)
-
 (defn exit-work-loop!
   "Stop the main work loop for the system"
   [{:keys [nos/jobs]}]
   (put! (:exit-chan jobs) true))
 
-(defmethod ig/init-key :nos/jobs
-  [_ {:keys [store flow-ch vault]}]
+(defn use-nosana
+  [{:nos/keys [store flow-chan vault] :as system}]
   ;; Wait a bit for podman to boot
   (log :info "Waiting 5s for podman")
   (Thread/sleep 5000)
-  (let [system     {:nos/store     store
-                    :nos/flow-chan flow-ch
-                    :nos/vault     vault}
-        network    (:solana-network vault)
+  (let [network    (:solana-network vault)
         market     (:nosana-market vault)
         conf       (make-config system)
         market-acc (get-market conf)
@@ -520,12 +514,16 @@ Running Nosana Node %s
 
     ;; put any value to `exit-ch` to cancel the `loop-ch`:
     ;; (async/put! exit-ch true)
-    {:loop-ch    (when (and (:start-job-loop? vault) (= :success status))
-                   (work-loop conf (merge  system
-                                           {:nos/jobs {:exit-chan  exit-ch
-                                                       :poll-delay (:poll-delay-ms vault)}})))
-     :exit-chan  exit-ch
-     :poll-delay (:poll-delay-ms vault)}))
+    (-> system
+        (assoc
+         :nos/loop-chan
+         (when (and (:start-job-loop? vault) (= :success status))
+           (work-loop conf (merge  system
+                                   {:nos/exit-chan  exit-ch
+                                    :nos/poll-delay (:poll-delay-ms vault)})))
+         :nos/exit-chan exit-ch
+         :nos/poll-delay (:poll-delay-ms vault))
+        (update :system/stop conj #(put! exit-ch true)))))
 
 (defmethod ig/halt-key! :nos/jobs
   [_ {:keys [exit-chan]}]

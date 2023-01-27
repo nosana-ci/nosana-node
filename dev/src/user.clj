@@ -8,39 +8,52 @@
    nosana-node.handler
    [clojure.pprint :refer [pprint]]
    [taoensso.timbre :as timbre]
-   [duct.core :as duct]
-   [integrant.repl :refer [halt reset resume set-prep! prep init]]
    [cognitect.test-runner :refer [test]]
-   [integrant.repl.state :refer [config system]]
    [contajners.core :as c]
    [nos.core :as flow]
    nos.module.http
+   [nos.vault :refer [use-vault]]
+   [nosana-node.system :as nos-sys
+    :refer [start-system
+            use-jetty]]
    [nosana-node.util :refer [bytes->hex hex->bytes base58] :as util]
    nos.ops.git
    [nos.ops.docker :as docker]
-   nos.system
    [aero.core :refer (read-config)]
    [konserve.core :as kv]
-   [integrant.core :as ig]
    [clojure.core.async :as async :refer [<!! <! >!!]]
    [nos.store :as store]
+   [nos.system :refer [use-nostromo]]
+   [clojure.java.io :as io]
+   [nosana-node.main :as main]
    [nosana-node.pipeline :as pl]
-   [nosana-node.nosana :as nos]
+   [nosana-node.nosana :as nos :refer [use-nosana]]
    [nosana-node.solana :as sol])
   (:import [org.p2p.solanaj.core Transaction TransactionInstruction PublicKey
             Account Message AccountMeta]))
 
-(duct/load-hierarchy)
+(defonce system (atom nil))
 
 (defonce conf nil)
 
 (defn go []
-  (integrant.repl/go)
-  (alter-var-root #'conf (fn [_] (nos/make-config system)))
+  (start-system
+   system
+   {:http/handler      #'nos-sys/handler
+    :system/components [use-vault
+                        use-jetty
+                        store/use-fs-store
+                        use-nostromo
+                        use-nosana
+                        ]
+    :system/profile    :dev
+    :nos/log-dir       "/tmp/logs"
+    :nos/store-path    "/tmp/store"
+    :nos/vault-path    (io/resource "config.edn")})
+  (alter-var-root #'conf (fn [_] (nos/make-config @system)))
   :ready)
 
-(defn get-config []
-  (duct/read-config (io/resource "system.edn")))
+(defn stop [] (nos-sys/stop-system @system))
 
 (defn kv-get [key]
   (<!! (kv/get-in (:nos/store system) key)))
@@ -52,8 +65,8 @@
   (prn ">> Starting flow from REPL >>" (:id flow))
   (->>
    (assoc flow :default-args (:nos-default-args conf))
-   (flow/run-flow! (:nos/flow-engine system))
-   (kv/assoc-in (:nos/store system) [(:id flow)])
+   (flow/run-flow! @system)
+   (kv/assoc-in (:nos/store @system) [(:id flow)])
    <!!
    second))
 
@@ -65,8 +78,6 @@
 
 (defn memory-usage []
   (prn (.freeMemory (Runtime/getRuntime))))
-
-(set-prep! #(duct/prep-config (get-config) [:duct.profile/dev]))
 
 (defn get-signer-address
   "Get signer Solana public key as string"
@@ -81,7 +92,7 @@
 (defn start-work-loop!
   "Start the polling for jobs in a background thread."
   []
-  (clojure.core.async/go (nos/work-loop conf system))
+  (clojure.core.async/go (nos/work-loop conf @system))
   true)
 
 (defn start-run!
