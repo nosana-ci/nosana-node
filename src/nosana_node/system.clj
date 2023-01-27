@@ -35,10 +35,10 @@
                    (catch Exception e nil))]
     (if (and flow-id op-id log)
       {:status  200
-       :headers {"content-type" "text/plain"}
-       :body log}
+       :headers {"Content-Type" "text/plain"}
+       :body    log}
       {:status  404
-       :headers {"content-type" "text/plain"}
+       :headers {"Content-Type" "text/plain"}
        :body    "Not found"})))
 
 (defn handler [{:keys [uri] :as request}]
@@ -46,12 +46,12 @@
     (or (= uri "/health")
         (= uri "/"))
     {:status  200
-     :headers {"content-type" "text/html"}
+     :headers {"Content-Type" "text/html"}
      :body    "OK"}
     (string/starts-with? uri "/nosana/logs/")
     (get-op-log uri)
     :else             {:status  200
-                       :headers {"content-type" "text/html"}
+                       :headers {"Content-Type" "text/html"}
                        :body    "Not found"}))
 
 (defn use-jetty [{:keys [http/handler] :as system}]
