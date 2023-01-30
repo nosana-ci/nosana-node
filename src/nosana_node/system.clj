@@ -36,7 +36,7 @@
         (re-seq #"/nosana/logs/([a-zA-Z0-9\-_]+)/([a-zA-Z0-9\-%\s\+]+)" uri)
 
         op-id          (form-decode op-id-raw)
-        flow-id-mapped (<!! (kv/get-in store [:job->flow flow-id]))
+        flow-id-mapped (<!! (kv/get store [:job->flow flow-id]))
         flow-id        (if flow-id-mapped flow-id-mapped flow-id)
 
         log (try (slurp (str "/tmp/nos-logs/" flow-id "/" op-id ".txt"))

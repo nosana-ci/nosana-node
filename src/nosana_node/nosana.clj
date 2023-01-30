@@ -444,8 +444,8 @@ Running Nosana Node %s
       (log :info "Starting job" job-addr)
       (log :trace "Processing flow" flow-id)
       (prn "STORING FLOW " [:job->flow job-addr] flow-id)
+      (<!! (kv/assoc store [:job->flow job-addr] flow-id))
       (go
-        (<! (kv/assoc-in store [:job->flow job-addr] flow-id))
         (<! (flow/save-flow flow store))
         (>! flow-chan [:trigger flow-id])
         flow-id))
