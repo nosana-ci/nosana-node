@@ -26,12 +26,12 @@
      :args {:cmds      [{:cmd [:nos/str
                                "sh -c 'echo \u001b[32m$ git clone "
                                [:nos/ref :input/repo] " project\033[0m" " && "
-                               "git clone " [:nos/ref :input/repo] " project'"]}
-                        {:cmd     [:nos/str
-                                   "sh -c 'echo \u001b[32m$ git checkout "
-                                   [:nos/ref :input/commit-sha] "\033[0m" " && "
-                                   "git checkout " [:nos/ref :input/commit-sha] "'"]
-                         :workdir "/root/project"}]
+                               "git clone " [:nos/ref :input/repo] " project" " && "
+                               "echo \u001b[32m$ cd /root/project\033[0m && cd /root/project"
+                               " && "
+                               "echo \u001b[32m$ git checkout "
+                               [:nos/ref :input/commit-sha] "\033[0m" " && "
+                               "git checkout " [:nos/ref :input/commit-sha] "'"]}]
             :workdir   "/root"
             :artifacts [{:path "project" :name "checkout"}]
             :conn      {:uri [:nos/vault :podman-conn-uri]}
