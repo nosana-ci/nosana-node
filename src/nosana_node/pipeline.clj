@@ -23,8 +23,14 @@
   {:ops
    [{:op   :container/run
      :id   :checkout
-     :args {:cmds      [{:cmd [:nos/str "git clone " [:nos/ref :input/repo] " project"]}
-                        {:cmd      [:nos/str "git checkout " [:nos/ref :input/commit-sha]]
+     :args {:cmds      [{:cmd [:nos/str
+                               "sh -c 'echo \u001b[32m$ git clone "
+                               [:nos/ref :input/repo] " project\033[0m" " && "
+                               "git clone " [:nos/ref :input/repo] " project'"]}
+                        {:cmd     [:nos/str
+                                   "sh -c 'echo \u001b[32m$ git checkout "
+                                   [:nos/ref :input/commit-sha] "\033[0m" " && "
+                                   "git checkout " [:nos/ref :input/commit-sha] "'"]
                          :workdir "/root/project"}]
             :workdir   "/root"
             :artifacts [{:path "project" :name "checkout"}]
@@ -55,18 +61,13 @@
 (defn make-job-cmds
   "Embed a seq of shell commands into a single `sh -c` statement."
   [cmds]
-  (let [;; TODO: allow-failure? should switch the && separater to ;
-        seperator " && "
-        sh-cmd
+  (let [cmds-escaped
         (->> cmds
-             ;; prepend an echo for each cmd
              (map (fn [cmd] [(str "echo \u001b[32m" "$ '" cmd "'\033[0m") cmd]))
              flatten
-             ;; escape any single quotes, as this goes inside a sh -c '..'
-             (map #(string/replace % "'" "'\\''")
-             ;; concatenate them with &&
-             (string/join seperator)))]
-    (str "sh -c '" sh-cmd "'")))
+             (map #(string/replace % "'" "'\\''")))]
+    (str "sh -c '" (string/join " && " cmds-escaped) "'")))
+
 
 (defn make-job
   "Create flow segment for a `job` entry of the pipeline.
