@@ -52,13 +52,21 @@
    "NOS_JOB_ADDRESS" job
    "NOS_RUN_ADDRESS" run})
 
-(defn make-job-cmds [cmds]
-  (let [cmds-escaped
+(defn make-job-cmds
+  "Embed a seq of shell commands into a single `sh -c` statement."
+  [cmds]
+  (let [;; TODO: allow-failure? should switch the && separater to ;
+        seperator " && "
+        sh-cmd
         (->> cmds
+             ;; prepend an echo for each cmd
              (map (fn [cmd] [(str "echo \u001b[32m" "$ '" cmd "'\033[0m") cmd]))
              flatten
-             (map #(string/replace % "'" "'\\''")))]
-    (str "sh -c '" (string/join " && " cmds-escaped) "'")))
+             ;; escape any single quotes, as this goes inside a sh -c '..'
+             (map #(string/replace % "'" "'\\''")
+             ;; concatenate them with &&
+             (string/join seperator)))]
+    (str "sh -c '" sh-cmd "'")))
 
 (defn make-job
   "Create flow segment for a `job` entry of the pipeline.

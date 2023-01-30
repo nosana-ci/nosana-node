@@ -8,6 +8,7 @@
             [taoensso.timbre :as log]
             [clojure.tools.namespace.repl :as tn-repl]
             [nrepl.server :as nrepl-server]
+            [nosana-node.cors :refer [wrap-all-cors]]
             [cider.nrepl :refer (cider-nrepl-handler)]
             [ring.util.codec :refer [form-decode]]))
 
@@ -65,9 +66,10 @@
   (assoc ctx :http/handler (fn [req]
                              (handler (merge (dissoc ctx :nos/vault) req)))))
 
+
 (defn use-jetty [{:keys [http/handler] :as system}]
-  (let [server (jetty/run-jetty handler
-                                {:host  "0.0.0.0"
-                                 :port  3000
-                                 :join? false})]
+  (let [server (jetty/run-jetty (wrap-all-cors handler)
+                {:host  "0.0.0.0"
+                 :port  3000
+                 :join? false})]
     (update system :system/stop conj #(.stop server))))
