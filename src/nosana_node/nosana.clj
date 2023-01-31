@@ -332,11 +332,15 @@ Running Nosana Node %s
 (defn find-my-runs
   "Find job accounts owned by this node"
   [{:keys [network programs address]}]
-  (sol/get-idl-program-accounts
-   network
-   (:job programs)
-   "RunAccount"
-   {"node"  (.toString address)}))
+  (try
+    (sol/get-idl-program-accounts
+     network
+     (:job programs)
+     "RunAccount"
+     {"node"  (.toString address)})
+    (catch Exception e
+      (log :error "RPC error fetching runs" e)
+      {})))
 
 (defn clear-market
   "Claim all the jobs that are queued in the configured market.
