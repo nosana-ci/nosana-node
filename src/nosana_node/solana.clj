@@ -20,7 +20,7 @@
 
 (def rpc {:testnet "https://api.testnet.solana.com"
           :devnet  "https://api.devnet.solana.com"
-          :mainnet "https://solana-api.projectserum.com"})
+          :mainnet "https://lively-sparkling-shape.solana-mainnet.discover.quiknode.pro/515f35af4d64f05ab7b10cd8cd88f34f9d1ec7d0"})
 
 (defn public-key [address] (PublicKey. address))
 
@@ -32,9 +32,11 @@
   [method params network]
   (->
    (http/post (get rpc network)
-              {:body         (json/encode {:jsonrpc "2.0" :id "1" :method method :params params})
-               :content-type :json})
-   ))
+              {:body         (json/encode {:jsonrpc "2.0"
+                                           :id      "1"
+                                           :method  method
+                                           :params  params})
+               :content-type :json})))
 
 (defn get-balance [addr network]
   (->
