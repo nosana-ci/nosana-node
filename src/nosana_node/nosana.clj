@@ -55,7 +55,7 @@
              :pool        (PublicKey. "nosPdZrfDzND1LAR28FLMDEATUPK53K8xbRBXAirevD")
              :reward-pool (PublicKey. "mineHEHiHxWS8pVkNc5kFkrvv5a9xMVgRY9wfXtkMsS")
              :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")
-             :market      (PublicKey. "Har2dBQTZLtnMkeSdxxmaUj5A6Eke8fq7Yiq75EfuAPi")}
+             :market      (PublicKey. "AdEfJDEqWWbNwRtS3SU3JXfo5oSKVnbmK2r8gqEMQNWy")}
    :devnet  {:nos-token   (PublicKey. "devr1BGQndEW5k5zfvG5FsLyZv1Ap73vNgAHcQ9sUVP")
              :stake       (PublicKey. "nosScmHY2uR24Zh751PmGj9ww9QRNHewh9H59AfrTJE")
              :collection  (PublicKey. "CBLH5YsCPhaQ79zDyzqxEMNMVrE5N7J6h4hrtYNahPLU")
@@ -211,6 +211,7 @@ Running Nosana Node %s
                          (.toByteArray (.getPublicKey signer))]
                         (:stake programs)))
         nos-ata      (sol/get-ata signer-pub (:nos-token programs))
+        _            (prn "Fetching market account " market-pub "on network" network)
         market       (sol/get-idl-account (:job programs) "MarketAccount" market-pub network)
         nft          (if (:nft vault) (PublicKey. (:nft vault)) (:system sol/addresses))
         nft-ata      (if (:nft vault)
