@@ -383,10 +383,16 @@ Running Nosana Node %s
         (sol/send-tx [signer] network))))
 
 (defn is-queued?
-  "Returns `true` if the node is queued in the configured market."
+  "Returns `true` if the node is queued in the configured market.
+  Returns `nil` if an error occured, for example when fetching the
+  market."
   [conf]
-  (let [market (get-market conf)]
-    (not-empty (filter #(.equals %1 (:address conf)) (:queue market)))))
+  (try
+    (let [market (get-market conf)]
+      (not-empty (filter #(.equals %1 (:address conf)) (:queue market))))
+    (catch Exception e
+      (log :error "Failed checking if node is queued" e)
+      nil)))
 
 (defn- finish-flow-dispatch [flow conf]
   (or (get-in flow [:state :nosana/job-type])
