@@ -297,7 +297,11 @@ Running Nosana Node %s
   (let [run (Account.)
         tx  (build-idl-tx :job "work" []
                           conf {"run" (.getPublicKey run)})]
-    (sol/send-tx tx [(:signer conf) run] (:network conf))))
+    (try
+      (sol/send-tx tx [(:signer conf) run] (:network conf))
+      (catch Exception e
+        (log :error "Failed entering market" e)
+        nil))))
 
 (defn get-job [{:keys [network programs]} addr]
   (sol/get-idl-account (:job programs) "JobAccount" addr network))
@@ -487,9 +491,10 @@ Running Nosana Node %s
           (is-queued? conf) (do
                               (log :info "Waiting in the queue")
                               (recur nil))
-          :else             (do
+          :else             (let [enter-sig (enter-market conf)]
                               (log :info "Entering the queue")
-                              (<! (sol/await-tx< (enter-market conf) (:network conf)))
+                              (when enter-sig
+                                (<! (sol/await-tx< enter-sig (:network conf))))
                               (recur nil)))))))
 
 (defn exit-work-loop!
