@@ -18,26 +18,26 @@ jobs:
 
     steps:
       # repo
-      - name: Checkout sources
+      - name: Checkout repository
         uses: actions/checkout@v3
         with:
           submodules: true
 
       # java
-      - name: Prepare java
+      - name: Setup java
         uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 19
 
       # clojure
-      - name: Install clojure tools
+      - name: Setup clojure
         uses: DeLaGuardo/setup-clojure@10.1
         with:
           cli: latest
 
       # build
-      - name: Clojure Uber Build
+      - name: Compile uberjar
         run: clojure -X:compile uberjar
 
       # artifact
@@ -61,8 +61,12 @@ jobs:
       version: ${{ steps.release-files.outputs.version }}
       sha256: ${{ steps.release-files.outputs.sha256 }}
     steps:
+      # repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       # artifact
-      - name: Download all workflow run artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
           path: artifacts
@@ -103,18 +107,18 @@ jobs:
       ALL_FILES_SHA: ${{ needs.release.outputs.all_files_sha }}
     steps:
       # remote repo
-      - name: Checkout sources
+      - name: Checkout brew sources
         uses: actions/checkout@v2
         with:
           repository: nosana-ci/homebrew-tools
 
-      # changes formula
-      - name: Update formula native image
+      # update formula
+      - name: Update formula
         id: update-formula
         run: scripts/update-formula.sh nosana-node.rb ${{ env.NEW_VERSION }} ${{ env.ALL_FILES_SHA }}
 
       # create PR
-      - name: Create Pull Request
+      - name: Create PR
         uses: peter-evans/create-pull-request@v3
         with:
           token: ${{ secrets.BOT_GITHUB_PAT_PUBLIC_REPO }}
