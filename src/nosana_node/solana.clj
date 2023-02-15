@@ -28,7 +28,8 @@
 
 (defn rpc-call
   "Make a solana RPC call.
-  This uses clj-http instead of solanaj's client."
+  This uses clj-http instead of solanaj's client.
+  For all JSON RPC HTTP methods:https://docs.solana.com/api/http"
   [method params network]
   (->
    (http/post (get rpc network)
@@ -40,19 +41,19 @@
 
 (defn get-balance [addr network]
   (->
-   (rpc-call "getBalance" [(.toString addr)] network)
+   (rpc-call "getBalance" [(.toString addr) {:commitment "confirmed"}] network)
    :body (json/decode true) :result :value))
 
 (defn get-token-balance [addr network]
   (->
-   (rpc-call "getTokenAccountBalance" [(.toString addr)] network)
+   (rpc-call "getTokenAccountBalance" [(.toString addr) {:commitment "confirmed"}] network)
    :body (json/decode true) :result :value :amount))
 
 (defn get-account-data
   "Get the data of a Solana account as ByteArray."
   [addr network]
   (if-let [data (->
-                 (rpc-call "getAccountInfo" [(.toString addr) {:encoding "base64"}] network)
+                 (rpc-call "getAccountInfo" [(.toString addr) {:encoding "base64" :commitment "confirmed"}] network)
                  :body
                  (json/decode true)
                  :result :value :data
@@ -374,7 +375,8 @@
    (rpc-call "getProgramAccounts"
              [(.toString account)
               {:encoding "jsonParsed"
-               :filters filters}]
+               :filters filters
+               :commitment "confirmed"}]
              network)
    :body
    (json/decode true)
@@ -414,7 +416,7 @@
 (defn get-tx
   "Get transaction `sig` as keywordized map"
   [sig network]
-  (-> (rpc-call "getTransaction" [sig "json"] network)
+  (-> (rpc-call "getTransaction" [sig "json" {:commitment "confirmed"}] network)
       :body
       (json/decode true)
       :result))
