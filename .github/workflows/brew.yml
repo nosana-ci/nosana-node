@@ -1,0 +1,137 @@
+name: Build and release Nosana Node packages
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build package
+    runs-on: ubuntu-latest
+
+    steps:
+      # repo
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          submodules: 'true'
+
+      # java
+      - name: Prepare java
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 19
+
+      # clojure
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@10.1
+        with:
+          cli: latest
+
+      # build
+      - name: Clojure Uber Build
+        run: clojure -X:compile uberjar
+
+      # artifact
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: nosana-node
+          path: target/*.jar
+          if-no-files-found: error
+
+  release:
+    name: Release package
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_BODY_FILE: body.txt
+    outputs:
+      new_version: ${{ steps.release-files.outputs.new_version }}
+      all_files_sha: ${{ steps.release-files.outputs.all_files_sha }}
+    steps:
+      # repo
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          submodules: 'true'
+
+      # artifact
+      - name: Download all workflow run artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+
+      # build
+      - name: Check files
+        run: ls artifacts/**/*
+
+      # change log
+      - name: Generate changelog
+        id: changelog
+        uses: metcalfc/changelog-generator@v4.0.1
+        with:
+          myToken: ${{ secrets.GITHUB_TOKEN }}
+
+      # prepare release
+      - name: Prepare release files
+        id: release-files
+        run: .github/scripts/prepare-release.sh
+        env:
+          TAG_REF: ${{ github.ref }}
+          CHANGE_LOG: ${{ steps.changelog.outputs.changelog }}
+
+      # build
+      - name: Check files
+        run: ls release/*
+
+      # release
+      - name: Release package
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: ${{ env.RELEASE_BODY_FILE }}
+          files: release/*
+          draft: false
+          prerelease: false
+
+  update:
+    name: Update Brew
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      NEW_VERSION: ${{ needs.release.outputs.new_version }}
+      ALL_FILES_SHA: ${{ needs.release.outputs.all_files_sha }}
+    steps:
+      # remote repo
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          repository: nosana-ci/homebrew-tools
+
+      # changes formula
+      - name: Update formula native image
+        id: update-formula
+        run: scripts/update-formula.sh nosana-node.rb ${{ env.NEW_VERSION }} ${{ env.ALL_FILES_SHA }}
+
+      # create PR
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.BOT_GITHUB_PAT_PUBLIC_REPO }}
+          commit-message: Update nosana-node formula to version ${{ env.NEW_VERSION }}
+          author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
+          base: main
+          branch: update-nosana-node-cli-formula
+          delete-branch: true
+          title: Nosana Node brew update ${{ env.NEW_VERSION }}
+          body: |
+            This PR
+            - Updates `nosana-node` formula to version `${{ env.NEW_VERSION }}`
+            - All files package sha is `${{ env.ALL_FILES_SHA }}`
+            - Auto-generated from [nosana-ci Continuous Delivery workflow][1]
+            [1]: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
