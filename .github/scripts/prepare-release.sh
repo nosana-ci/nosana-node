@@ -19,6 +19,7 @@ log_err() { echo -e "${RED}==> ${WHITE}${1}${RESET}"; }
 
 # vars
 version=${TAG_REF/refs\/tags\//}
+tarball="all-files-${version}.tar.gz"
 log_std "Preparing release ${GREEN}${version}"
 
 # create release directory
@@ -26,41 +27,39 @@ mkdir release
 
 # artifacts files
 cd artifacts
-for file in */*
-do
+for file in */*; do
   cp "${file}" "../release/$(dirname "${file}")-${version}"
 done
 
 # release files
 cd ../release
-for file in *
-do
-  sha256sum "${file}" > "${file}.sha256sum"
+for file in *; do
+  sha256sum "${file}" >"${file}.sha256sum"
 done
 
-tar czf "all-files-${version}.tar.gz" *
-sha256sum "all-files-${version}.tar.gz" > "all-files-${version}.tar.gz.sha256sum"
-all_files_sha="$( cat "all-files-${version}.tar.gz.sha256sum" | cut -f 1 -d ' ' )"
+tar czf "${tarball}" ./*
+sha256sum "${tarball}" >"${tarball}.sha256sum"
 
 # release body
-cat <<EOF > "../${RELEASE_BODY_FILE}"
+cat <<EOF >"../${RELEASE_BODY_FILE}"
 ## SHA 256
+
 EOF
 
-echo "## SHA 256" > "../${RELEASE_BODY_FILE}"
-for file in *.sha256sum
-do
-  echo "- \`$( cat "${file}" | cut -f 1 -d ' ' )\` ${file}" >> "../${RELEASE_BODY_FILE}"
+for file in *.sha256sum; do
+  echo "- \`$(cut -f 1 -d ' ' <"${file}")\` ${file}" >>"../${RELEASE_BODY_FILE}"
 done
 
-cat <<EOF >> "../${RELEASE_BODY_FILE}"
+cat <<EOF >>"../${RELEASE_BODY_FILE}"
 
 ## Change log
+
 EOF
-echo "${CHANGE_LOG}" >> "../${RELEASE_BODY_FILE}"
+echo "${CHANGE_LOG}" >>"../${RELEASE_BODY_FILE}"
 
 # github output
-for output in "new_version=${version}" "all_files_sha=${all_files_sha}"
-do
-  echo "${output}" >> "$GITHUB_OUTPUT"
+for output in \
+  "version=${version}" \
+  "sha256=$(cut -f 1 -d ' ' <"${tarball}")"; do
+  echo "${output}" >>"${GITHUB_OUTPUT}"
 done

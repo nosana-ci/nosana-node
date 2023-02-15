@@ -9,6 +9,9 @@ permissions:
   contents: write
 
 jobs:
+  ##############
+  # BUILD
+  #
   build:
     name: Build package
     runs-on: ubuntu-latest
@@ -18,7 +21,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
         with:
-          submodules: 'true'
+          submodules: true
 
       # java
       - name: Prepare java
@@ -45,6 +48,9 @@ jobs:
           path: target/*.jar
           if-no-files-found: error
 
+  ##############
+  # RELEASE
+  #
   release:
     name: Release package
     needs: build
@@ -52,24 +58,14 @@ jobs:
     env:
       RELEASE_BODY_FILE: body.txt
     outputs:
-      new_version: ${{ steps.release-files.outputs.new_version }}
-      all_files_sha: ${{ steps.release-files.outputs.all_files_sha }}
+      version: ${{ steps.release-files.outputs.version }}
+      sha256: ${{ steps.release-files.outputs.sha256 }}
     steps:
-      # repo
-      - name: Checkout sources
-        uses: actions/checkout@v3
-        with:
-          submodules: 'true'
-
       # artifact
       - name: Download all workflow run artifacts
         uses: actions/download-artifact@v2
         with:
           path: artifacts
-
-      # build
-      - name: Check files
-        run: ls artifacts/**/*
 
       # change log
       - name: Generate changelog
@@ -86,10 +82,6 @@ jobs:
           TAG_REF: ${{ github.ref }}
           CHANGE_LOG: ${{ steps.changelog.outputs.changelog }}
 
-      # build
-      - name: Check files
-        run: ls release/*
-
       # release
       - name: Release package
         uses: softprops/action-gh-release@v1
@@ -99,6 +91,9 @@ jobs:
           draft: false
           prerelease: false
 
+  ##############
+  # UPDATE
+  #
   update:
     name: Update Brew
     needs: release
