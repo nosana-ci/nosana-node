@@ -469,7 +469,8 @@ Running Nosana Node %s
       (go
         (log :info "Quit run because of error" (.toString run-addr))
         (let [sig (quit-job conf (sol/public-key run-addr))]
-          (<! (sol/await-tx< sig (:network conf))))))))
+          (<! (sol/await-tx< sig (:network conf)))
+          nil)))))
 
 (defn work-loop
   "Main loop."
