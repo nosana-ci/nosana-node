@@ -60,6 +60,6 @@ echo "${CHANGE_LOG}" >>"../${RELEASE_BODY_FILE}"
 # github output
 for output in \
   "version=${version}" \
-  "sha256=$(cut -f 1 -d ' ' <"${tarball}")"; do
+  "sha256=$(cut -f 1 -d ' ' <"${tarball}.sha256sum")"; do
   echo "${output}" >>"${GITHUB_OUTPUT}"
 done
