@@ -65,7 +65,7 @@ jobs:
 
       # artifact
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: artifacts
 
@@ -105,7 +105,7 @@ jobs:
     steps:
       # remote repo
       - name: Checkout brew sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: nosana-ci/homebrew-tools
 
@@ -116,7 +116,7 @@ jobs:
 
       # create PR
       - name: Create PR
-        uses: peter-evans/create-pull-request@v3
+        uses: peter-evans/create-pull-request@v4
         with:
           token: ${{ secrets.BOT_GITHUB_PAT_PUBLIC_REPO }}
           commit-message: Update nosana-node formula to version ${{ env.VERSION }}
