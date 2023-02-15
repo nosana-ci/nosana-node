@@ -9,4 +9,3 @@ resources/nosana/.secrets.edn
 .lsp/
 .calva/
 .notes/
-$HOME/.nosana-node-config.*
