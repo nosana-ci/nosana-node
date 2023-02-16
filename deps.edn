@@ -3,7 +3,7 @@
  :deps
  {org.clojure/clojure  {:mvn/version "1.11.0"}
   nostromo/nostromo    {:git/url "https://github.com/nosana-ci/nostromo"
-                        :sha     "e5df56a24f647e4c32b3b3bfd073dea24282098a"}
+                        :sha     "2919c5d28c067b1d255a672b188970275c91f6c4"}
   ;; nostromo/nostromo    {:local/root "../nostromo"}
 
   ring/ring {:mvn/version "1.9.6"}
