@@ -1,6 +1,7 @@
 (ns nosana-node.gitlab
   (:require [nos.core :as flow]
             [clojure.edn :as edn]
+            [nos.core :as nos]
             [nosana-node.nosana :refer [finish-flow create-flow ipfs-upload]]
             [nosana-node.pipeline :as pipeline]
             [nosana-node.secrets :as secrets]
@@ -22,6 +23,16 @@
         (assoc-in [:state :input/run-addr] (.toString run-addr))
         flow/build
         (assoc :default-args (:nos-default-args conf)))))
+
+(defmethod finish-flow "github-flow"
+  [flow conf]
+  (let [results    (:state flow)
+        job-result {:nos-id      (:id flow)
+                    :finished-at (nos/current-time)
+                    :results     results}
+        ipfs       (ipfs-upload job-result conf)]
+    (log :info "Job results uploaded to " ipfs)
+    ipfs))
 
 (defmethod create-flow "Gitlab"
   [job run-addr run conf]
