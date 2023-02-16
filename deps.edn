@@ -3,7 +3,7 @@
  :deps
  {org.clojure/clojure  {:mvn/version "1.11.0"}
   nostromo/nostromo    {:git/url "https://github.com/nosana-ci/nostromo"
-                        :sha     "2919c5d28c067b1d255a672b188970275c91f6c4"}
+                        :sha     "fee9373ec31c4aae2603dad26866511aa4ee11cb"}
   ;; nostromo/nostromo    {:local/root "../nostromo"}
 
   ring/ring {:mvn/version "1.9.6"}
@@ -29,7 +29,8 @@
  :aliases {:dev {:extra-deps  {integrant/repl {:mvn/version "0.3.2"}
                                io.github.cognitect-labs/test-runner
                                {:git/tag "v0.5.0" :git/sha "b3fd0d2"}}
-                 :extra-paths ["dev/src" "test"]}
+                 :extra-paths ["dev/src" "test"]
+                 :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]}
 
            :compile
            {:replace-deps {io.github.clojure/tools.build
