@@ -14,6 +14,15 @@
              :refer [ipfs-hash->bytes bytes->ipfs-hash]
              :as util]))
 
+(defmethod create-flow "github-flow"
+  [job run-addr run conf]
+  (let [job-addr (:job run)]
+    (-> job
+        (assoc-in [:state :input/job-addr] (.toString job-addr))
+        (assoc-in [:state :input/run-addr] (.toString run-addr))
+        flow/build
+        (assoc :default-args (:nos-default-args conf)))))
+
 (defmethod create-flow "Gitlab"
   [job run-addr run conf]
   (let [job-addr (:job run)]
