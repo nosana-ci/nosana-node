@@ -500,8 +500,8 @@ Running Nosana Node %s
 
 (defn exit-work-loop!
   "Stop the main work loop for the system"
-  [{:keys [nos/jobs]}]
-  (put! (:exit-chan jobs) true))
+  [{:keys [nos/exit-chan]}]
+  (put! exit-chan true))
 
 (defn use-nosana
   [{:nos/keys [store flow-chan vault] :as system}]
