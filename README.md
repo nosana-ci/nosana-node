@@ -9,6 +9,16 @@
 Nosana container engine used for running jobs on the Nosana network.
 Learn more at [nosana.io](https://nosana.io).
 
+## TL/DR
+
+To get up and running with your own Nosana Node:
+
+```shell
+$ brew install nosana-ci/tools/nosana-node
+
+$ nosana-node
+```
+
 ## Building
 
 It's recommended to use Clojure version 1.10.x and JVM 11.
@@ -112,23 +122,22 @@ PODMAN_URI=localhost:8080 java -jar target/node-0.0.189-standalone.jar
 
 ### Start Podman
 
-You will have to run a local non-privileged Podman container:
+You will have to run a local non-privileged, and rootless, Podman container, with `docker`:
 
 ```bash
-sudo docker run -d \
+(sudo) docker run -d \
   --name podman \
   --device /dev/fuse \
   --security-opt seccomp=unconfined \
-  --security-opt apparmor=unconfined \
-  --security-opt label=disable \
-  --cap-add sys_admin \
-  --cap-add mknod \
+  --user 1000:1000 \
   -p 8080:8080 \
-  quay.io/podman/stable podman system service \
-  --time 0 tcp:0.0.0.0:8080
+  nosana/podman podman system service --time 0 tcp:0.0.0.0:8080
 ```
 
 Podman will be used to spin up containers for Nosana jobs.
+
+Alternatively, when you're using `containerd` as your container engine.
+you may replace `docker` with `nerdctl` in above command.
 
 ### Hacking locally
 
