@@ -303,6 +303,17 @@ Running Nosana Node %s
         (log :error "Failed entering market" e)
         nil))))
 
+(defn exit-market
+  "Exit the market node queue."
+  [conf]
+  (let [run (Account.)
+        tx  (build-idl-tx :job "stop" [] conf {})]
+    (try
+      (sol/send-tx tx [(:signer conf)] (:network conf))
+      (catch Exception e
+        (log :error "Failed exit market" e)
+        nil))))
+
 (defn get-job [{:keys [network programs]} addr]
   (sol/get-idl-account (:job programs) "JobAccount" addr network))
 
