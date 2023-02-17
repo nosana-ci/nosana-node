@@ -108,9 +108,11 @@
   [{:keys [address network nos-ata accounts]}]
   {:sol (sol/format-sol (str (sol/get-balance address network)))
    :nos (format-nos (or (sol/get-token-balance nos-ata network) "0"))
-   :nft (Integer/parseInt
-         (or (sol/get-token-balance (get accounts "nft") network)
-             "0"))})
+   :nft (if (= (get accounts "nft") nos-ata)
+          0
+          (Integer/parseInt
+           (or (sol/get-token-balance (get accounts "nft") network)
+               "0")))})
 
 (def min-sol-balance
   "Minimum Solana balance to be healthy" (sol/format-sol "10000000"))
@@ -213,9 +215,20 @@ Running Nosana Node %s
         nos-ata      (sol/get-ata signer-pub (:nos-token programs))
         _            (prn "Fetching market account " market-pub "on network" network)
         market       (sol/get-idl-account (:job programs) "MarketAccount" market-pub network)
-        nft          (if (:nft vault) (PublicKey. (:nft vault)) (:system sol/addresses))
+        nft          (if (:nft vault)
+                       (PublicKey. (:nft vault))
+                       (:system sol/addresses))
+
+        ;; when the market does not have an NFT, we pass the nos-ata
+        ;; as the nft-ata. this is because the program requires the
+        ;; account to be a valid TokenAccount (without further
+        ;; constraints).
         nft-ata      (if (:nft vault)
                        (sol/get-ata signer-pub nft)
+                       nos-ata)
+
+        metadata     (if (:nft vault)
+                       (sol/get-metadata-pda nft)
                        (:system sol/addresses))]
     {:network           network
      :signer            signer
@@ -248,7 +261,7 @@ Running Nosana Node %s
                          "vault"             market-vault
                          "stake"             stake
                          "nft"               nft-ata
-                         "metadata"          (sol/get-metadata-pda nft)
+                         "metadata"          metadata
                          "rewardsProgram"    (:reward programs)
                          "rewardsVault"      (sol/pda [(.toByteArray (:nos-token programs))]
                                                       (:reward programs))

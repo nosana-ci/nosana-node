@@ -313,6 +313,7 @@
     (doseq [{:keys [name isMut isSigner]} (:accounts ins)]
       (when (not (contains? accounts name))
         (throw (ex-info "Missing required account for instruction" {:missing name})))
+      ;; (prn name ": " (.toString(get accounts name)))
       (.add ins-keys (AccountMeta. (get accounts name) isSigner isMut)))
 
     ;; in anchor the instruction data always starts with 8 bytes id
