@@ -1,5 +1,6 @@
 (ns build
-  (:require [clojure.tools.build.api :as b]))
+  (:require [clojure.tools.build.api :as b])
+  (:refer-clojure :exclude [compile]))
 
 (def lib 'nos/node)
 (def version (format "0.0.%s" (b/git-count-revs nil)))

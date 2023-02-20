@@ -6,10 +6,7 @@
             [konserve.core :as kv]
             [clojure.string :as string]
             [taoensso.timbre :as log]
-            [clojure.tools.namespace.repl :as tn-repl]
-            [nrepl.server :as nrepl-server]
             [nosana-node.cors :refer [wrap-all-cors]]
-            [cider.nrepl :refer (cider-nrepl-handler)]
             [ring.util.codec :refer [form-decode]]))
 
 (defn stop-system [{:keys [system/stop]}]
@@ -17,16 +14,18 @@
     (log/info "stopping:" (str f))
     (f)))
 
-(defn refresh-system [{:keys [system/after-refresh] :as system}]
-  (stop-system system)
-  (tn-repl/refresh :after after-refresh))
+(defn use-when [f & components]
+  (fn [sys]
+    (if (f sys)
+      (update sys :biff/components #(concat components %))
+      sys)))
 
 (defn start-system [system-atom init]
   (stop-system @system-atom)
   (reset! system-atom (merge {:system/stop '()} init))
   (loop [{[f & components] :system/components :as sys} init]
     (when (some? f)
-      (log/info "starting:" (str f))
+      (log/trace "starting:" (str f))
       (recur (reset! system-atom (f (assoc sys :system/components components))))))
   (log/info "System started.")
   @system-atom)

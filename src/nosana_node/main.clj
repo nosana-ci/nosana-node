@@ -2,7 +2,7 @@
   (:require [nosana-node.nosana :as nosana :refer [use-nosana]]
             nosana-node.handler
             nos.ops.git
-            [nosana-node.system :refer [start-system use-jetty] :as nos-sys]
+            [nosana-node.system :refer [start-system use-jetty use-when] :as nos-sys]
             nosana-node.gitlab
             nos.ops.docker
             [nos.store :as store]
@@ -12,8 +12,10 @@
             [clojure.java.io :as io]
             [taoensso.timbre :as log]
             [integrant.core :as ig]
+            [clojure.string :as string]
             [nrepl.server :as nrepl-server]
-            [cider.nrepl :refer (cider-nrepl-handler)])
+            [cider.nrepl :refer (cider-nrepl-handler)]
+            [clojure.tools.cli :as cli])
   (:gen-class))
 
 (defonce system (atom nil))
@@ -27,16 +29,64 @@
     (log/info "Started nrepl server on port " port)
     (update system :system/stop conj #(.close socket))))
 
+(def cli-options
+  [["-p" "--port PORT" "HTTP port"
+    :default 8080
+    :parse-fn #(Integer/parseInt %)
+    :validate [#(< 0 % 0x10000) "Must be a number between 0 and 65536"]]
+   [nil "--ipfs-url URL" "IPFS url"]
+   ["-v" nil "Verbosity level"
+    :id :verbosity
+    :default 0
+    :update-fn inc]
+   ["-h" "--help"]])
+
+(defn usage [options-summary]
+  (->> ["Nosana Node"
+        ""
+        "Usage: nosana-node [options] action"
+        ""
+        "Options:"
+        options-summary
+        ""
+        "Actions:"
+        "  pipeline   Run a local pipeilne"
+        "  start      Start a node server"
+        ""
+        "Please refer to the docs for more information."]
+       (string/join \newline)))
+
+(defn use-cli
+  "Parse CLI arguments using `tools.cli` and add to system map."
+  [{:keys [cli-args] :as sys}]
+  (let [{:keys [errors options arguments summary]}
+        (cli/parse-opts cli-args cli-options)
+
+        state (cond
+                (:help options)
+                {:exit-message (usage summary :ok? true)}
+                ;; if action is pipeline we don't run a server
+                (= "pipeline" (first arguments)) (assoc options :run-server? false)
+                :else options)]
+    (if (:exit-message state)
+      (do (println (:exit-message state))
+          (System/exit (if (:ok? state) 0 1)))
+      (merge sys state))))
+
 (defn -main [& args]
+  (reset! system {:cli-args args})
+
   (start-system
    system
    {:http/handler      #'nos-sys/handler
     :system/components [use-vault
+                        use-cli
                         store/use-fs-store
-                        use-nostromo
-                        use-nosana
-                        nos-sys/use-wrap-ctx
-                        use-jetty]
+                        (use-when :run-server?
+                                  use-nostromo
+                                  use-nosana
+                                  nos-sys/use-wrap-ctx
+                                  use-jetty)]
     :system/profile    :prod
     :nos/log-dir       "/tmp/logs"
     :nos/store-path    "/tmp/store"

@@ -2,14 +2,12 @@
   (:require [integrant.core :as ig]
             [nos.ops.docker :as docker]
             [nos.core :as flow]
-            [chime.core :as chime]
             [clojure.edn :as edn]
             [clj-http.client :as http]
             [clojure.core.async :as async :refer
              [<!! <! >!! go go-loop >! timeout take! chan put!]]
             [taoensso.timbre :as logg :refer [log]]
             [nos.vault :as vault]
-            [chime.core-async :refer [chime-ch]]
             [konserve.core :as kv]
             [clojure.string :as string]
             [cheshire.core :as json]
@@ -54,8 +52,7 @@
              :reward      (PublicKey. "nosRB8DUV67oLNrL45bo2pFLrmsWPiewe2Lk2DRNYCp")
              :pool        (PublicKey. "nosPdZrfDzND1LAR28FLMDEATUPK53K8xbRBXAirevD")
              :reward-pool (PublicKey. "mineHEHiHxWS8pVkNc5kFkrvv5a9xMVgRY9wfXtkMsS")
-             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")
-             :market      (PublicKey. "AdEfJDEqWWbNwRtS3SU3JXfo5oSKVnbmK2r8gqEMQNWy")}
+             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")}
    :devnet  {:nos-token   (PublicKey. "devr1BGQndEW5k5zfvG5FsLyZv1Ap73vNgAHcQ9sUVP")
              :stake       (PublicKey. "nosScmHY2uR24Zh751PmGj9ww9QRNHewh9H59AfrTJE")
              :collection  (PublicKey. "CBLH5YsCPhaQ79zDyzqxEMNMVrE5N7J6h4hrtYNahPLU")
@@ -63,8 +60,7 @@
              :reward      (PublicKey. "nosRB8DUV67oLNrL45bo2pFLrmsWPiewe2Lk2DRNYCp")
              :pool        (PublicKey. "nosPdZrfDzND1LAR28FLMDEATUPK53K8xbRBXAirevD")
              :reward-pool (PublicKey. "miF9saGY5WS747oia48WR3CMFZMAGG8xt6ajB7rdV3e")
-             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")
-             :market      (PublicKey. "8fAB6xNLwQXDGUhoPtzeaJtppDvPA3VM7Fqb8xXnYhZM")}})
+             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")}})
 
 (def download-ipfs
   "Download a file from IPFS by its hash."
@@ -213,7 +209,7 @@ Running Nosana Node %s
                          (.toByteArray (.getPublicKey signer))]
                         (:stake programs)))
         nos-ata      (sol/get-ata signer-pub (:nos-token programs))
-        _            (prn "Fetching market account " market-pub "on network" network)
+
         market       (sol/get-idl-account (:job programs) "MarketAccount" market-pub network)
         nft          (if (:nft vault)
                        (PublicKey. (:nft vault))
@@ -535,7 +531,6 @@ Running Nosana Node %s
   (let [network    (:solana-network vault)
         market     (:nosana-market vault)
         conf       (make-config system)
-        market-acc (get-market conf)
         exit-ch    (chan)
 
         [status health msgs] (healthy conf)]
