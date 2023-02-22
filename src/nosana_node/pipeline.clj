@@ -2,7 +2,10 @@
   (:require [clojure.edn :as edn]
             [taoensso.timbre :refer [log]]
             [clj-http.client :as http]
+            [clojure.java.shell :as sh]
             [cheshire.core :as json]
+            [clojure.core.async :refer [chan >!! <!! put!]]
+            [konserve.memory :refer [new-mem-store]]
             [nosana-node.nosana :refer [finish-flow create-flow ipfs-upload]]
             [clojure.java.io :as io]
             [nos.core :as nos]
@@ -44,6 +47,7 @@
        (map (fn [[k v]]
               (case (:type v)
                 "nosana/secret" [k [:nosana/secret (:endpoint v) (:value v)]]
+                "nos/vault"     [k [:nos/vault (:value v)]]
                 "string"        [k v]
                 [k v])))
        (into {"TERM"        "xterm-color"
@@ -129,6 +133,50 @@
         (assoc-in [:state :input/run-addr] (.toString run-addr))
         nos/build
         (assoc :default-args (:nos-default-args conf)))))
+
+(defn make-local-git-artifact! [dir artifact-name flow-id]
+  (println "Creating artifact " )
+  (let [artifact               (str "/tmp/nos-artifacts/" flow-id "/" artifact-name)
+        _                      (io/make-parents artifact)
+        stash                  (-> (sh/sh "git" "-C" dir "stash" "create")
+                                   :out
+                                   (string/replace "\n" ""))
+        _                      (println "Created stash " stash " for working directory")
+        {:keys [err out exit]} (sh/sh "git"
+                                      "-C" dir
+                                      "archive"
+                                      "--prefix" "project/"
+                                      "--format" "tar"
+                                      "--output" artifact
+                                      stash)]
+    (cond (pos? exit) (throw (ex-info "Failed to make artifact" {:err err}))
+          :else
+          true)))
+
+(defn get-git-sha [dir]
+  (-> (sh/sh "git" "-C" dir "rev-parse" "HEAD")
+      :out
+      (string/replace "\n" "")))
+
+(defn run-local-pipeline [dir vault]
+  (let [yaml     (slurp (str dir "/.nosana-ci.yml"))
+        commit   (get-git-sha dir)
+        pipeline (-> yaml yaml/parse-string)
+        flow
+        (-> {:ops []}
+            (update :ops #(into [] (concat % (pipeline->flow-ops pipeline))))
+            (assoc-in [:state :input/commit-sha] commit)
+            nos/build
+            (assoc :default-args  {:container/run
+                                   {:conn         {:uri [:nos/vault :podman-conn-uri]}
+                                    :inline-logs? true
+                                    :stdout?      true}}))]
+    (println "Flow ID is " (:id flow))
+    (make-local-git-artifact! dir "checkout" (:id flow))
+    (let [flow-engine {:store     (<!! (new-mem-store))
+                       :chan      (chan)
+                       :nos/vault vault}]
+      (nos/run-flow! flow-engine flow))))
 
 (defmethod finish-flow "Pipeline" [flow conf]
   (let [results    (:state flow)

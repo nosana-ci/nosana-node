@@ -17,7 +17,7 @@
 (defn use-when [f & components]
   (fn [sys]
     (if (f sys)
-      (update sys :biff/components #(concat components %))
+      (update sys :system/components #(concat components %))
       sys)))
 
 (defn start-system [system-atom init]
