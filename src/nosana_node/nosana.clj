@@ -514,7 +514,11 @@ Running Nosana Node %s
                               (log :info "Found claimed jobs to work on")
                               (recur (<! (start-flow-for-run! (first runs) conf system))))
           (is-queued? conf) (do
-                              (log :info "Waiting in the queue")
+                              (log :info "Waiting in the queue, checking health.")
+                              (let [[status health msgs] (healthy conf)]
+                               (case status
+                                 :success (log :info "Node is healthy, waiting for a job")
+                                 :error   (async/alt! exit-chan (log :info (str "Node not healthy, exiting the queue" (string/join "\n- " msgs))))))
                               (recur nil))
           :else             (let [enter-sig (enter-market conf)]
                               (log :info "Entering the queue")
@@ -522,7 +526,7 @@ Running Nosana Node %s
                                 (<! (sol/await-tx< enter-sig (:network conf))))
                               (recur nil)))))))
 
-(defn exit-work-loop!
+(defn exit-work-loop
   "Stop the main work loop for the system"
   [{:keys [nos/exit-chan]}]
   (put! exit-chan true))
