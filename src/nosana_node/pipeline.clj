@@ -80,7 +80,8 @@
     :or   {resources []
            work-dir  "/root/project"}}
    {{global-image :image global-environment :environment} :global
-    :as pipeline}]
+    :as
+    pipeline}]
   {:op   :container/run
    :id   (keyword name)
    :args {:cmds      [{:cmd (make-job-cmds commands)}]
@@ -89,7 +90,8 @@
           :conn      {:uri [:nos/vault :podman-conn-uri]}
           :workdir   work-dir
           :resources (cons {:name "checkout" :path "/root"}
-                           (map (fn [r] {:name (:name r)
+                           (map (fn [r] {:name      (:name r)
+                                         :optional? (if (:optional r) true false)
                                          :path
                                          (if (string/starts-with? (:path r) "./")
                                            (string/replace (:path r) #"^\./" (str work-dir "/"))
@@ -136,7 +138,7 @@
 
 (defn make-local-git-artifact! [dir artifact-name flow-id]
   (println "Creating artifact " )
-  (let [artifact               (str "/tmp/nos-artifacts/" flow-id "/" artifact-name)
+  (let [artifact               (str dir "/.nos/artifacts/" artifact-name)
         _                      (io/make-parents artifact)
         stash                  (-> (sh/sh "git" "-C" dir "stash" "create")
                                    :out
@@ -170,6 +172,7 @@
             (assoc :default-args  {:container/run
                                    {:conn         {:uri [:nos/vault :podman-conn-uri]}
                                     :inline-logs? true
+                                    :artifact-path (str dir "/.nos/artifacts")
                                     :stdout?      true}}))]
     (println "Flow ID is " (:id flow))
     (make-local-git-artifact! dir "checkout" (:id flow))
