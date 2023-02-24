@@ -83,8 +83,7 @@
 
 (defn use-pipeline [system]
   (log/set-min-level! :error)
-  (let [conf (nosana/make-config system)
-        dir  (System/getProperty "user.dir")]
+  (let [dir  (System/getProperty "user.dir")]
     (pipeline/run-local-pipeline dir (:nos/vault system))
     (println "=> Done running pipeline!")))
 
