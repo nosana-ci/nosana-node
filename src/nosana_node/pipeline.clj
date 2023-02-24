@@ -161,13 +161,19 @@
       (string/replace "\n" "")))
 
 (defn run-local-pipeline [dir vault]
-  (let [yaml       (slurp (str dir "/.nosana-ci.yml"))
+  (let [yaml-path  (str dir "/.nosana-ci.yml")
         vault-path (str dir "/.nosana-secrets.json")
+
+        _ (when (not (.exists (io/as-file yaml-path)))
+            (throw (Exception.
+                    "Missing a .nosana-ci.yml file in the current directory")))
+
+        yaml        (slurp yaml-path)
         local-vault (if (.exists (io/as-file vault-path))
                       (-> vault-path slurp json/decode)
                       {})
-        commit     (get-git-sha dir)
-        pipeline   (-> yaml yaml/parse-string)
+        commit      (get-git-sha dir)
+        pipeline    (-> yaml yaml/parse-string)
         flow
         (-> {:ops []}
             (update :ops #(into [] (concat % (pipeline->flow-ops pipeline))))

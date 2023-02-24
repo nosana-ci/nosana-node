@@ -69,23 +69,27 @@
         state (cond
                 (:help options)
                 {:exit-message (usage summary) :ok? true}
-                ;; if action is pipeline we don't run a server
-                (= "pipeline" (first arguments))
-                (assoc options :run-server? false)
-                :else options)]
-    (if (:exit-message state)
+                :else
+                options)]
+    (cond
+      (:exit-message state)
       (do
         (println (:exit-message state))
         (System/exit (if (:ok? state) 0 1)))
+      :else
       (do
-        (assoc options :run-server? false)
-        (update sys :nos/vault merge state)))))
+        (cond->
+          (update sys :nos/vault merge state)
+          (= "pipeline" (first arguments))
+          (dissoc :run-server?))))))
 
 (defn use-pipeline [system]
   (log/set-min-level! :error)
   (let [dir  (System/getProperty "user.dir")]
-    (pipeline/run-local-pipeline dir (:nos/vault system))
-    (println "=> Done running pipeline!")))
+    (try
+      (pipeline/run-local-pipeline dir (:nos/vault system))
+      (catch Exception e
+        (println "Error: " (ex-message e))))))
 
 (defn -main [& args]
   (start-system
@@ -102,6 +106,7 @@
                         (use-when #(not (:run-server? %))
                                   use-pipeline)]
     :system/profile    :prod
+    :run-server?       true
     :cli-args          args
     :nos/log-dir       "/tmp/logs"
     :nos/store-path    "/tmp/store"
