@@ -176,7 +176,8 @@
     (let [flow-engine {:store     (<!! (new-mem-store))
                        :chan      (chan)
                        :nos/vault vault}]
-      (nos/run-flow! flow-engine flow))))
+      (nos/run-flow! flow-engine flow)
+      (shutdown-agents))))
 
 (defmethod finish-flow "Pipeline" [flow conf]
   (let [results    (:state flow)

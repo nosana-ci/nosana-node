@@ -27,7 +27,6 @@
     (when (some? f)
       (log/trace "starting:" (str f))
       (recur (reset! system-atom (f (assoc sys :system/components components))))))
-  (log/info "System started.")
   @system-atom)
 
 (defn get-op-log [store uri]
