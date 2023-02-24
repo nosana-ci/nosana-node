@@ -161,24 +161,28 @@
       (string/replace "\n" "")))
 
 (defn run-local-pipeline [dir vault]
-  (let [yaml     (slurp (str dir "/.nosana-ci.yml"))
-        commit   (get-git-sha dir)
-        pipeline (-> yaml yaml/parse-string)
+  (let [yaml       (slurp (str dir "/.nosana-ci.yml"))
+        vault-path (str dir "/.nosana-secrets.json")
+        local-vault (if (.exists (io/as-file vault-path))
+                      (-> vault-path slurp json/decode)
+                      {})
+        commit     (get-git-sha dir)
+        pipeline   (-> yaml yaml/parse-string)
         flow
         (-> {:ops []}
             (update :ops #(into [] (concat % (pipeline->flow-ops pipeline))))
             (assoc-in [:state :input/commit-sha] commit)
             nos/build
             (assoc :default-args  {:container/run
-                                   {:conn         {:uri [:nos/vault :podman-conn-uri]}
-                                    :inline-logs? true
+                                   {:conn          {:uri [:nos/vault :podman-conn-uri]}
+                                    :inline-logs?  true
                                     :artifact-path (str dir "/.nos/artifacts")
-                                    :stdout?      true}}))]
+                                    :stdout?       true}}))]
     (println "Flow ID is " (:id flow))
     (make-local-git-artifact! dir "checkout" (:id flow))
     (let [flow-engine {:store     (<!! (new-mem-store))
                        :chan      (chan)
-                       :nos/vault vault}]
+                       :nos/vault (merge vault local-vault)}]
       (nos/run-flow! flow-engine flow)
       (shutdown-agents))))
 
