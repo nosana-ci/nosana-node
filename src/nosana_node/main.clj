@@ -38,6 +38,9 @@
    [nil "--ipfs-url URL" "IPFS url"]
    [nil "--podman URI" "Podman connection URI"
     :id :podman-conn-uri]
+   [nil "--branch REF"
+    "Git branch to checkout. Defaults to the current directory with any stashed changes."
+    :id :git-branch]
    ["-v" nil "Verbosity level"
     :id :verbosity
     :default 0

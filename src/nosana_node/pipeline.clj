@@ -46,9 +46,9 @@
   (->> env
        (map (fn [[k v]]
               (case (:type v)
-                "nosana/secret" [k [:nosana/secret (:endpoint v) (:value v)]]
-                "nos/vault"     [k [:nos/vault (:value v)]]
-                "string"        [k v]
+                "nosana/secret" [(name k) [:nosana/secret (:endpoint v) (:value v)]]
+                "nos/vault"     [(name k) [:nos/vault (:value v)]]
+                "string"        [(name k) v]
                 [k v])))
        (into {"TERM"        "xterm-color"
               "FORCE_COLOR" "1"
@@ -136,14 +136,18 @@
         nos/build
         (assoc :default-args (:nos-default-args conf)))))
 
-(defn make-local-git-artifact! [dir artifact-name flow-id]
+(defn make-local-git-artifact! [dir artifact-name flow-id commit]
   (println "Creating artifact " )
-  (let [artifact               (str dir "/.nos/artifacts/" artifact-name)
-        _                      (io/make-parents artifact)
-        stash                  (-> (sh/sh "git" "-C" dir "stash" "create")
-                                   :out
-                                   (string/replace "\n" ""))
-        _                      (println "Created stash " stash " for working directory")
+  (let [artifact (str dir "/.nos/artifacts/" artifact-name)
+        _        (io/make-parents artifact)
+        stash    (if commit
+                   commit
+                   (-> (sh/sh "git" "-C" dir "stash" "create")
+                       :out
+                       (string/replace "\n" "")))
+        _        (when commit
+                   (println "Created stash " stash " for working directory"))
+
         {:keys [err out exit]} (sh/sh "git"
                                       "-C" dir
                                       "archive"
@@ -160,6 +164,15 @@
       :out
       (string/replace "\n" "")))
 
+(defn add-global-secrets
+  "Add secrets from `vault` to `global.environment` of the yaml."
+  [pipeline vault]
+  (let [global-env (get-in pipeline [:global :environment] {})
+        new-env    (reduce-kv (fn [m k v]
+                                (assoc m k {:type "nos/vault" :value k}))
+                              global-env vault)]
+    (assoc-in pipeline [:global :environment] new-env)))
+
 (defn run-local-pipeline [dir vault]
   (let [yaml-path  (str dir "/.nosana-ci.yml")
         vault-path (str dir "/.nosana-secrets.json")
@@ -168,24 +181,28 @@
             (throw (Exception.
                     "Missing a .nosana-ci.yml file in the current directory")))
 
-        yaml        (slurp yaml-path)
-        local-vault (if (.exists (io/as-file vault-path))
-                      (-> vault-path slurp json/decode)
-                      {})
-        commit      (get-git-sha dir)
-        pipeline    (-> yaml yaml/parse-string)
+        yaml            (slurp yaml-path)
+        local-vault     (if (.exists (io/as-file vault-path))
+                          (-> vault-path slurp json/decode)
+                          {})
+        commit          (get-git-sha dir)
+        pipeline        (-> yaml yaml/parse-string
+                            (add-global-secrets local-vault))
+        pipeline-commit (:git-branch vault)
+
         flow
         (-> {:ops []}
             (update :ops #(into [] (concat % (pipeline->flow-ops pipeline))))
             (assoc-in [:state :input/commit-sha] commit)
             nos/build
-            (assoc :default-args  {:container/run
-                                   {:conn          {:uri [:nos/vault :podman-conn-uri]}
-                                    :inline-logs?  true
-                                    :artifact-path (str dir "/.nos/artifacts")
-                                    :stdout?       true}}))]
-    (println "Flow ID is " (:id flow))
-    (make-local-git-artifact! dir "checkout" (:id flow))
+            (assoc :default-args
+                   {:container/run
+                    {:conn          {:uri [:nos/vault :podman-conn-uri]}
+                     :inline-logs?  true
+                     :artifact-path (str dir "/.nos/artifacts")
+                     :stdout?       true}}))]
+    (println "Flow ID is " (:id flow) " checking out " pipeline-commit)
+    (make-local-git-artifact! dir "checkout" (:id flow) pipeline-commit)
     (let [flow-engine {:store     (<!! (new-mem-store))
                        :chan      (chan)
                        :nos/vault (merge vault local-vault)}]
