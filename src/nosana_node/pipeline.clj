@@ -136,17 +136,29 @@
         nos/build
         (assoc :default-args (:nos-default-args conf)))))
 
+(defn has-local-git-changes? [dir untracked-files?]
+  (-> (sh/sh "git"
+             "-C" dir
+             "status"
+             "--porcelain"
+             "--untracked-files" (if untracked-files? "yes" "no"))
+      :out
+      string/blank?
+      not))
+
 (defn make-local-git-artifact! [dir artifact-name flow-id commit]
   (println "Creating artifact " )
   (let [artifact (str dir "/.nos/artifacts/" artifact-name)
         _        (io/make-parents artifact)
-        stash    (if commit
-                   commit
+        stash    (cond
+                   (and commit (has-local-git-changes? dir false))
                    (-> (sh/sh "git" "-C" dir "stash" "create")
                        :out
-                       (string/replace "\n" "")))
-        _        (when commit
-                   (println "Created stash " stash " for working directory"))
+                       (string/replace "\n" ""))
+                   (not commit) "HEAD"
+                   :else        commit)
+        _ (when commit
+            (println "Created stash " stash " for working directory"))
 
         {:keys [err out exit]} (sh/sh "git"
                                       "-C" dir
