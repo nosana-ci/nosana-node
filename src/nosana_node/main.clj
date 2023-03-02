@@ -86,9 +86,14 @@
           (= "pipeline" (first arguments))
           (dissoc :run-server?))))))
 
-(defn use-pipeline [system]
-  (log/set-min-level! :error)
-  (let [dir  (System/getProperty "user.dir")]
+(defn use-pipeline [{:keys [nos/vault] :as system}]
+  (let [{:keys [verbosity]} vault
+        log-level           (nth (reverse [:trace :debug :info :warn :error
+                                           :fatal :report])
+                                 verbosity)]
+    (log/set-min-level! log-level))
+
+  (let [dir (System/getProperty "user.dir")]
     (try
       (pipeline/run-local-pipeline dir (:nos/vault system))
       (catch Exception e
