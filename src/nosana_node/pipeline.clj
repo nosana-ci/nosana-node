@@ -213,7 +213,7 @@
                      :inline-logs?  true
                      :artifact-path (str dir "/.nos/artifacts")
                      :stdout?       true}}))]
-    (println "Flow ID is " (:id flow) " checking out " pipeline-commit)
+    (println "Flow ID is " (:id flow))
     (make-local-git-artifact! dir "checkout" (:id flow) pipeline-commit)
     (let [flow-engine {:store     (<!! (new-mem-store))
                        :chan      (chan)
