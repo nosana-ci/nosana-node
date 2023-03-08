@@ -67,7 +67,7 @@
 
 (defn use-jetty [{:keys [http/handler] :as system}]
   (let [server (jetty/run-jetty (wrap-all-cors handler)
-                {:host  "0.0.0.0"
-                 :port  3000
-                 :join? false})]
+                                {:host  "0.0.0.0"
+                                 :port  (get-in system [:nos/vault :port])
+                                 :join? false})]
     (update system :system/stop conj #(.stop server))))
