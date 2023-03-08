@@ -38,11 +38,12 @@
    [nil "--podman URI" "Podman connection URI"
     :id :podman-conn-uri]
    [nil "--branch REF"
-    "Git branch to checkout. Defaults to the current directory with any stashed changes."
+    "Git branch to checkout when running a pipeline locally. If not set will use HEAD and include staged changes."
     :id :git-branch]
-   ["-v" nil "Verbosity level"
+   ["-v" nil "Use verbose output (-vvvvv very verbose output)"
     :id :verbosity
     :default 0
+    :default-desc ""
     :update-fn inc]
    ["-h" "--help"]])
 
