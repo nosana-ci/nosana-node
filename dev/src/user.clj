@@ -41,6 +41,7 @@
    system
    {:http/handler      #'nos-sys/handler
     :system/components [use-vault
+                        main/use-cli
                         store/use-fs-store
                         use-nostromo
                         use-nosana

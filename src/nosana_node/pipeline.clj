@@ -2,7 +2,10 @@
   (:require [clojure.edn :as edn]
             [taoensso.timbre :refer [log]]
             [clj-http.client :as http]
+            [clojure.java.shell :as sh]
             [cheshire.core :as json]
+            [clojure.core.async :refer [chan >!! <!! put!]]
+            [konserve.memory :refer [new-mem-store]]
             [nosana-node.nosana :refer [finish-flow create-flow ipfs-upload]]
             [clojure.java.io :as io]
             [nos.core :as nos]
@@ -43,8 +46,9 @@
   (->> env
        (map (fn [[k v]]
               (case (:type v)
-                "nosana/secret" [k [:nosana/secret (:endpoint v) (:value v)]]
-                "string"        [k v]
+                "nosana/secret" [(name k) [:nosana/secret (:endpoint v) (:value v)]]
+                "nos/vault"     [(name k) [:nos/vault (:value v)]]
+                "string"        [(name k) v]
                 [k v])))
        (into {"TERM"        "xterm-color"
               "FORCE_COLOR" "1"
@@ -76,7 +80,8 @@
     :or   {resources []
            work-dir  "/root/project"}}
    {{global-image :image global-environment :environment} :global
-    :as pipeline}]
+    :as
+    pipeline}]
   {:op   :container/run
    :id   (keyword name)
    :args {:cmds      [{:cmd (make-job-cmds commands)}]
@@ -85,7 +90,8 @@
           :conn      {:uri [:nos/vault :podman-conn-uri]}
           :workdir   work-dir
           :resources (cons {:name "checkout" :path "/root"}
-                           (map (fn [r] {:name (:name r)
+                           (map (fn [r] {:name      (:name r)
+                                         :optional? (if (:optional r) true false)
                                          :path
                                          (if (string/starts-with? (:path r) "./")
                                            (string/replace (:path r) #"^\./" (str work-dir "/"))
@@ -129,6 +135,90 @@
         (assoc-in [:state :input/run-addr] (.toString run-addr))
         nos/build
         (assoc :default-args (:nos-default-args conf)))))
+
+(defn has-local-git-changes? [dir untracked-files?]
+  (-> (sh/sh "git"
+             "-C" dir
+             "status"
+             "--porcelain")
+      :out
+      string/blank?
+      not))
+
+(defn make-local-git-artifact! [dir artifact-name flow-id commit]
+  (println "Creating artifact " )
+  (let [artifact (str dir "/.nos/artifacts/" artifact-name)
+        _        (io/make-parents artifact)
+        stash    (cond
+                   (and (not commit) (has-local-git-changes? dir false))
+                   (-> (sh/sh "git" "-C" dir "stash" "create")
+                       :out
+                       (string/replace "\n" ""))
+                   (not commit) "HEAD"
+                   :else        commit)
+        _ (when commit
+            (println "Created stash " stash " for working directory"))
+
+        {:keys [err out exit]} (sh/sh "git"
+                                      "-C" dir
+                                      "archive"
+                                      "--prefix" "project/"
+                                      "--format" "tar"
+                                      "--output" artifact
+                                      stash)]
+    (cond (pos? exit) (throw (ex-info "Failed to make artifact" {:err err}))
+          :else
+          true)))
+
+(defn get-git-sha [dir]
+  (-> (sh/sh "git" "-C" dir "rev-parse" "HEAD")
+      :out
+      (string/replace "\n" "")))
+
+(defn add-global-secrets
+  "Add secrets from `vault` to `global.environment` of the yaml."
+  [pipeline vault]
+  (let [global-env (get-in pipeline [:global :environment] {})
+        new-env    (reduce-kv (fn [m k v]
+                                (assoc m k {:type "nos/vault" :value k}))
+                              global-env vault)]
+    (assoc-in pipeline [:global :environment] new-env)))
+
+(defn run-local-pipeline [dir vault]
+  (let [yaml-path  (str dir "/.nosana-ci.yml")
+        vault-path (str dir "/.nosana-secrets.json")
+
+        _ (when (not (.exists (io/as-file yaml-path)))
+            (throw (Exception.
+                    "Missing a .nosana-ci.yml file in the current directory")))
+
+        yaml            (slurp yaml-path)
+        local-vault     (if (.exists (io/as-file vault-path))
+                          (-> vault-path slurp json/decode)
+                          {})
+        commit          (get-git-sha dir)
+        pipeline        (-> yaml yaml/parse-string
+                            (add-global-secrets local-vault))
+        pipeline-commit (:git-branch vault)
+
+        flow
+        (-> {:ops []}
+            (update :ops #(into [] (concat % (pipeline->flow-ops pipeline))))
+            (assoc-in [:state :input/commit-sha] commit)
+            nos/build
+            (assoc :default-args
+                   {:container/run
+                    {:conn          {:uri [:nos/vault :podman-conn-uri]}
+                     :inline-logs?  true
+                     :artifact-path (str dir "/.nos/artifacts")
+                     :stdout?       true}}))]
+    (println "Flow ID is " (:id flow))
+    (make-local-git-artifact! dir "checkout" (:id flow) pipeline-commit)
+    (let [flow-engine {:store     (<!! (new-mem-store))
+                       :chan      (chan)
+                       :nos/vault (merge vault local-vault)}]
+      (nos/run-flow! flow-engine flow)
+      (shutdown-agents))))
 
 (defmethod finish-flow "Pipeline" [flow conf]
   (let [results    (:state flow)

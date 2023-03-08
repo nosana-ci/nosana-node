@@ -25,6 +25,8 @@
                #ref [:local-config :solana-network]
                :devnet]
 
+ :port 3000
+
  :poll-delay-ms
  #long #or [#env NOSANA_POLL_DELAY_MS 5000]
 

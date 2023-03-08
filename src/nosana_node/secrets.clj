@@ -70,7 +70,7 @@
                      :address          (.getPublicKey account)}
         jwt         (login conf (:input/job-addr flow-state))
         secrets     (get-secrets conf jwt)
-        keywordize? false]
+        keywordize? true]
     (if (contains? secrets value)
       (cond-> (get secrets value)
         keywordize? clojure.walk/keywordize-keys)

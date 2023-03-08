@@ -182,6 +182,14 @@ user=> (nos/list-job conf pl/example-job)
 user=> (run-flow (flow/build (pl/load-yml (io/resource "pipeline2.yml"))))
 ```
 
+If you want to test CLI arguments locally you can set an alias to your
+local code base:
+
+```bash
+alias nos='clj -Sdeps "{:deps {nosana-node {:local/root \"/path/to/nosana-node\"}}}" -M -m nosana-node.main $@ '
+nos --help
+```
+
 ### Production nodes
 
 Production nodes can run on any device with a JVM and Podman
