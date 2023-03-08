@@ -140,8 +140,7 @@
   (-> (sh/sh "git"
              "-C" dir
              "status"
-             "--porcelain"
-             "--untracked-files" (if untracked-files? "yes" "no"))
+             "--porcelain")
       :out
       string/blank?
       not))
@@ -151,7 +150,7 @@
   (let [artifact (str dir "/.nos/artifacts/" artifact-name)
         _        (io/make-parents artifact)
         stash    (cond
-                   (and commit (has-local-git-changes? dir false))
+                   (and (not commit) (has-local-git-changes? dir false))
                    (-> (sh/sh "git" "-C" dir "stash" "create")
                        :out
                        (string/replace "\n" ""))
