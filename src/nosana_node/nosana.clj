@@ -350,7 +350,7 @@ Running Nosana Node %s
   "Quit a job."
   [{:keys [network signer] :as conf} run-addr]
   (let [run (get-run conf run-addr)]
-    (-> (build-idl-tx :job "finish" [] conf
+    (-> (build-idl-tx :job "quit" [] conf
                       {"job"   (:job run)
                        "run"   run-addr
                        "payer" (:payer run)})
