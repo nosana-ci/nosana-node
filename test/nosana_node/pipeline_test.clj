@@ -21,7 +21,7 @@
   (let [job (pipeline/make-job (get-in pipeline-yml [:jobs 0]) pipeline-yml )]
     (testing "make pipeline job from yml"
       (is (= (:id job) :list-directory))
-      (is (= (get-in job [:args 0 :image]) (get-in pipeline-yml [:global :image]))
+      (is (= (get-in job [:args :image]) (get-in pipeline-yml [:global :image]))
           "should use global image"))))
 
 #_(deftest make-from-job-test

@@ -97,7 +97,9 @@
                                            (string/replace (:path r) #"^\./" (str work-dir "/"))
                                            (:path r)) })
                                 resources))
-          :artifacts (map (fn [a] {:path (:path a) :name (:name a)}) artifacts)}
+          :artifacts (map (fn [a] {:path  (:path a)
+                                   :paths (:paths a)
+                                   :name  (:name a)}) artifacts)}
    :deps [:checkout]})
 
 (defn pipeline->flow-ops
@@ -147,16 +149,17 @@
 
 (defn make-local-git-artifact! [dir artifact-name flow-id commit]
   (println "Creating artifact " )
-  (let [artifact (str dir "/.nos/artifacts/" artifact-name)
-        _        (io/make-parents artifact)
-        stash    (cond
-                   (and (not commit) (has-local-git-changes? dir false))
-                   (-> (sh/sh "git" "-C" dir "stash" "create")
-                       :out
-                       (string/replace "\n" ""))
-                   (not commit) "HEAD"
-                   :else        commit)
-        _ (when commit
+  (let [artifact     (str dir "/.nos/artifacts/" artifact-name)
+        _            (io/make-parents artifact)
+        needs-stash? (and (not commit) (has-local-git-changes? dir false))
+        stash        (cond
+                       needs-stash? (-> (sh/sh "git" "-C" dir "stash" "create")
+                                        :out
+                                        (string/replace "\n" ""))
+                       (not commit) "HEAD"
+                       :else        commit)
+
+        _ (when needs-stash?
             (println "Created stash " stash " for working directory"))
 
         {:keys [err out exit]} (sh/sh "git"

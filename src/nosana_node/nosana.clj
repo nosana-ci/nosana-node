@@ -144,6 +144,10 @@
 (defn flow-finished? [flow]
   (flow/finished? flow))
 
+(defn flow-expired? [flow]
+  (and (contains? flow :expires)
+       (> (flow/current-time) (:expires flow))))
+
 (defn flow-git-failed?
   "Check if one of the git operations in a flow falied
 
@@ -236,6 +240,7 @@ Running Nosana Node %s
                          {:conn         {:uri [:nos/vault :podman-conn-uri]}
                           :inline-logs? true}}
      :market-collection (:nodeAccessKey market)
+     :job-timeout       (:jobTimeout market)
      :address           signer-pub
      :programs          programs
      :nft               nft
@@ -345,7 +350,7 @@ Running Nosana Node %s
   "Quit a job."
   [{:keys [network signer] :as conf} run-addr]
   (let [run (get-run conf run-addr)]
-    (-> (build-idl-tx :job "finish" [] conf
+    (-> (build-idl-tx :job "quit" [] conf
                       {"job"   (:job run)
                        "run"   run-addr
                        "payer" (:payer run)})
@@ -444,12 +449,20 @@ Running Nosana Node %s
   [flow-id conf {:nos/keys [store flow-chan vault] :as sys}]
   (go
     (try
-      (let [flow (<! (kv/get store flow-id))]
-        (if (flow-finished? flow)
-          ;; TODO: when the flow is malformed this will always error: what to do?
+      (let [flow     (<! (kv/get store flow-id))
+            run-addr (get-in flow [:state :input/run-addr])]
+        (cond
+          (flow-finished? flow)
           (do
             (log :info "Flow finished, posting results")
             (<! (finish-flow-2 flow conf)))
+          (flow-expired? flow)
+          (do
+            (log :info "Flow has expired at " (:expired flow))
+            (let [sig (quit-job conf (sol/public-key run-addr))]
+              (<! (sol/await-tx< sig (:network conf)))
+              nil))
+          :else
           (let [_ (log :trace "Flow still running")]
             flow-id)))
       (catch Exception e
@@ -473,12 +486,20 @@ Running Nosana Node %s
     (let [job      (get-job conf (:job run))
           job-addr (-> run :job .toString)
           job-info (download-job-ipfs (:ipfsJob job) conf)
-          flow     (create-flow job-info run-addr run conf)
-          _        (prn "created flow = " flow)
+          flow     (cond-> (create-flow job-info run-addr run conf)
+                     (int? (:job-timeout conf))
+                     (assoc :expires (+ (:time run) (:job-timeout conf))))
+          expired? (and (int? (:job-timeout conf))
+                        (> (flow/current-time)
+                           (+ (:time run) (:job-timeout conf))))
           flow-id  (:id flow)]
+      (when expired?
+        (throw (ex-info "Run has expired" {:run-time    (:time run)
+                                           :job-timeout (:job-timeout conf)})))
+
       (log :info "Starting job" job-addr)
       (log :trace "Processing flow" flow-id)
-      (prn "STORING FLOW " [:job->flow job-addr] flow-id)
+
       (<!! (kv/assoc store [:job->flow job-addr] flow-id))
       (go
         (<! (flow/save-flow flow store))
