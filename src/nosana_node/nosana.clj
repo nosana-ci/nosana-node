@@ -513,6 +513,14 @@ Running Nosana Node %s
           (<! (sol/await-tx< sig (:network conf)))
           nil)))))
 
+(defn should-check-health?
+  "Returns true if the timestamp is older than the time interval."
+  [timestamp]
+  (> (- (flow/current-time) timestamp) (* 60 15)))
+(defn should-check-health?
+  "Returns true if the timestamp is older than the time interval."
+  [timestamp]
+  (> (- (flow/current-time) timestamp) (* 60 15)))
 (defn work-loop
   "Main loop."
   [conf {:nos/keys [poll-delay exit-chan] :as system}]
