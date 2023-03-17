@@ -513,10 +513,22 @@ Running Nosana Node %s
           (<! (sol/await-tx< sig (:network conf)))
           nil)))))
 
+(defn exit-work-loop!
+  "Stop the main work loop for the system"
+  [{:keys [nos/exit-chan]}]
+  (put! exit-chan true))
+
+(defn should-check-health?
+  "Returns true if the timestamp is older than the time interval."
+  [timestamp]
+  (> (- (flow/current-time) timestamp) (* 60 15)))
+
 (defn work-loop
   "Main loop."
   [conf {:nos/keys [poll-delay exit-chan] :as system}]
-  (go-loop [active-flow nil]
+  (go-loop [active-flow nil
+            last-health-check (flow/current-time)
+            healthy? true]
     (async/alt!
       ;; put anything on :exit-ch to stop the loop
       exit-chan (log :info "Work loop exited")
@@ -524,25 +536,37 @@ Running Nosana Node %s
       (timeout poll-delay)
       (let [runs (find-my-runs conf)]
         (cond
+          (should-check-health? last-health-check)
+          (let [[status health msgs] (healthy conf)]
+            (log :info "Checking node health...")
+            (case status
+              :success (do
+                         (log :info "Node is healthy")
+                         (recur nil (flow/current-time) true))
+              :error   (do
+                         (log :info (str "Node not healthy, waiting. Status:\n"
+                                         (string/join "\n- " msgs)))
+                         (recur nil (flow/current-time) false))))
+
+          (not healthy?)    (do
+                              (log :info "Node not healthy, waiting.")
+                              (recur nil last-health-check false))
           active-flow       (do
                               (log :info "Checking progress of flow " active-flow)
-                              (recur (<! (process-flow! active-flow conf system))))
+                              (recur (<! (process-flow! active-flow conf system))
+                                     last-health-check true))
           (not-empty runs)  (do
                               (log :info "Found claimed jobs to work on")
-                              (recur (<! (start-flow-for-run! (first runs) conf system))))
+                              (recur (<! (start-flow-for-run! (first runs) conf system))
+                                     last-health-check true))
           (is-queued? conf) (do
-                              (log :info "Waiting in the queue")
-                              (recur nil))
+                              (log :info "Waiting in the queue.")
+                              (recur nil last-health-check true))
           :else             (let [enter-sig (enter-market conf)]
                               (log :info "Entering the queue")
                               (when enter-sig
                                 (<! (sol/await-tx< enter-sig (:network conf))))
-                              (recur nil)))))))
-
-(defn exit-work-loop!
-  "Stop the main work loop for the system"
-  [{:keys [nos/exit-chan]}]
-  (put! exit-chan true))
+                              (recur nil last-health-check true)))))))
 
 (defn use-nosana
   [{:nos/keys [store flow-chan vault] :as system}]
