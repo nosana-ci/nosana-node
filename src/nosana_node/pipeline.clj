@@ -91,15 +91,17 @@
           :workdir   work-dir
           :resources (cons {:name "checkout" :path "/root"}
                            (map (fn [r] {:name      (:name r)
-                                         :optional? (if (:optional r) true false)
+                                         :required (if (:required r) true false)
                                          :path
                                          (if (string/starts-with? (:path r) "./")
                                            (string/replace (:path r) #"^\./" (str work-dir "/"))
                                            (:path r)) })
                                 resources))
-          :artifacts (map (fn [a] {:path  (:path a)
-                                   :paths (:paths a)
-                                   :name  (:name a)}) artifacts)}
+          :artifacts (map (fn [a] {:path     (:path a)
+                                   :paths    (:paths a)
+                                   :name     (:name a)
+                                   :required (:required a)})
+                          artifacts)}
    :deps [:checkout]})
 
 (defn pipeline->flow-ops
