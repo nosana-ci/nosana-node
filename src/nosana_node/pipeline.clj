@@ -77,9 +77,9 @@
   [image_pull_secrets]
   (and image_pull_secrets {:url (:url image_pull_secrets)
                            :username (:username image_pull_secrets)
-                           :password (map (fn [p] {:type (:type p)
-                                                   :endpoint (:endpoint p)
-                                                   :value (:value p)}) (:password image_pull_secrets))}))
+                           :password (first (map (fn [p] {:type (:type p)
+                                                          :endpoint (:endpoint p)
+                                                          :value (:value p)}) (:password image_pull_secrets)))}))
 
 (defn make-job
   "Create flow segment for a `job` entry of the pipeline.
@@ -228,8 +228,7 @@
                      :inline-logs?  true
                      :artifact-path (str dir "/.nos/artifacts")
                      :stdout?       true}}))]
-    (log :info "Flow ID is " (:id flow))
-    (log :info (str flow))
+    (print "Flow ID is " (:id flow) (str flow))
     (make-local-git-artifact! dir "checkout" (:id flow) pipeline-commit)
     (let [flow-engine {:store     (<!! (new-mem-store))
                        :chan      (chan)
