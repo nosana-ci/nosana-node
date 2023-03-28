@@ -84,19 +84,19 @@
 (defn make-job
   "Create flow segment for a `job` entry of the pipeline.
   Input is a keywordized map that is a parsed yaml job entry."
-  [{:keys [name commands artifacts resources environment image work-dir image_pull_secrets]
+  [{:keys [name commands artifacts resources environment image work-dir image-pull-secrets]
     :or   {resources []
            work-dir  "/root/project"}}
    {{global-image :image global-environment :environment} :global
     :as
     pipeline}]
-  (let [global_image_pull_secrets (get-in pipeline [:global :image_pull_secrets])]
+  (let [global-image-pull-secrets (get-in pipeline [:global :image-pull-secrets])]
     {:op   :container/run
      :id   (keyword name)
      :args {:cmds      [{:cmd (make-job-cmds commands)}]
             :image     (or image global-image)
-            :image_pull_secrets (or (parse-image-pull-secrets image_pull_secrets)
-                                    (parse-image-pull-secrets global_image_pull_secrets))
+            :image-pull-secrets (or (parse-image-pull-secrets image-pull-secrets)
+                                    (parse-image-pull-secrets global-image-pull-secrets))
             :env       (prep-env (merge global-environment environment))
             :conn      {:uri [:nos/vault :podman-conn-uri]}
             :workdir   work-dir
