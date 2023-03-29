@@ -106,11 +106,12 @@
                                              (string/replace (:path r) #"^\./" (str work-dir "/"))
                                              (:path r))})
                                   resources))
-            :artifacts (map (fn [a] {:path     (:path a)
-                                     :paths    (:paths a)
-                                     :name     (:name a)
-                                     :required (:required a)})
-                            artifacts)}
+          :artifacts (map (fn [a] {:paths    (if (not (or (:path a) (:paths a)))
+                                               [(:name a)]
+                                               (or (:paths a) [(:path a)]))
+                                   :name     (:name a)
+                                   :required (:required a)})
+                          artifacts)}
      :deps [:checkout]})
 
 (defn pipeline->flow-ops
