@@ -72,13 +72,6 @@
              (map #(string/replace % "'" "'\\''")))]
     (str "sh -c '" (string/join " && " cmds-escaped) "'")))
 
-(defn parse-image-pull-secret
-  "Parse image-pull-secret from a pipeline. if the image-pull-secret is nil, return nil."
-  [image-pull-secret]
-  (and image-pull-secret {:url (:url image-pull-secret)
-                           :username (:username image-pull-secret)
-                           :password (:password image-pull-secret)}))
-
 (defn make-job
   "Create flow segment for a `job` entry of the pipeline.
   Input is a keywordized map that is a parsed yaml job entry."
@@ -93,8 +86,7 @@
      :id   (keyword name)
      :args {:cmds      [{:cmd (make-job-cmds commands)}]
             :image     (or image global-image)
-            :image-pull-secret (or (parse-image-pull-secret image-pull-secret)
-                                    (parse-image-pull-secret global-image-pull-secret))
+            :image-pull-secret (or  image-pull-secret  global-image-pull-secret)
             :env       (prep-env (merge global-environment environment))
             :conn      {:uri [:nos/vault :podman-conn-uri]}
             :workdir   work-dir
