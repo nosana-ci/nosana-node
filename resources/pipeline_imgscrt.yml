@@ -1,0 +1,32 @@
+nosana:
+  description: Nosana private image repo
+
+global:
+  image: rust:latest
+  image_pull_secrets:
+    url: registry.gitlab.com
+    username: user
+    password:
+      - type: nosana/secret
+        endpoint: https://secrets.nosana.ci
+        value: password-secret-key
+
+  trigger:
+    branch:
+      - main
+
+jobs:
+  - name: install deps and build container
+    commands:
+      - cargo init hello
+    artifacts:
+      - name: target_release
+        path: hello/target/release
+    image: rust:nightly
+    image_pull_secrets:
+        url: registry.gitlab.com
+        username: user
+        password:
+          - type: nosana/secret
+            endpoint: https://secrets.nosana.ci
+            value: password-secret-key

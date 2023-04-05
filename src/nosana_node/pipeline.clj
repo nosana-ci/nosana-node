@@ -72,38 +72,39 @@
              (map #(string/replace % "'" "'\\''")))]
     (str "sh -c '" (string/join " && " cmds-escaped) "'")))
 
-
 (defn make-job
   "Create flow segment for a `job` entry of the pipeline.
   Input is a keywordized map that is a parsed yaml job entry."
-  [{:keys [name commands artifacts resources environment image work-dir]
+  [{:keys [name commands artifacts resources environment image work-dir image-pull-secret]
     :or   {resources []
            work-dir  "/root/project"}}
-   {{global-image :image global-environment :environment} :global
-    :as
-    pipeline}]
-  {:op   :container/run
-   :id   (keyword name)
-   :args {:cmds      [{:cmd (make-job-cmds commands)}]
-          :image     (or image global-image)
-          :env       (prep-env (merge global-environment environment))
-          :conn      {:uri [:nos/vault :podman-conn-uri]}
-          :workdir   work-dir
-          :resources (cons {:name "checkout" :path "/root"}
-                           (map (fn [r] {:name      (:name r)
-                                         :required (if (:required r) true false)
-                                         :path      (if (not (:path r))
-                                                      "."
-                                                      (:path r))
-                                        })
-                                resources))
+   {{global-image :image
+     global-environment :environment
+     global-image-pull-secret :image-pull-secret} :global
+    :as pipeline}]
+    {:op   :container/run
+     :id   (keyword name)
+     :args {:cmds      [{:cmd (make-job-cmds commands)}]
+            :image     (or image global-image)
+            :image-pull-secret (or  image-pull-secret  global-image-pull-secret)
+            :env       (prep-env (merge global-environment environment))
+            :conn      {:uri [:nos/vault :podman-conn-uri]}
+            :workdir   work-dir
+            :resources (cons {:name "checkout" :path "/root"}
+                             (map (fn [r] {:name      (:name r)
+                                           :required (if (:required r) true false)
+                                           :path
+                                           (if (string/starts-with? (:path r) "./")
+                                             (string/replace (:path r) #"^\./" (str work-dir "/"))
+                                             (:path r))})
+                                  resources))
           :artifacts (map (fn [a] {:paths    (if (not (or (:path a) (:paths a)))
-                                                [(:name a)]
-                                                (or (:paths a) [(:path a)]))
+                                               [(:name a)]
+                                               (or (:paths a) [(:path a)]))
                                    :name     (:name a)
                                    :required (:required a)})
                           artifacts)}
-   :deps [:checkout]})
+     :deps [:checkout]})
 
 (defn pipeline->flow-ops
   [{:keys [nos global jobs] :as pipeline}]
@@ -218,7 +219,7 @@
                      :inline-logs?  true
                      :artifact-path (str dir "/.nos/artifacts")
                      :stdout?       true}}))]
-    (println "Flow ID is " (:id flow))
+    (print "Flow ID is " (:id flow) (str flow))
     (make-local-git-artifact! dir "checkout" (:id flow) pipeline-commit)
     (let [flow-engine {:store     (<!! (new-mem-store))
                        :chan      (chan)
