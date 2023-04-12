@@ -10,3 +10,5 @@ resources/nosana/.secrets.edn
 .calva/
 .notes/
 .nos/
+src/nosana_node/nosana.clj
+.vscode/
