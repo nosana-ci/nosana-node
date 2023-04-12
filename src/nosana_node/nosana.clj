@@ -185,8 +185,7 @@ Running Nosana Node %s
               balance
               stake
               nft
-              owned
-              ))
+              owned))
 
 (defn make-config
   "Build the node's config to interact with the Nosana Network."
@@ -595,6 +594,30 @@ Running Nosana Node %s
       :success (println "Node healthy. LFG.")
       :error   (println (str "\u001B[31mNode not healthy:\u001B[0m\n- "
                              (string/join "\n- " msgs))))
+    
+    ;; Add a shutdown hook, will be called when the JVM exits
+    (.addShutdownHook
+     (Runtime/getRuntime)
+     (Thread. (fn []
+                (log :info "Shutting down...")
+                (when (is-queued? conf)
+
+                  ;; Exit the work loop first
+                  (log :info "Exiting Queue")
+                  ;; (exit-work-loop! system)
+                  (async/put! exit-ch true)
+
+
+                  ;; Then exit the market
+                  (log :info "Trying to exit market")
+                  ;; try exit market transaction, catch error
+                  (when-let [sig (try (exit-market conf)
+                                      (catch Exception e
+                                        (log :error "Failed to exit market" e)))]
+                    (log :info "Waiting for exit market transaction." sig)
+                    ;; Await transaction
+                    (<!! (sol/await-tx< sig (:network conf)))))
+                (log :info "Shutdown complete"))))
 
     ;; put any value to `exit-ch` to cancel the `loop-ch`:
     ;; (async/put! exit-ch true)
