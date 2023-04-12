@@ -343,7 +343,7 @@ Running Nosana Node %s
                       {"job"   job-addr
                        "run"   run-addr
                        "payer" (:payer run)
-                       "market" (sol/public-key market-addr)})
+                       "market" market-addr})
         (sol/send-tx [signer] network))))
 
 (defn quit-job
@@ -436,15 +436,14 @@ Running Nosana Node %s
   (go
     (let [job-addr    (get-in flow [:state :input/job-addr])
           run-addr    (get-in flow [:state :input/run-addr])
-          market-addr (get-in flow [:state :input/market-addr])
           result-ipfs (finish-flow flow conf)
+          job         (get-job conf job-addr)
           sig         (finish-job conf
                                   (PublicKey. job-addr)
                                   (PublicKey. run-addr)
-                                  (PublicKey. market-addr)
+                                  (:market job)
                                   result-ipfs)
           tx          (<! (sol/await-tx< sig (:network conf)))]
-      (println "job resulsts posted" market-addr result-ipfs)
       (log :info "Job results posted " result-ipfs sig)
       nil)))
 
@@ -601,7 +600,7 @@ Running Nosana Node %s
       :success (println "Node healthy. LFG.")
       :error   (println (str "\u001B[31mNode not healthy:\u001B[0m\n- "
                              (string/join "\n- " msgs))))
-    
+
     ;; Add a shutdown hook, will be called when the JVM exits
     (.addShutdownHook
      (Runtime/getRuntime)
