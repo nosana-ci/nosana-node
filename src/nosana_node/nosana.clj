@@ -335,14 +335,15 @@ Running Nosana Node %s
 
 (defn finish-job
   "Post results for an owned job."
-  [{:keys [network signer] :as conf} job-addr run-addr ipfs-hash]
+  [{:keys [network signer] :as conf} job-addr run-addr market-addr ipfs-hash]
   (let [run (get-run conf run-addr)]
     (-> (build-idl-tx :job "finish"
                       [(ipfs-hash->bytes ipfs-hash)]
                       conf
                       {"job"   job-addr
                        "run"   run-addr
-                       "payer" (:payer run)})
+                       "payer" (:payer run)
+                       "market" (sol/public-key market-addr)})
         (sol/send-tx [signer] network))))
 
 (defn quit-job
@@ -435,9 +436,15 @@ Running Nosana Node %s
   (go
     (let [job-addr    (get-in flow [:state :input/job-addr])
           run-addr    (get-in flow [:state :input/run-addr])
+          market-addr (get-in flow [:state :input/market-addr])
           result-ipfs (finish-flow flow conf)
-          sig         (finish-job conf (PublicKey. job-addr) (PublicKey. run-addr) result-ipfs)
+          sig         (finish-job conf
+                                  (PublicKey. job-addr)
+                                  (PublicKey. run-addr)
+                                  (PublicKey. market-addr)
+                                  result-ipfs)
           tx          (<! (sol/await-tx< sig (:network conf)))]
+      (println "job resulsts posted" market-addr result-ipfs)
       (log :info "Job results posted " result-ipfs sig)
       nil)))
 
