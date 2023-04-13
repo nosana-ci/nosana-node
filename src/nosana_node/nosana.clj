@@ -528,6 +528,19 @@ Running Nosana Node %s
   [timestamp]
   (> (- (flow/current-time) timestamp) (* 60 15)))
 
+(defn find-next-run
+  "Find all assigned runs and return the first assigned to our
+market. Returns a tuple of [run-address run-data]."
+  [conf]
+  (let [runs (find-my-runs conf)]
+    (loop [[[run-addr run] & rst] runs]
+      (when run-addr
+        (let [job (get-job conf (:job run))]
+          (prn (:market job) (:market conf))
+          (if (.equals (:market job) (:market conf))
+            [run-addr run]
+            (recur rst)))))))
+
 (defn work-loop
   "Main loop."
   [conf {:nos/keys [poll-delay exit-chan] :as system}]
