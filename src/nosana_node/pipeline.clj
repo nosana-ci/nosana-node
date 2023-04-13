@@ -62,6 +62,15 @@
    "NOS_JOB_ADDRESS" job
    "NOS_RUN_ADDRESS" run})
 
+(defn escape [cmd]
+  (string/replace cmd "'" "'\\''"))
+
+(defn echo-and-escape [cmds]
+  (->> cmds
+       (map (fn [cmd] [(str "echo \u001b[32m" "$ '" cmd "'\033[0m") cmd]))
+       flatten
+       (map #(string/replace % "'" "'\\''"))))
+
 (defn make-job-cmds
   "Embed a seq of shell commands into a single `sh -c` statement."
   [cmds]
@@ -71,6 +80,23 @@
              flatten
              (map #(string/replace % "'" "'\\''")))]
     (str "sh -c '" (string/join " && " cmds-escaped) "'")))
+
+(defn make-job-cmds-shell-file [cmds]
+  (let [script "/tmp/nosana-ci-run-script.sh"]
+    (str "sh -c '"
+         "echo \"#!$(which bash || which sh)\n\n\" > " script
+         " && "
+         "echo \"if set -o | grep pipefail > /dev/null; then set -o pipefail; fi\" >> " script
+         " && "
+         "echo \"set -o errexit\" >> " script
+         " && "
+         "echo \"set +o noclobber\" >> " script
+         " && "
+         (escape
+          (str "echo '" (string/join "\n" (echo-and-escape cmds)) "' >> " script))
+         " && "
+         "cat " script " | $(which bash || which sh)"
+         "'")))
 
 (defn make-job
   "Create flow segment for a `job` entry of the pipeline.
@@ -84,7 +110,7 @@
     :as pipeline}]
     {:op   :container/run
      :id   (keyword name)
-     :args {:cmds      [{:cmd (make-job-cmds commands)}]
+     :args {:cmds      [{:cmd (make-job-cmds-shell-file commands)}]
             :image     (or image global-image)
             :image-pull-secret (or  image-pull-secret  global-image-pull-secret)
             :env       (prep-env (merge global-environment environment))
@@ -94,8 +120,8 @@
                              (map (fn [r] {:name      (:name r)
                                            :required (if (:required r) true false)
                                            :path
-                                           (if (string/starts-with? (:path r) "./")
-                                             (string/replace (:path r) #"^\./" (str work-dir "/"))
+                                           (if (not (:path r))
+                                             "."
                                              (:path r))})
                                   resources))
           :artifacts (map (fn [a] {:paths    (if (not (or (:path a) (:paths a)))
@@ -219,7 +245,6 @@
                      :inline-logs?  true
                      :artifact-path (str dir "/.nos/artifacts")
                      :stdout?       true}}))]
-    (print "Flow ID is " (:id flow) (str flow))
     (make-local-git-artifact! dir "checkout" (:id flow) pipeline-commit)
     (let [flow-engine {:store     (<!! (new-mem-store))
                        :chan      (chan)
