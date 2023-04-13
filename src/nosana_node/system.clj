@@ -4,6 +4,7 @@
              [<!! <! >!! go go-loop >! timeout take! chan put!]]
             [ring.adapter.jetty :as jetty]
             [konserve.core :as kv]
+            [nos.core :as flow]
             [clojure.string :as string]
             [taoensso.timbre :as log]
             [nosana-node.cors :refer [wrap-all-cors]]
@@ -35,12 +36,14 @@
 
         op-id          (form-decode op-id-raw)
         flow-id-mapped (<!! (kv/get store [:job->flow flow-id]))
+
         flow-id        (if flow-id-mapped flow-id-mapped flow-id)
+        flow           (<!! (kv/get store flow-id))
 
         log (try (slurp (str "/tmp/nos-logs/" flow-id "/" op-id ".txt"))
                  (catch Exception e nil))]
     (if (and flow-id op-id log)
-      {:status  200
+      {:status  (if (contains? (:state flow) op-id) 200 206)
        :headers {"Content-Type" "text/plain; charset=UTF-8"}
        :body    log}
       {:status  404
