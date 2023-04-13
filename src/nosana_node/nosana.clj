@@ -185,8 +185,7 @@ Running Nosana Node %s
               balance
               stake
               nft
-              owned
-              ))
+              owned))
 
 (defn make-config
   "Build the node's config to interact with the Nosana Network."
@@ -336,14 +335,15 @@ Running Nosana Node %s
 
 (defn finish-job
   "Post results for an owned job."
-  [{:keys [network signer] :as conf} job-addr run-addr ipfs-hash]
+  [{:keys [network signer] :as conf} job-addr run-addr market-addr ipfs-hash]
   (let [run (get-run conf run-addr)]
     (-> (build-idl-tx :job "finish"
                       [(ipfs-hash->bytes ipfs-hash)]
                       conf
                       {"job"   job-addr
                        "run"   run-addr
-                       "payer" (:payer run)})
+                       "payer" (:payer run)
+                       "market" market-addr})
         (sol/send-tx [signer] network))))
 
 (defn quit-job
@@ -437,7 +437,12 @@ Running Nosana Node %s
     (let [job-addr    (get-in flow [:state :input/job-addr])
           run-addr    (get-in flow [:state :input/run-addr])
           result-ipfs (finish-flow flow conf)
-          sig         (finish-job conf (PublicKey. job-addr) (PublicKey. run-addr) result-ipfs)
+          job         (get-job conf job-addr)
+          sig         (finish-job conf
+                                  (PublicKey. job-addr)
+                                  (PublicKey. run-addr)
+                                  (:market job)
+                                  result-ipfs)
           tx          (<! (sol/await-tx< sig (:network conf)))]
       (log :info "Job results posted " result-ipfs sig)
       nil)))
@@ -523,6 +528,19 @@ Running Nosana Node %s
   [timestamp]
   (> (- (flow/current-time) timestamp) (* 60 15)))
 
+(defn find-next-run
+  "Find all assigned runs and return the first assigned to our
+market. Returns a tuple of [run-address run-data]."
+  [conf]
+  (let [runs (find-my-runs conf)]
+    (loop [[[run-addr run] & rst] runs]
+      (when run-addr
+        (let [job (get-job conf (:job run))]
+          (prn (:market job) (:market conf))
+          (if (.equals (:market job) (:market conf))
+            [run-addr run]
+            (recur rst)))))))
+
 (defn work-loop
   "Main loop."
   [conf {:nos/keys [poll-delay exit-chan] :as system}]
@@ -534,39 +552,44 @@ Running Nosana Node %s
       exit-chan (log :info "Work loop exited")
       ;; otherwise we will loop onwards with a timeout
       (timeout poll-delay)
-      (let [runs (find-my-runs conf)]
-        (cond
-          (should-check-health? last-health-check)
-          (let [[status health msgs] (healthy conf)]
-            (log :info "Checking node health...")
-            (case status
-              :success (do
-                         (log :info "Node is healthy")
-                         (recur nil (flow/current-time) true))
-              :error   (do
-                         (log :info (str "Node not healthy, waiting. Status:\n"
-                                         (string/join "\n- " msgs)))
-                         (recur nil (flow/current-time) false))))
+      (cond
+        (should-check-health? last-health-check)
+        (let [[status health msgs] (healthy conf)]
+          (log :info "Checking node health...")
+          (case status
+            :success (do
+                       (log :info "Node is healthy")
+                       (recur nil (flow/current-time) true))
+            :error (do
+                     (log :info (str "Node not healthy, waiting. Status:\n"
+                                     (string/join "\n- " msgs)))
+                     (recur nil (flow/current-time) false))))
 
-          (not healthy?)    (do
-                              (log :info "Node not healthy, waiting.")
-                              (recur nil last-health-check false))
-          active-flow       (do
-                              (log :info "Checking progress of flow " active-flow)
-                              (recur (<! (process-flow! active-flow conf system))
-                                     last-health-check true))
-          (not-empty runs)  (do
-                              (log :info "Found claimed jobs to work on")
-                              (recur (<! (start-flow-for-run! (first runs) conf system))
-                                     last-health-check true))
-          (is-queued? conf) (do
-                              (log :info "Waiting in the queue.")
-                              (recur nil last-health-check true))
-          :else             (let [enter-sig (enter-market conf)]
-                              (log :info "Entering the queue")
-                              (when enter-sig
-                                (<! (sol/await-tx< enter-sig (:network conf))))
-                              (recur nil last-health-check true)))))))
+        (not healthy?) (do
+                         (log :info "Node not healthy, waiting.")
+                         (recur nil last-health-check false))
+        active-flow (do
+                      (log :info "Checking progress of flow " active-flow)
+                      (recur (<! (process-flow! active-flow conf system))
+                             last-health-check true))
+        :else
+        (let [my-run (find-next-run conf)]
+          (cond
+            my-run (do
+                     (log :info "Found claimed jobs to work on")
+                     (recur (<! (start-flow-for-run! my-run conf system))
+                            last-health-check true))
+
+            (is-queued? conf) (do
+
+                                (log :info "Waiting in the queue.")
+                                (recur nil last-health-check true))
+
+            :else (let [enter-sig (enter-market conf)]
+                    (log :info "Entering the queue")
+                    (when enter-sig
+                      (<! (sol/await-tx< enter-sig (:network conf))))
+                    (recur nil last-health-check true))))))))
 
 (defn use-nosana
   [{:nos/keys [store flow-chan vault] :as system}]
@@ -595,6 +618,29 @@ Running Nosana Node %s
       :success (println "Node healthy. LFG.")
       :error   (println (str "\u001B[31mNode not healthy:\u001B[0m\n- "
                              (string/join "\n- " msgs))))
+
+    ;; Add a shutdown hook, will be called when the JVM exits
+    (.addShutdownHook
+     (Runtime/getRuntime)
+     (Thread. (fn []
+                (log :info "Shutting down...")
+                (when (is-queued? conf)
+
+                  ;; Exit the work loop first
+                  (log :info "Exiting Queue")
+                  ;; (exit-work-loop! system)
+                  (async/put! exit-ch true)
+
+                  ;; Then exit the market
+                  (log :info "Trying to exit market")
+                  ;; try exit market transaction, catch error
+                  (when-let [sig (try (exit-market conf)
+                                      (catch Exception e
+                                        (log :error "Failed to exit market" e)))]
+                    (log :info "Waiting for exit market transaction." sig)
+                    ;; Await transaction
+                    (<!! (sol/await-tx< sig (:network conf)))))
+                (log :info "Shutdown complete"))))
 
     ;; put any value to `exit-ch` to cancel the `loop-ch`:
     ;; (async/put! exit-ch true)
