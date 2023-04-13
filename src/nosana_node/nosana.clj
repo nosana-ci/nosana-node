@@ -552,39 +552,44 @@ market. Returns a tuple of [run-address run-data]."
       exit-chan (log :info "Work loop exited")
       ;; otherwise we will loop onwards with a timeout
       (timeout poll-delay)
-      (let [runs (find-my-runs conf)]
-        (cond
-          (should-check-health? last-health-check)
-          (let [[status health msgs] (healthy conf)]
-            (log :info "Checking node health...")
-            (case status
-              :success (do
-                         (log :info "Node is healthy")
-                         (recur nil (flow/current-time) true))
-              :error   (do
-                         (log :info (str "Node not healthy, waiting. Status:\n"
-                                         (string/join "\n- " msgs)))
-                         (recur nil (flow/current-time) false))))
+      (cond
+        (should-check-health? last-health-check)
+        (let [[status health msgs] (healthy conf)]
+          (log :info "Checking node health...")
+          (case status
+            :success (do
+                       (log :info "Node is healthy")
+                       (recur nil (flow/current-time) true))
+            :error (do
+                     (log :info (str "Node not healthy, waiting. Status:\n"
+                                     (string/join "\n- " msgs)))
+                     (recur nil (flow/current-time) false))))
 
-          (not healthy?)    (do
-                              (log :info "Node not healthy, waiting.")
-                              (recur nil last-health-check false))
-          active-flow       (do
-                              (log :info "Checking progress of flow " active-flow)
-                              (recur (<! (process-flow! active-flow conf system))
-                                     last-health-check true))
-          (not-empty runs)  (do
-                              (log :info "Found claimed jobs to work on")
-                              (recur (<! (start-flow-for-run! (first runs) conf system))
-                                     last-health-check true))
-          (is-queued? conf) (do
-                              (log :info "Waiting in the queue.")
-                              (recur nil last-health-check true))
-          :else             (let [enter-sig (enter-market conf)]
-                              (log :info "Entering the queue")
-                              (when enter-sig
-                                (<! (sol/await-tx< enter-sig (:network conf))))
-                              (recur nil last-health-check true)))))))
+        (not healthy?) (do
+                         (log :info "Node not healthy, waiting.")
+                         (recur nil last-health-check false))
+        active-flow (do
+                      (log :info "Checking progress of flow " active-flow)
+                      (recur (<! (process-flow! active-flow conf system))
+                             last-health-check true))
+        :else
+        (let [my-run (find-next-run conf)]
+          (cond
+            my-run (do
+                     (log :info "Found claimed jobs to work on")
+                     (recur (<! (start-flow-for-run! my-run conf system))
+                            last-health-check true))
+
+            (is-queued? conf) (do
+
+                                (log :info "Waiting in the queue.")
+                                (recur nil last-health-check true))
+
+            :else (let [enter-sig (enter-market conf)]
+                    (log :info "Entering the queue")
+                    (when enter-sig
+                      (<! (sol/await-tx< enter-sig (:network conf))))
+                    (recur nil last-health-check true))))))))
 
 (defn use-nosana
   [{:nos/keys [store flow-chan vault] :as system}]
@@ -625,7 +630,6 @@ market. Returns a tuple of [run-address run-data]."
                   (log :info "Exiting Queue")
                   ;; (exit-work-loop! system)
                   (async/put! exit-ch true)
-
 
                   ;; Then exit the market
                   (log :info "Trying to exit market")
