@@ -60,6 +60,7 @@
       (throw (ex-info "Error fetching secrets" (ex-data e))))))
 
 (derive :nosana/secret ::flow/ref)
+(derive :nosana/secrets-jwt ::flow/ref)
 
 (defmethod flow/ref-val :nosana/secret
   [[_ endpoint value keywordize?] flow-state vault]
@@ -75,6 +76,15 @@
       (cond-> (get secrets value)
         keywordize? clojure.walk/keywordize-keys)
       (throw (ex-info (str "Could not find secret " value) {})))))
+
+(defmethod flow/ref-val :nosana/secrets-jwt
+  [[_ endpoint] flow-state vault]
+  (log/log :info "Generating secrets login token")
+  (let [account     (nos/get-signer-key vault)
+        conf        {:signer           account
+                     :secrets-endpoint endpoint
+                     :address          (.getPublicKey account)}]
+    (login conf (:input/job-addr flow-state))))
 
 
 ;; nosana-node.core/secret can be used to retreive values from the secret engine

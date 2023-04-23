@@ -9,6 +9,7 @@
             [nosana-node.nosana :refer [finish-flow create-flow ipfs-upload]]
             [clojure.java.io :as io]
             [nos.core :as nos]
+            [nos.ops.docker :as docker]
             [clj-yaml.core :as yaml]
             [clojure.string :as string]))
 
@@ -248,8 +249,9 @@
     (make-local-git-artifact! dir "checkout" (:id flow) pipeline-commit)
     (let [flow-engine {:store     (<!! (new-mem-store))
                        :chan      (chan)
-                       :nos/vault (merge vault local-vault)}]
-      (nos/run-flow! flow-engine flow)
+                       :nos/vault (merge vault local-vault)}
+          results     (nos/run-flow! flow-engine flow)]
+      (docker/gc-volumes! results {:uri (:podman-conn-uri vault)})
       (shutdown-agents))))
 
 (defmethod finish-flow "Pipeline" [flow conf]

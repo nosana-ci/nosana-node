@@ -460,6 +460,9 @@ Running Nosana Node %s
           (flow-finished? flow)
           (do
             (log :info "Flow finished, posting results")
+            ;; TODO: consider moving garbage-collecting to an op in
+            ;; the flow
+            (docker/gc-volumes! flow {:uri (:podman-conn-uri vault)})
             (<! (finish-flow-2 flow conf)))
           (flow-expired? flow)
           (do
