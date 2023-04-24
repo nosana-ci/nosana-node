@@ -112,7 +112,9 @@
     {:op   :container/run
      :id   (keyword name)
      :args {:cmds      [{:cmd (make-job-cmds-shell-file commands)}]
-            :image     (or image global-image)
+            :image     (if (not (or image global-image))
+                            "ubuntu:latest"
+                            (or image global-image))
             :image-pull-secret (or  image-pull-secret  global-image-pull-secret)
             :env       (prep-env (merge global-environment environment))
             :conn      {:uri [:nos/vault :podman-conn-uri]}
