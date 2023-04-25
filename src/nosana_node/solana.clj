@@ -79,7 +79,6 @@
     (throw (ex-info "No account data" {:addr addr}))))
 
 (defn get-token-accounts [owner network]
-  (prn owner)
   (->
    (rpc-call "getTokenAccountsByOwner" [(.toString (public-key (.toString owner)))
                                         {:programId (.toString (:token addresses))}
