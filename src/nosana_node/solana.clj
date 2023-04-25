@@ -11,6 +11,7 @@
    [org.p2p.solanaj.rpc RpcClient Cluster]
    [org.bitcoinj.core Utils Base58 Sha256Hash]
    [java.io ByteArrayOutputStream ByteArrayInputStream]
+   [java.nio.charset Charset StandardCharsets]
    [java.util Arrays]
    [java.math BigDecimal BigInteger]
    [java.util.zip Inflater InflaterInputStream]
@@ -22,7 +23,20 @@
           :devnet  "https://api.devnet.solana.com"
           :mainnet "https://lively-sparkling-shape.solana-mainnet.discover.quiknode.pro/515f35af4d64f05ab7b10cd8cd88f34f9d1ec7d0"})
 
-(defn public-key [address] (PublicKey. address))
+(def addresses
+  {:token             (PublicKey. "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+   :system            (PublicKey. "11111111111111111111111111111111")
+   :rent              (PublicKey. "SysvarRent111111111111111111111111111111111")
+   :clock             (PublicKey. "SysvarC1ock11111111111111111111111111111111")
+   :metaplex-metadata (PublicKey. "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")})
+
+(defn public-key
+  "Transform `address` into a PublicKey class.
+  `address` can be string, byte-array or PublicKey"
+  [address]
+  (if (= PublicKey (class address))
+    address
+    (PublicKey. address)))
 
 (defn account [] (Account.))
 
@@ -53,13 +67,37 @@
   "Get the data of a Solana account as ByteArray."
   [addr network]
   (if-let [data (->
-                 (rpc-call "getAccountInfo" [(.toString addr) {:encoding "base64" :commitment "confirmed"}] network)
+                 (rpc-call "getAccountInfo"
+                           [(.toString addr)
+                            {:encoding "base64" :commitment "confirmed"}]
+                           network)
                  :body
                  (json/decode true)
                  :result :value :data
                  first)]
     (-> data util/base64->bytes byte-array)
     (throw (ex-info "No account data" {:addr addr}))))
+
+(defn get-token-accounts [owner network]
+  (prn owner)
+  (->
+   (rpc-call "getTokenAccountsByOwner" [(.toString (public-key (.toString owner)))
+                                        {:programId (.toString (:token addresses))}
+                                        {:encoding "jsonParsed"}]
+             network)
+   :body (json/decode true) :result :value))
+
+(defn read-last-pubkey
+  "Read 1 public key from the end of a byte array and trailing 0s.
+  Useful for hacky way to extract metaplex collection id."
+  [data]
+  (let [r-data (reverse data)]
+    (loop [[head & rst] r-data]
+      (if (zero? head)
+        (recur rst)
+        (->> head (conj rst) (take 32) reverse byte-array  public-key)))))
+
+
 
 (defn create-pub-key-from-seed
   "Derive a public key from another key, a seed, and a program ID.
@@ -146,14 +184,6 @@
 
     :else (throw (ex-info "Unkown IDL type " {:type type}))))
 
-
-(def addresses
-  {:token             (PublicKey. "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
-   :system            (PublicKey. "11111111111111111111111111111111")
-   :rent              (PublicKey. "SysvarRent111111111111111111111111111111111")
-   :clock             (PublicKey. "SysvarC1ock11111111111111111111111111111111")
-   :metaplex-metadata (PublicKey. "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")})
-
 (def nos-addr (PublicKey. "devr1BGQndEW5k5zfvG5FsLyZv1Ap73vNgAHcQ9sUVP"))
 (def nos-jobs (PublicKey. "nosJhNRqr2bc9g1nfGDcXXTXvYUmxD4cVwy2pMWhrYM"))
 (def nos-stake (PublicKey. "nosScmHY2uR24Zh751PmGj9ww9QRNHewh9H59AfrTJE"))
@@ -168,8 +198,23 @@
   (.getAddress
    (PublicKey/findProgramAddress [(.getBytes "metadata")
                                   (.toByteArray (:metaplex-metadata addresses))
-                                  (.toByteArray mint-id)]
+                                  (.toByteArray (public-key mint-id))]
                                  (:metaplex-metadata addresses))))
+
+(defn get-nft-from-collection
+  "Find the first NFT from `collection` owned by `owner`.
+  Returns `nil` if no NFT was found (this is a bit hacky)."
+  [owner collection network]
+  (let [tokens (get-token-accounts owner network)
+        idx (->> tokens
+                 (map #(-> % :account :data :parsed :info :mint get-metadata-pda))
+                 (map (fn [i] (get-account-data i network)))
+                 (map read-last-pubkey)
+                 (map-indexed (fn [idx pk] [idx (.toString pk)]))
+                 (filter #(= (second %) (.toString collection)))
+                 ffirst)]
+    (when idx
+      (-> tokens (nth idx) :account :data :parsed :info :mint))))
 
 (defn get-nos-market-pda
   "Find the PDA of a markets vault."
@@ -230,6 +275,12 @@
        (= type "u32")       [4 (Utils/readUint32 data ofs)]
        (= type "u8")        [1 (get data ofs)]
        (= type "publicKey") [32 (PublicKey/readPubkey data ofs)]
+
+       ;; TODO: string and u16 might be shank only?
+       (= type "string")
+       (let [size  (Utils/readUint32 data ofs)]
+         [(+ 4 size) (String. (ByteUtils/readBytes data (+ ofs 4) size) StandardCharsets/UTF_8)])
+       (= type "u16") [2 (Utils/readUint16 data ofs)]
 
        ;; vectors are dynamic sized
        (:vec type)
@@ -346,21 +397,30 @@
         (recur remaining
                (+ ofs (idl-type->size type idl)))))))
 
+(defn decode-idl-account-from-idl
+  "Decode an accounts byte array to a map using its IDL.
+  `type` default to anchor, but can be set to :shank from
+  Metaplex. Note: Shank IDL are not supported and only extremely basic
+  versions can be parsed."
+  ([acc-data idl account-type] (decode-idl-account-from-idl acc-data idl account-type :anchor))
+  ([acc-data idl account-type idl-type]
+   (let [{:keys [type fields]}
+         (->> idl :accounts (filter #(= (:name %) account-type)) first :type)]
+     (loop [ofs                 (if (= idl-type :shank) 0 8)
+            [field & remaining] fields
+            data                {}]
+       (if field
+         (let [[size value] (read-type acc-data ofs (:type field) idl)]
+           (recur (+ ofs size)
+                  remaining
+                  (assoc data (keyword (:name field)) value)))
+         data)))))
+
 (defn decode-idl-account
   "Decode an accounts byte array to a map using its IDL."
   [acc-data program-id account-type network]
-  (let [idl (fetch-idl program-id network)
-        {:keys [type fields]}
-        (->> idl :accounts (filter #(= (:name %) account-type)) first :type)]
-    (loop [ofs                 8
-           [field & remaining] fields
-           data                {}]
-      (if field
-        (let [[size value] (read-type acc-data ofs (:type field) idl)]
-          (recur (+ ofs size)
-                 remaining
-                 (assoc data (keyword (:name field)) value)))
-        data))))
+  (let [idl (fetch-idl program-id network)]
+    (decode-idl-account-from-idl acc-data idl account-type)))
 
 (defn get-idl-account
   "Fetches and decodes a program account using its IDL."

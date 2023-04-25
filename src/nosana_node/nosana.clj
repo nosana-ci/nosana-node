@@ -214,19 +214,27 @@ Running Nosana Node %s
         nos-ata      (sol/get-ata signer-pub (:nos-token programs))
 
         market       (sol/get-idl-account (:job programs) "MarketAccount" market-pub network)
+
+        open-market? (= (.toString (:nodeAccessKey market)) (.toString (:system sol/addresses)))
+
         nft          (if (:nft vault)
                        (PublicKey. (:nft vault))
-                       (:system sol/addresses))
+                       (if open-market?
+                         (:system sol/addresses)
+                         (sol/get-nft-from-collection
+                          signer-pub
+                          (:nodeAccessKey market)
+                          network)))
 
         ;; when the market does not have an NFT, we pass the nos-ata
         ;; as the nft-ata. this is because the program requires the
         ;; account to be a valid TokenAccount (without further
         ;; constraints).
-        nft-ata      (if (:nft vault)
+        nft-ata      (if (and nft (not open-market?))
                        (sol/get-ata signer-pub nft)
                        nos-ata)
 
-        metadata     (if (:nft vault)
+        metadata     (if (and nft (not open-market?))
                        (sol/get-metadata-pda nft)
                        (:system sol/addresses))]
     {:network           network
