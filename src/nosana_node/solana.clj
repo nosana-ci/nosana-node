@@ -213,7 +213,7 @@
                  (filter #(= (second %) (.toString collection)))
                  ffirst)]
     (when idx
-      (-> tokens (nth idx) :account :data :parsed :info :mint))))
+      (-> tokens (nth idx) :account :data :parsed :info :mint PublicKey.))))
 
 (defn get-nos-market-pda
   "Find the PDA of a markets vault."
