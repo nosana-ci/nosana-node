@@ -24,7 +24,6 @@
            [org.p2p.solanaj.rpc RpcClient Cluster]
            [org.bitcoinj.core Utils Base58]))
 
-
 ;; (def ipfs-base-url "https://cloudflare-ipfs.com/ipfs/")
 (def pinata-api-url "https://api.pinata.cloud")
 
@@ -663,7 +662,9 @@ market. Returns a tuple of [run-address run-data]."
                                    {:nos/exit-chan  exit-ch
                                     :nos/poll-delay (:poll-delay-ms vault)})))
          :nos/exit-chan exit-ch
-         :nos/poll-delay (:poll-delay-ms vault))
+         :nos/poll-delay (:poll-delay-ms vault)
+         :nos/solana-network (:network conf)
+         :nos/programs (:programs conf))
         (update :system/stop conj #(put! exit-ch true)))))
 
 (defmethod ig/halt-key! :nos/jobs

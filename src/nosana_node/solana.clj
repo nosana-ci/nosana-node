@@ -503,6 +503,13 @@
         signature (.detached provider msg)]
     signature))
 
+(defn verify-signature
+  "Returns `true` if the public key matches with the `signature` of
+  `message.`"
+  [pk message signature]
+  (let [sig (TweetNaclFast$Signature. (.toByteArray (public-key pk)) nil)]
+    (.detached_verify sig message (util/base58->bytes signature))))
+
 ;;=================
 ;; EXAMPLES
 ;;=================

@@ -17,7 +17,7 @@
         sig     (sol/sign msg signer)
         payload (cond-> {:address   (.toString (:address conf))
                          :signature  (util/base58 sig)
-                         :timestamp ts }
+                         :timestamp ts}
                   job-addr (assoc :job job-addr))]
     payload))
 
