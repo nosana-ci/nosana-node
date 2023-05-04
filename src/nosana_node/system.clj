@@ -35,6 +35,13 @@
       (recur (reset! system-atom (f (assoc sys :system/components components))))))
   @system-atom)
 
+(def verify-sig-for-job
+  (memoize
+   (fn [project-addr job-addr sig]
+     (sol/verify-signature project-addr
+                           (.getBytes (str "nosana_job_" job-addr) "UTF-8")
+                           sig))))
+
 (defn authorized-for-flow?
   "Returns `true` if signature is allowed to access the flow results.
   At the moment only Gitlab jobs are restricted."
@@ -47,9 +54,7 @@
                                             :programs nos-programs}
                                            job-addr)]
         (log :info "Verifying signature project = "  project ", job-addr = " job-addr ", sig = " sig)
-        (let [verified? (sol/verify-signature project
-                                              (.getBytes (str "nosana_job_" job-addr) "UTF-8")
-                                              sig)]
+        (let [verified? (verify-sig-for-job project job-addr sig)]
           (when (not verified?)
             (log :info "Invalid signature provided"))
           verified?))
