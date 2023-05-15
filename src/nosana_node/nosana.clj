@@ -569,7 +569,7 @@ market. Returns a tuple of [run-address run-data]."
           (case status
             :success (do
                        (log :info "Node is healthy")
-                       (recur nil (flow/current-time) true))
+                       (recur active-flow (flow/current-time) true))
             :error (do
                      (log :info (str "Node not healthy, waiting. Status:\n"
                                      (string/join "\n- " msgs)))
