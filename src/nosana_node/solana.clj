@@ -76,7 +76,9 @@
                  :result :value :data
                  first)]
     (-> data util/base64->bytes byte-array)
-    (throw (ex-info "No account data" {:addr addr}))))
+    (do
+      (log :error "No account data" {:addr addr})
+      nil)))
 
 (defn get-token-accounts [owner network]
   (->
@@ -208,6 +210,7 @@
         idx (->> tokens
                  (map #(-> % :account :data :parsed :info :mint get-metadata-pda))
                  (map (fn [i] (get-account-data i network)))
+                 (filter some?)
                  (map read-last-pubkey)
                  (map-indexed (fn [idx pk] [idx (.toString pk)]))
                  (filter #(= (second %) (.toString collection)))
