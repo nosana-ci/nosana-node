@@ -127,8 +127,7 @@
                  (< sol min-sol-balance)
                  (conj (str "SOL balance is too low to operate."))
 
-                 (and (< nft 1.0)
-                      (not= (.toString (:system sol/addresses)) (.toString (:market-collection conf))))
+                 (and (< nft 1.0) (not (:open-market? conf)))
                  (conj (str "Burner Phone NFT is missing"))
 
                  (nil? (:pinata-jwt conf))
@@ -212,30 +211,31 @@ Running Nosana Node %s
                         (:stake programs)))
         nos-ata      (sol/get-ata signer-pub (:nos-token programs))
 
-        market       (sol/get-idl-account (:job programs) "MarketAccount" market-pub network)
+        market (sol/get-idl-account (:job programs) "MarketAccount" market-pub network)
 
-        open-market? (= (.toString (:nodeAccessKey market)) (.toString (:system sol/addresses)))
+        open-market? (= (.toString (:nodeAccessKey market))
+                        (.toString (:system sol/addresses)))
 
-        nft          (if (:nft vault)
-                       (PublicKey. (:nft vault))
-                       (if open-market?
-                         (:system sol/addresses)
-                         (sol/get-nft-from-collection
-                          signer-pub
-                          (:nodeAccessKey market)
-                          network)))
+        nft (cond
+              (:nft vault) (PublicKey. (:nft vault))
+              open-market? (:system sol/addresses)
+              :else
+              (sol/get-nft-from-collection
+               signer-pub
+               (:nodeAccessKey market)
+               network))
 
         ;; when the market does not have an NFT, we pass the nos-ata
         ;; as the nft-ata. this is because the program requires the
         ;; account to be a valid TokenAccount (without further
         ;; constraints).
-        nft-ata      (if (and nft (not open-market?))
-                       (sol/get-ata signer-pub nft)
-                       nos-ata)
+        nft-ata (cond
+                  open-market? nos-ata
+                  :else (sol/get-ata signer-pub nft))
 
-        metadata     (if (and nft (not open-market?))
-                       (sol/get-metadata-pda nft)
-                       (:system sol/addresses))]
+        metadata (cond
+                   open-market? (:system sol/addresses)
+                   :else (sol/get-metadata-pda nft))]
     {:network           network
      :signer            signer
      :secrets-endpoint  "https://secrets.k8s.dev.nos.ci"
@@ -245,6 +245,7 @@ Running Nosana Node %s
      :nos-default-args  {:container/run
                          {:conn         {:uri [:nos/vault :podman-conn-uri]}
                           :inline-logs? true}}
+     :open-market?      open-market?
      :market-collection (:nodeAccessKey market)
      :job-timeout       (:jobTimeout market)
      :address           signer-pub
