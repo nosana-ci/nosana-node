@@ -92,11 +92,12 @@
   "Read 1 public key from the end of a byte array and trailing 0s.
   Useful for hacky way to extract metaplex collection id."
   [data]
-  (let [r-data (reverse data)]
-    (loop [[head & rst] r-data]
-      (if (zero? head)
-        (recur rst)
-        (->> head (conj rst) (take 32) reverse byte-array  public-key)))))
+  (when (not (empty? data))
+    (let [r-data (reverse data)]
+      (loop [[head & rst] r-data]
+        (if (zero? head)
+          (recur rst)
+          (->> head (conj rst) (take 32) reverse byte-array  public-key))))))
 
 
 
@@ -207,14 +208,15 @@
   Returns `nil` if no NFT was found (this is a bit hacky)."
   [owner collection network]
   (let [tokens (get-token-accounts owner network)
-        idx (->> tokens
-                 (map #(-> % :account :data :parsed :info :mint get-metadata-pda))
-                 (map (fn [i] (get-account-data i network)))
-                 (filter some?)
-                 (map read-last-pubkey)
-                 (map-indexed (fn [idx pk] [idx (.toString pk)]))
-                 (filter #(= (second %) (.toString collection)))
-                 ffirst)]
+        [idx addr] (->> tokens
+                        (map #(-> % :account :data :parsed :info :mint get-metadata-pda))
+                        (map-indexed (fn [idx addr] [idx (read-last-pubkey (get-account-data addr network))]))
+                        (filter #(some? (second %)))
+                        (map (fn [[idx pk]] [idx (.toString pk)]))
+                        (filter #(= (second %) (.toString collection)))
+                        first)]
+    (prn "==> " addr)
+    (prn "**>" (-> tokens (nth idx) :account :data :parsed :info :mint PublicKey.))
     (when idx
       (-> tokens (nth idx) :account :data :parsed :info :mint PublicKey.))))
 
