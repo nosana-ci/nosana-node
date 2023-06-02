@@ -5,8 +5,8 @@
             [nosana-node.nosana :as nos]
             [clojure.core.async :as async :refer
              [<!! <! >!! go go-loop >! timeout take! chan put!]]
+            [cheshire.core :as json]
             [ring.adapter.jetty :as jetty]
-
             [konserve.core :as kv]
             [nos.core :as flow]
             [clojure.string :as string]
@@ -61,31 +61,42 @@
       :default
       true)))
 
+(def resp-404
+  {:status 404
+   :headers {"Content-Type" "text/plain"}
+   :body "Not found"})
+
 (defn get-op-log [store uri http-headers solana-network nos-programs]
   (let [auth-header (get http-headers "authorization")
 
-        [[_ flow-id op-id-raw]]
-        (re-seq #"/nosana/logs/([a-zA-Z0-9\-_]+)/([a-zA-Z0-9\-%\s\+]+)" uri)
+        [[_ flow-id op-id-raw] :as boo]
+        (re-seq #"/nosana/logs/([a-zA-Z0-9\-_]+)(?:/([a-zA-Z0-9\-%\s\+]+))?" uri)
 
-        op-id (form-decode op-id-raw)
+        op-id (when op-id-raw (form-decode op-id-raw))
         flow-id-mapped (<!! (kv/get store [:job->flow flow-id]))
 
         flow-id (if flow-id-mapped flow-id-mapped flow-id)
 
         flow  (<!! (kv/get store flow-id))]
-    (if (not (authorized-for-flow? auth-header flow solana-network nos-programs))
-      {:status  404
-       :headers {"Content-Type" "text/plain"}
-       :body    "Not found"}
+    (cond
+      (or (not flow)
+          (not (authorized-for-flow? auth-header flow solana-network nos-programs)))
+      resp-404
+
+      (not op-id)
+      {:status 200
+       :body (json/encode {:nos-id (:id flow)
+                           :finished-at (flow/current-time)
+                           :results (:state flow)})}
+
+      :default
       (let [log (try (slurp (str "/tmp/nos-logs/" flow-id "/" op-id ".txt"))
                      (catch Exception e nil))]
         (if (and flow-id op-id log)
           {:status  (if (contains? (:state flow) op-id) 200 206)
            :headers {"Content-Type" "text/plain; charset=UTF-8"}
            :body    log}
-          {:status  404
-           :headers {"Content-Type" "text/plain"}
-           :body    "Not found"})))))
+          resp-404)))))
 
 (defn handler [{:keys [uri nos/store headers nos/solana-network
                        nos/programs] :as request}]
