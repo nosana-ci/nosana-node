@@ -86,7 +86,7 @@
       (not op-id)
       {:status 200
        :body (json/encode {:nos-id (:id flow)
-                           :finished-at (flow/current-time)
+                           :finished-at nil
                            :results (:state flow)})}
 
       :default
