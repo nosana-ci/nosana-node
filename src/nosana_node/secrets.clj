@@ -61,6 +61,7 @@
 
 (derive :nosana/secret ::flow/ref)
 (derive :nosana/secrets-jwt ::flow/ref)
+(derive :nosana/pinata-jwt ::flow/ref)
 
 (defmethod flow/ref-val :nosana/secret
   [[_ endpoint value keywordize?] flow-state vault]
@@ -86,6 +87,10 @@
                      :address          (.getPublicKey account)}]
     (login conf (:input/job-addr flow-state))))
 
+(defmethod flow/ref-val :nosana/pinata-jwt
+  [_ _ vault]
+  (log/log :trace "Injecting Pinata JWT from vault into pipeline")
+  (:pinata-jwt vault))
 
 ;; nosana-node.core/secret can be used to retreive values from the secret engine
 ;; examples:

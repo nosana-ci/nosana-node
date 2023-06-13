@@ -77,7 +77,7 @@
 
         flow-id (if flow-id-mapped flow-id-mapped flow-id)
 
-        flow  (<!! (kv/get store flow-id))]
+        flow (<!! (kv/get store flow-id))]
     (cond
       (or (not flow)
           (not (authorized-for-flow? auth-header flow solana-network nos-programs)))
