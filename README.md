@@ -6,17 +6,17 @@
 
 # Nosana Node
 
-Nosana container engine used for running jobs on the Nosana network.
+Nosana container engine is used for running jobs on the Nosana network.
 Learn more at [nosana.io](https://nosana.io).
 
 ## TL/DR
 
 To get up and running with your own Nosana Node:
 
-```shell
-$ brew install nosana-ci/tools/nosana-node
+```bash
+brew install nosana-ci/tools/nosana-node
 
-$ nosana-node
+nosana-node
 ```
 
 ## Building
@@ -28,15 +28,10 @@ It's recommended to use Clojure version 1.10.x and JVM 11.
 The configuration of the node is read from a few different places.
 In a production environment, the configuration values are passed as environment variables.
 Locally it is most convenient to use the `~/.nosana-node-config.edn` file:
-
-```bash
-cp nosana-node-config.edn-TEMPLATE ~/.nosana-node-config.edn
-```
-
-In development you will only have to enter your node's NFT address in
+In development, you will only have to enter your node's NFT address in
 the `.nosana-node-config.edn` and configure Solana and Pinata.
 
-##### Solana
+#### Solana
 
 If you do not have a default Solana keypair yet you can generate one
 with:
@@ -47,7 +42,7 @@ solana-keygen new
 
 Make sure your Solana account has enough staked and holds an NFT.
 
-##### Pinata
+#### Pinata
 
 The node uses Pinata to upload job results to IPFS. If you do not have
 Pinata credentials set your node will fail to upload job results and
@@ -57,7 +52,7 @@ feel free to open a GitHub issue with suggestions.
 For now, log in to Pinata and generate new API credentials with the
 `pinJSONToIPFS` ability. Then copy the JWT value to your config.
 
-##### Config overview
+#### Config overview
 
 Below is the table of config values that can be set:
 
@@ -75,17 +70,17 @@ Below is the table of config values that can be set:
 
 ### Local development
 
-This project includes [solanaj](https://github.com/p2p-org/solanaj) as
+This project includes [SolanaJ](https://github.com/p2p-org/solanaj) as
 a git submodule, so you will have to clone this repository
 recursively.
 
-The solanaj classes have to be compiled once before we start:
+The SolanaJ classes have to be compiled once before we start:
 
 ```bash
 clj -X:compile
 ```
 
-This compiles the solanaj class files and puts them in the `target`
+This compiles the SolanaJ class files and puts them in the `target`
 folder. You can now [start a repl](#hacking-locally).
 
 ### Docker
@@ -137,7 +132,7 @@ You will have to run a local non-privileged, and rootless, Podman container, wit
 Podman will be used to spin up containers for Nosana jobs.
 
 Alternatively, when you're using `containerd` as your container engine.
-you may replace `docker` with `nerdctl` in above command.
+you may replace `docker` with `nerdctl` in the above command.
 
 ### Hacking locally
 
@@ -193,7 +188,7 @@ nos --help
 ### Production nodes
 
 Production nodes can run on any device with a JVM and Podman
-available. For simplicity we recommend running the node through
+available. For simplicity, we recommend running the node through
 docker. Below is an example of how you could start a Docker-based Nosana node, in which you will have to fill out the correct environment variables:
 
 ```bash

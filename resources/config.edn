@@ -1,6 +1,6 @@
 {:local-config #include #join [#env HOME "/.nosana-node-config.edn"]
- :pinata-jwt   #profile {:prod #env PINATA_JWT
-                         :dev  #ref [:local-config :pinata-jwt]}
+ :pinata-jwt #profile {:prod #env PINATA_JWT
+                       :dev #ref [:local-config :pinata-jwt]}
 
  :solana-private-key
  #or [#env SOLANA_PRIVATE_KEY
@@ -9,7 +9,7 @@
  :dummy-private-key #include "dummy-private-key.json"
 
  :nosana-market
- #or [#env NOSANA_MARKET  #ref [:local-config :nosana-market]]
+ #or [#env NOSANA_MARKET #ref [:local-config :nosana-market]]
 
  :nft
  #or [#env NOSANA_NFT #ref [:local-config :nft]]
@@ -18,12 +18,15 @@
  #or [#env IPFS_URL "https://nosana.mypinata.cloud/ipfs/"]
 
  :start-job-loop?
- #profile {:prod true :dev  false}
+ #profile {:prod true :dev false}
 
  :solana-network
  #keyword #or [#env SOLANA_NETWORK
                #ref [:local-config :solana-network]
                :devnet]
+
+ :allowed-ops
+ [:container/run :container/create-volume]
 
  :port 3000
 
@@ -31,4 +34,4 @@
  #long #or [#env NOSANA_POLL_DELAY_MS 5000]
 
  :podman-conn-uri #profile {:prod #or [#env PODMAN_CONN_URI "http://podman:8080"]
-                            :dev  "http://localhost:8080"}}
+                            :dev "http://localhost:8080"}}

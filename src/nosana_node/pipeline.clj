@@ -15,11 +15,17 @@
 
 (def pinata-api-url "https://api.pinata.cloud")
 
-(def example-job
-  {:type     "Github"
-   :url      "https://github.com/unraveled/dummy"
-   :commit   "ce02322afff927af93ba298a9300800e64ae2d9d"
-   :pipeline "nosana:\n  description: Run Test \n\nglobal:\n  image: registry.hub.docker.com/library/node:16\n  trigger:\n    branch:\n      - all\n\njobs:\n  - name: install-deps and run test\n    commands: \n      - npm ci\n      - npm run test\n"})
+;; (def example-job
+;;   {
+;;    :url      "https://github.com/unraveled/dummy"
+;;    :commit   "ce02322afff927af93ba298a9300800e64ae2d9d"
+;;     :state {:nosana/job-type "Pipeline"} 
+;;    :pipeline "nosana:\n  description: Run Test \n\nglobal:\n  image: registry.hub.docker.com/library/node:16\n  trigger:\n    branch:\n      - all\n\njobs:\n  - name: install-deps and run test\n    commands: \n      - npm ci\n      - npm run test\n"})
+
+(def example-job "nosana:\n  description: Run Test \n\nglobal:\n  image: registry.hub.docker.com/library/node:16\n  trigger:\n    branch:\n      - all\n\njobs:\n  - name: install-deps and run test\n    commands: \n      - npm ci\n      - npm run test\n")
+
+(defn example-job-fn [flow]
+  (assoc-in flow [:state :nosana/job-type] "github-flow"))
 
 (def base-flow
   "The default flow for a pipeline which includes cloning of the
