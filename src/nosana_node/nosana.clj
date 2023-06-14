@@ -639,7 +639,7 @@ market. Returns a tuple of [run-address run-data]."
   [{:nos/keys [store flow-chan vault] :as system}]
   ;; Wait a bit for podman to boot
   (log :info "Waiting 5s for podman")
-  (Thread/sleep 5000)
+  (Thread/sleep 4000)
   (let [network    (:solana-network vault)
         market     (:nosana-market vault)
         conf       (make-config system)
