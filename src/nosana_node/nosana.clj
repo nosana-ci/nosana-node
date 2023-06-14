@@ -24,6 +24,8 @@
            [org.p2p.solanaj.rpc RpcClient Cluster]
            [org.bitcoinj.core Utils Base58]))
 
+(remove-method flow/ref-val :nos/vault)
+
 ;; (def ipfs-base-url "https://cloudflare-ipfs.com/ipfs/")
 (def pinata-api-url "https://api.pinata.cloud")
 
@@ -160,7 +162,7 @@
  |_| |_|\\___/|___/\\__,_|_| |_|\\__,_|")
 
 ;;(nos/print-head "v0.3.19" "4HoZogbrDGwK6UsD1eMgkFKTNDyaqcfb2eodLLtS8NTx" "0.084275" "13,260.00")
-(defn print-head [version address network market balance stake nft owned]
+(defn print-head [version address network market balance stake nft owned allowed-ops]
   (logg/infof "
 %s
 
@@ -174,6 +176,7 @@ Running Nosana Node %s
   Slashed    \u001B[34m0.00\u001B[0m NOS
   NFT        \u001B[34m%s\u001B[0m
   Owned      \u001B[34m%s\u001B[0m NFT
+  OPS        \u001B[34m%s\u001B[0m
 "
               ascii-logo
               version
@@ -183,7 +186,8 @@ Running Nosana Node %s
               balance
               stake
               nft
-              owned))
+              owned
+              allowed-ops))
 
 (defn make-config
   "Build the node's config to interact with the Nosana Network."
@@ -239,11 +243,12 @@ Running Nosana Node %s
     {:network           network
      :signer            signer
      :secrets-endpoint  "https://secrets.k8s.dev.nos.ci"
+     :allowed-ops       [:container/run :container/create-volume]
      :pinata-jwt        (:pinata-jwt vault)
      :ipfs-url          (:ipfs-url vault)
      :market            market-pub
      :nos-default-args  {:container/run
-                         {:conn         {:uri [:nos/vault :podman-conn-uri]}
+                         {:conn         {:uri (:podman-conn-uri vault)}
                           :inline-logs? true}}
      :open-market?      open-market?
      :market-collection (:nodeAccessKey market)
@@ -495,6 +500,16 @@ Running Nosana Node %s
   Dispatches on the [:state :nosana/job-type] value."
   #'create-flow-dispatch)
 
+(defn validate-flow-ops
+  "Check if the flow operation are whitelisted by the configuration and return a tuple with boolean and cause."
+  [flow conf]
+  (let [allowed-ops (set (:allowed-ops conf))
+        ops         (map #(:op %) (:ops flow))
+        invalid-ops (filter #(not (contains? allowed-ops (keyword %))) ops)]
+    (if (empty? invalid-ops)
+      [true nil]
+      [false (str "Operation not allowed: " (string/join ", " invalid-ops))])))
+
 (defn start-flow-for-run!
   "Start running a new Nostromo flow and return its flow ID."
   [[run-addr run] conf {:nos/keys [store flow-chan]}]
@@ -505,22 +520,41 @@ Running Nosana Node %s
           flow     (cond-> (create-flow job-info run-addr run conf)
                      (int? (:job-timeout conf))
                      (assoc :expires (+ (:time run) (:job-timeout conf))))
+
+          [_flow-valid? error-msg] (validate-flow-ops flow conf)
           expired? (and (int? (:job-timeout conf))
                         (> (flow/current-time)
                            (+ (:time run) (:job-timeout conf))))
           flow-id  (:id flow)]
-      (when expired?
-        (throw (ex-info "Run has expired" {:run-time    (:time run)
-                                           :job-timeout (:job-timeout conf)})))
+      (cond
+          error-msg
+          (go
+            (log :info "Finishing job because of unsupported OP. Waiting for finish transaction.")
+            (let [results-ipfs (finish-flow (assoc-in flow [:state :nosana/error] error-msg) conf)
+                  sig (finish-job conf
+                                  (PublicKey. job-addr)
+                                  (PublicKey. run-addr)
+                                  (:market job)
+                                  results-ipfs)
+                  _ (log :trace "Finish tx id " sig)
+                  tx (<! (sol/await-tx< sig (:network conf)))]
+              (log :info "Submitted finish job tx " sig tx))
+            nil)
 
-      (log :info "Starting job" job-addr)
-      (log :trace "Processing flow" flow-id)
+          expired?
+          (throw (ex-info "Run has expired" {:run-time    (:time run)
+                                             :job-timeout (:job-timeout conf)}))
 
-      (<!! (kv/assoc store [:job->flow job-addr] flow-id))
-      (go
-        (<! (flow/save-flow flow store))
-        (>! flow-chan [:trigger flow-id])
-        flow-id))
+          :else
+          (do
+            (log :info "Starting job" job-addr)
+            (log :trace "Processing flow" flow-id)
+
+            (<!! (kv/assoc store [:job->flow job-addr] flow-id))
+            (go
+              (<! (flow/save-flow flow store))
+              (>! flow-chan [:trigger flow-id])
+              flow-id))))
     (catch Exception e
       (log :error "Error starting flow" e)
       (go
@@ -547,7 +581,6 @@ market. Returns a tuple of [run-address run-data]."
     (loop [[[run-addr run] & rst] runs]
       (when run-addr
         (let [job (get-job conf (:job run))]
-          (prn (:market job) (:market conf))
           (if (.equals (:market job) (:market conf))
             [run-addr run]
             (recur rst)))))))
@@ -623,7 +656,8 @@ market. Returns a tuple of [run-address run-data]."
      (-> health :sol)
      (-> health :nos)
      (:nft conf)
-     (-> health :nft))
+     (-> health :nft)
+     (:allowed-ops conf))
 
     (case status
       :success (println "Node healthy. LFG.")

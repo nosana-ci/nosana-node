@@ -15,11 +15,17 @@
 
 (def pinata-api-url "https://api.pinata.cloud")
 
-(def example-job
-  {:type     "Github"
-   :url      "https://github.com/unraveled/dummy"
-   :commit   "ce02322afff927af93ba298a9300800e64ae2d9d"
-   :pipeline "nosana:\n  description: Run Test \n\nglobal:\n  image: registry.hub.docker.com/library/node:16\n  trigger:\n    branch:\n      - all\n\njobs:\n  - name: install-deps and run test\n    commands: \n      - npm ci\n      - npm run test\n"})
+;; (def example-job
+;;   {
+;;    :url      "https://github.com/unraveled/dummy"
+;;    :commit   "ce02322afff927af93ba298a9300800e64ae2d9d"
+;;     :state {:nosana/job-type "Pipeline"} 
+;;    :pipeline "nosana:\n  description: Run Test \n\nglobal:\n  image: registry.hub.docker.com/library/node:16\n  trigger:\n    branch:\n      - all\n\njobs:\n  - name: install-deps and run test\n    commands: \n      - npm ci\n      - npm run test\n"})
+
+(def example-job "nosana:\n  description: Run Test \n\nglobal:\n  image: registry.hub.docker.com/library/node:16\n  trigger:\n    branch:\n      - all\n\njobs:\n  - name: install-deps and run test\n    commands: \n      - npm ci\n      - npm run test\n")
+
+(defn example-job-fn [flow]
+  (assoc-in flow [:state :nosana/job-type] "github-flow"))
 
 (def base-flow
   "The default flow for a pipeline which includes cloning of the
@@ -64,13 +70,13 @@
    "NOS_RUN_ADDRESS" run})
 
 (defn escape [cmd]
-  (string/replace cmd "'" "'\\''"))
+  (string/replace cmd "'" "'\"'\"'"))
 
-(defn echo-and-escape [cmds]
+(defn echo-and-run [cmds]
   (->> cmds
-       (map (fn [cmd] [(str "echo \u001b[32m" "$ '" cmd "'\033[0m") cmd]))
-       flatten
-       (map #(string/replace % "'" "'\\''"))))
+       (map (fn [cmd] [(str "echo '" (str "\u001b[32m$ " (escape cmd)) "'\033[0m")
+                       cmd]))
+       flatten))
 
 (defn make-job-cmds
   "Embed a seq of shell commands into a single `sh -c` statement."
@@ -83,20 +89,16 @@
     (str "sh -c '" (string/join " && " cmds-escaped) "'")))
 
 (defn make-job-cmds-shell-file [cmds]
-  (let [script "/tmp/nosana-ci-run-script.sh"]
+  (let [full-cmd
+        (->> cmds
+             echo-and-run
+             (concat ["#!/bin/sh"
+                      "if set -o | grep pipefail > /dev/null; then set -o pipefail; fi",
+                      "set -o errexit"
+                      "set +o noclobber"])
+             (string/join "\n"))]
     (str "sh -c '"
-         "echo \"#!$(which bash || which sh)\n\n\" > " script
-         " && "
-         "echo \"if set -o | grep pipefail > /dev/null; then set -o pipefail; fi\" >> " script
-         " && "
-         "echo \"set -o errexit\" >> " script
-         " && "
-         "echo \"set +o noclobber\" >> " script
-         " && "
-         (escape
-          (str "echo '" (string/join "\n" (echo-and-escape cmds)) "' >> " script))
-         " && "
-         "cat " script " | $(which bash || which sh)"
+         (escape (str "echo '" (escape full-cmd) "' | sh"))
          "'")))
 
 (defn make-job
