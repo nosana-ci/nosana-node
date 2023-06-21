@@ -117,29 +117,32 @@
 (defn healthy
   "Check if the current node is healthy."
   [conf]
-  (let [{:keys [sol nos nft] :as health} (get-health conf)]
-    (let [has-docker? (try (docker/get-info {:uri (:podman-uri conf)})
-                           true
-                           (catch Exception e false))
+  (try
+    (let [{:keys [sol nos nft] :as health} (get-health conf)]
+      (let [has-docker? (try (docker/get-info {:uri (:podman-uri conf)})
+                             true
+                             (catch Exception e false))
 
-          msgs (cond-> []
-                 (nil? (:signer conf))
-                 (conj "No signer keypair provided, please run `solana-keygen new`")
+            msgs (cond-> []
+                   (nil? (:signer conf))
+                   (conj "No signer keypair provided, please run `solana-keygen new`")
 
-                 (< sol min-sol-balance)
-                 (conj (str "SOL balance is too low to operate."))
+                   (< sol min-sol-balance)
+                   (conj (str "SOL balance is too low to operate."))
 
-                 (and (< nft 1.0) (not (:open-market? conf)))
-                 (conj (str "Burner Phone NFT is missing"))
+                   (and (< nft 1.0) (not (:open-market? conf)))
+                   (conj (str "Burner Phone NFT is missing"))
 
-                 (nil? (:pinata-jwt conf))
-                 (conj "Pinata JWT not found, node will not be able to submit any jobs.")
+                   (nil? (:pinata-jwt conf))
+                   (conj "Pinata JWT not found, node will not be able to submit any jobs.")
 
-                 (not has-docker?)
-                 (conj (str "Could not connect to Podman at " (:podman-uri conf))))]
-      (if (empty? msgs)
-        [:success health]
-        [:error health msgs]))))
+                   (not has-docker?)
+                   (conj (str "Could not connect to Podman at " (:podman-uri conf))))]
+        (if (empty? msgs)
+          [:success health]
+          [:error health msgs])))
+    (catch Exception e
+      [:error {} ["Unexpected error" (ex-message e)]])))
 
 (defn flow-finished? [flow]
   (flow/finished? flow))
