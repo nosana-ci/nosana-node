@@ -85,7 +85,7 @@
         conf        {:signer           account
                      :secrets-endpoint endpoint
                      :address          (.getPublicKey account)}]
-    (login conf (:input/job-addr flow-state))))
+    (login conf)))
 
 (defmethod flow/ref-val :nosana/pinata-jwt
   [_ _ vault]
