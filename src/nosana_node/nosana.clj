@@ -246,7 +246,7 @@ Running Nosana Node %s
     {:network           network
      :signer            signer
      :secrets-endpoint  "https://secrets.k8s.dev.nos.ci"
-     :allowed-ops       [:container/run :container/create-volume]
+     :allowed-ops       [:container/run :container/create-volume :nos/flow]
      :pinata-jwt        (:pinata-jwt vault)
      :ipfs-url          (:ipfs-url vault)
      :market            market-pub
