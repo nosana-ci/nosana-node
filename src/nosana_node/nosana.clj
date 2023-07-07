@@ -469,9 +469,9 @@ Running Nosana Node %s
   exception occured."
   [flow-id conf {:nos/keys [store flow-chan vault] :as sys}]
   (go
-    (try
-      (let [flow     (<! (kv/get store flow-id))
-            run-addr (get-in flow [:state :input/run-addr])]
+    (let [flow     (<! (kv/get store flow-id))
+          run-addr (get-in flow [:state :input/run-addr])]
+      (try
         (cond
           (flow-finished? flow)
           (do
@@ -488,10 +488,12 @@ Running Nosana Node %s
               nil))
           :else
           (let [_ (log :trace "Flow still running")]
-            flow-id)))
-      (catch Exception e
-        (log :error "Failed processing flow " e)
-        flow-id))))
+            flow-id))
+        (catch Exception e
+          (log :error "Failed processing flow " e)
+          (try (docker/gc-volumes! flow {:uri (:podman-conn-uri vault)})
+               (catch Exception e (log :error "Failes gc-volumes" e)))
+          flow-id)))))
 
 (defn- create-flow-dispatch [job run-addr run conf]
   (prn "Checking Type Of Job " job)
