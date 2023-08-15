@@ -409,6 +409,15 @@ Running Nosana Node %s
    {"node"  (.toString address)
     "state" "2"}))
 
+(defn find-dangling-jobs
+  "Find all jobs in Stopped state."
+  [{:keys [network programs address]}]
+    (sol/get-idl-program-accounts
+   network
+   (:job programs)
+   "JobAccount"
+   {"state" "4"}))
+
 (defn quit-my-runs
   "Quit all the jobs that are claimed by this node."
   [conf]
