@@ -427,6 +427,22 @@ Running Nosana Node %s
       (logg/info "Quiting run " pub)
       (quit-job conf (sol/public-key pub)))))
 
+(defn claim-job
+  "Claim a stopped job."
+  [{:keys [network signer programs] :as conf} job-addr]
+  (let [job (get-job conf job-addr)
+        run (Account.)]
+    (-> (build-idl-tx
+         :job
+         "claim"
+         []
+         conf
+         {"job"    (sol/public-key job-addr)
+          "run"    (.getPublicKey run)
+          "market" (:market job)
+          "payer"  (.getPublicKey signer)})
+        (sol/send-tx [signer run] network))))
+
 (defn create-market
   "Create a Nosana market.
   TODO: This function does not work yet because i64 support has to be
