@@ -372,8 +372,11 @@ Running Nosana Node %s
                        "payer" (:payer run)})
         (sol/send-tx [signer] network))))
 
-(defn get-market [{:keys [network programs market]}]
-  (sol/get-idl-account (:job programs) "MarketAccount" market network))
+(defn get-market
+  ([{:keys [network programs]} market-addr]
+   (sol/get-idl-account (:job programs) "MarketAccount" market-addr network))
+  ([{:keys [market] :as conf}]
+   (get-market conf market)))
 
 (defn find-my-runs
   "Find job accounts owned by this node"
@@ -427,21 +430,38 @@ Running Nosana Node %s
       (logg/info "Quiting run " pub)
       (quit-job conf (sol/public-key pub)))))
 
+(defn finish-my-runs
+  "Quit all the jobs that are claimed by this node."
+  [conf ipfs-hash]
+  (let [my-runs (find-my-runs conf)]
+    (logg/info "Node has " (count my-runs) " claimed jobs")
+    (doseq [[pub _] my-runs]
+      (let [run (get-run conf pub)
+            job (get-job conf (:job run))]
+        (logg/info "Quiting run " pub)
+        (finish-job conf
+                    (:job run)
+                    (sol/public-key pub)
+                    (:market job)
+                    ipfs-hash)))))
+
 (defn claim-job
-  "Claim a stopped job."
+  "Claim a stopped job.
+  Returns a tuple of the created run address and the tx signature."
   [{:keys [network signer programs] :as conf} job-addr]
   (let [job (get-job conf job-addr)
         run (Account.)]
-    (-> (build-idl-tx
-         :job
-         "claim"
-         []
-         conf
-         {"job"    (sol/public-key job-addr)
-          "run"    (.getPublicKey run)
-          "market" (:market job)
-          "payer"  (.getPublicKey signer)})
-        (sol/send-tx [signer run] network))))
+    [(.getPublicKey run)
+     (-> (build-idl-tx
+          :job
+          "claim"
+          []
+          conf
+          {"job"    (sol/public-key job-addr)
+           "run"    (.getPublicKey run)
+           "market" (:market job)
+           "payer"  (.getPublicKey signer)})
+         (sol/send-tx [signer run] network))]))
 
 (defn create-market
   "Create a Nosana market.
