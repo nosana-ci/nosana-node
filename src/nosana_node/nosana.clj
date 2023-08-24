@@ -53,7 +53,8 @@
              :reward      (PublicKey. "nosRB8DUV67oLNrL45bo2pFLrmsWPiewe2Lk2DRNYCp")
              :pool        (PublicKey. "nosPdZrfDzND1LAR28FLMDEATUPK53K8xbRBXAirevD")
              :reward-pool (PublicKey. "mineHEHiHxWS8pVkNc5kFkrvv5a9xMVgRY9wfXtkMsS")
-             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")}
+             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")
+             :nodes       (PublicKey. "nosNeZR64wiEhQc5j251bsP4WqDabT6hmz4PHyoHLGD")}
    :devnet  {:nos-token   (PublicKey. "devr1BGQndEW5k5zfvG5FsLyZv1Ap73vNgAHcQ9sUVP")
              :stake       (PublicKey. "nosScmHY2uR24Zh751PmGj9ww9QRNHewh9H59AfrTJE")
              :collection  (PublicKey. "CBLH5YsCPhaQ79zDyzqxEMNMVrE5N7J6h4hrtYNahPLU")
@@ -61,7 +62,8 @@
              :reward      (PublicKey. "nosRB8DUV67oLNrL45bo2pFLrmsWPiewe2Lk2DRNYCp")
              :pool        (PublicKey. "nosPdZrfDzND1LAR28FLMDEATUPK53K8xbRBXAirevD")
              :reward-pool (PublicKey. "miF9saGY5WS747oia48WR3CMFZMAGG8xt6ajB7rdV3e")
-             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")}})
+             :dummy       (PublicKey. "dumxV9afosyVJ5LNGUmeo4JpuajWXRJ9SH8Mc8B3cGn")
+             :nodes       (PublicKey. "nosNeZR64wiEhQc5j251bsP4WqDabT6hmz4PHyoHLGD")}})
 
 (def download-ipfs
   "Download a file from IPFS by its hash."
@@ -349,18 +351,7 @@ Running Nosana Node %s
 (defn get-run [{:keys [network programs]} addr]
   (sol/get-idl-account (:job programs) "RunAccount" addr network))
 
-(defn finish-job
-  "Post results for an owned job."
-  [{:keys [network signer] :as conf} job-addr run-addr market-addr ipfs-hash]
-  (let [run (get-run conf run-addr)]
-    (-> (build-idl-tx :job "finish"
-                      [(ipfs-hash->bytes ipfs-hash)]
-                      conf
-                      {"job"   job-addr
-                       "run"   run-addr
-                       "payer" (:payer run)
-                       "market" market-addr})
-        (sol/send-tx [signer] network))))
+
 
 (defn quit-job
   "Quit a job."
@@ -377,6 +368,22 @@ Running Nosana Node %s
    (sol/get-idl-account (:job programs) "MarketAccount" market-addr network))
   ([{:keys [market] :as conf}]
    (get-market conf market)))
+
+(defn finish-job
+  "Post results for an owned job."
+  [{:keys [network signer] :as conf} job-addr run-addr market-addr ipfs-hash]
+  (let [run (get-run conf run-addr)
+        market (get-market conf market-addr)]
+    (prn "8888" (:vault market))
+    (-> (build-idl-tx :job "finish"
+                      [(ipfs-hash->bytes ipfs-hash)]
+                      conf
+                      {"job"   job-addr
+                       "run"   run-addr
+                       "payer" (:payer run)
+                       "vault" (:vault market)
+                       "market" market-addr})
+        (sol/send-tx [signer] network))))
 
 (defn find-my-runs
   "Find job accounts owned by this node"
@@ -551,7 +558,8 @@ Running Nosana Node %s
   #'create-flow-dispatch)
 
 (defn validate-flow-ops
-  "Check if the flow operation are whitelisted by the configuration and return a tuple with boolean and cause."
+  "Check if the flow operation are whitelisted by the configuration
+  and return a tuple with boolean and cause."
   [flow conf]
   (let [allowed-ops (set (:allowed-ops conf))
         ops         (map #(:op %) (:ops flow))
