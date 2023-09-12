@@ -373,6 +373,7 @@ Running Nosana Node %s
   "Post results for an owned job."
   [{:keys [network signer] :as conf} job-addr run-addr market-addr ipfs-hash]
   (let [run (get-run conf run-addr)
+        job (get-job conf job-addr)
         market (get-market conf market-addr)]
     (prn "8888" (:vault market))
     (-> (build-idl-tx :job "finish"
@@ -382,6 +383,10 @@ Running Nosana Node %s
                        "run"   run-addr
                        "payer" (:payer run)
                        "vault" (:vault market)
+                       "deposit" (if (zero? (:jobPrice market))
+                                   (:nos-ata conf)
+                                   (sol/get-ata (:project job) (:nos-token (:programs conf))))
+                       "project" (:project job)
                        "market" market-addr})
         (sol/send-tx [signer] network))))
 
