@@ -15,7 +15,7 @@
              :refer [ipfs-hash->bytes bytes->ipfs-hash]
              :as util]))
 
-(defmethod create-flow "github-flow"
+(defmethod create-flow "docker"
   [job run-addr run conf]
   (let [job-addr (:job run)]
     (-> job
@@ -24,7 +24,7 @@
         flow/build
         (assoc :default-args (:nos-default-args conf)))))
 
-(defmethod finish-flow "github-flow"
+(defmethod finish-flow "docker"
   [flow conf]
   (let [results    (:state flow)
         job-result {:nos-id      (:id flow)

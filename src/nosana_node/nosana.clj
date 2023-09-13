@@ -554,8 +554,13 @@ Running Nosana Node %s
 
 (defn- create-flow-dispatch [job run-addr run conf]
   (prn "Checking Type Of Job " job)
-  (or (get-in job [:state :nosana/job-type])
-      "Pipeline"))
+  (let [res
+        (or (get-in job [:state :nosana/job-type])
+            (get-in job [:state :nosana/type]))]
+    (case res
+      "github-flow" "docker"
+      nil "Pipeline"
+      :else res)))
 
 (defmulti create-flow
   "Create a Nostromo flow from a Nosana job.
