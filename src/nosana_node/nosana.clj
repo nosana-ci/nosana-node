@@ -560,7 +560,7 @@ Running Nosana Node %s
     (case res
       "github-flow" "docker"
       nil "Pipeline"
-      :else res)))
+      res)))
 
 (defmulti create-flow
   "Create a Nostromo flow from a Nosana job.
@@ -707,7 +707,7 @@ market. Returns a tuple of [run-address run-data]."
   [{:nos/keys [store flow-chan vault] :as system}]
   ;; Wait a bit for podman to boot
   (log :info "Waiting 5s for podman")
-  (Thread/sleep 3000)
+  (Thread/sleep 6000)
   (let [network    (:solana-network vault)
         market     (:nosana-market vault)
         conf       (make-config system)
