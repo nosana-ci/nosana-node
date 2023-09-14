@@ -497,8 +497,13 @@ Running Nosana Node %s
       nil)))
 
 (defn- finish-flow-dispatch [flow conf]
-  (or (get-in flow [:state :nosana/job-type])
-      "Pipeline"))
+  (let [res
+        (or (get-in flow [:state :nosana/job-type])
+            (get-in flow [:state :nosana/type]))]
+    (case res
+      "github-flow" "docker"
+      nil "Pipeline"
+      res)))
 
 (defmulti finish-flow
   "Process a finished flow by its [:state :nosana/job-type] value.
