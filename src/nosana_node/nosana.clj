@@ -247,6 +247,7 @@ Running Nosana Node %s
                    :else (sol/get-metadata-pda nft))]
     {:network           network
      :signer            signer
+     :signer-pub        signer-pub
      :secrets-endpoint  "https://secrets.k8s.dev.nos.ci"
      :allowed-ops       [:container/run :container/create-volume :nos/flow]
      :pinata-jwt        (:pinata-jwt vault)
@@ -785,7 +786,8 @@ Running Nosana Node %s
          :nos/loop-chan
          (when (and (:start-job-loop? vault) (= :success status))
            (work-loop conf (merge  system
-                                   {:nos/exit-chan  exit-ch
+                                   {:nos/exit-chan exit-ch
+                                    :nos/work-loop-chan work-loop-ch
                                     :nos/poll-delay (:poll-delay-ms vault)})))
          :nos/exit-chan exit-ch
          :nos/work-loop-chan work-loop-ch
