@@ -99,7 +99,7 @@
           resp-404)))))
 
 (defn handler [{:keys [uri nos/store headers nos/solana-network
-                       nos/programs] :as request}]
+                       nos/programs nos/work-loop-chan] :as request}]
   (cond
     (or (= uri "/health")
         (= uri "/"))
@@ -108,6 +108,10 @@
      :body    "OK"}
     (string/starts-with? uri "/nosana/logs/")
     (get-op-log store uri headers solana-network programs)
+    (string/starts-with? uri "/nosana/trigger-job")
+    (do
+      (>!! work-loop-chan :poll)
+      {:status 200 :body "OK"})
     :else             {:status  200
                        :headers {"Content-Type" "text/html"}
                        :body    "Not found"}))

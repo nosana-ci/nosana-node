@@ -648,7 +648,7 @@ Running Nosana Node %s
 
 (defn find-next-run
   "Find all assigned runs and return the first assigned to our
-market. Returns a tuple of [run-address run-data]."
+  market. Returns a tuple of [run-address run-data]."
   [conf]
   (let [runs (find-my-runs conf)]
     (loop [[[run-addr run] & rst] runs]
@@ -660,63 +660,81 @@ market. Returns a tuple of [run-address run-data]."
 
 (defn work-loop
   "Main loop."
-  [conf {:nos/keys [poll-delay exit-chan] :as system}]
-  (go-loop [active-flow nil
-            last-health-check (flow/current-time)
-            healthy? true]
-    (async/alt!
-      ;; put anything on :exit-ch to stop the loop
-      exit-chan (log :info "Work loop exited")
-      ;; otherwise we will loop onwards with a timeout
-      (timeout poll-delay)
-      (cond
-        (should-check-health? last-health-check)
-        (let [[status health msgs] (healthy conf)]
-          (log :info "Checking node health...")
-          (case status
-            :success (do
-                       (log :info "Node is healthy")
-                       (recur active-flow (flow/current-time) true))
-            :error (do
-                     (log :info (str "Node not healthy, waiting. Status:\n"
-                                     (string/join "\n- " msgs)))
-                     (recur nil (flow/current-time) false))))
+  [conf {:nos/keys [poll-delay exit-chan flow-chan work-loop-chan] :as system}]
+  (let [finish-flow-chan (chan)]
+    ;; we subscribe to all `flow-chan` messages that start with `:finished`
+    (async/sub (async/pub flow-chan first) :finished finish-flow-chan)
+    (go-loop [active-flow nil
+              last-health-check (flow/current-time)
+              healthy? true]
+      (async/alt!
+        ;; put anything on :exit-ch to stop the loop
+        exit-chan (log :info "Work loop exited")
 
-        (not healthy?) (do
-                         (log :info "Node not healthy, waiting.")
-                         (recur nil last-health-check false))
-        active-flow (do
-                      (log :info "Checking progress of flow " active-flow)
-                      (recur (<! (process-flow! active-flow conf system))
-                             last-health-check true))
-        :else
-        (let [my-run (find-next-run conf)]
-          (cond
-            my-run (do
-                     (log :info "Found claimed jobs to work on")
-                     (recur (<! (start-flow-for-run! my-run conf system))
-                            last-health-check true))
+        ;; if the flow is finished we quit
+        finish-flow-chan
+        ([[_ flow-id flow]]
+         (log :info "Receive flow finished message")
+         (recur (<! (process-flow! active-flow conf system))
+                last-health-check true))
 
-            (is-queued? conf) (do
+        ;; after a delay we will always loop
+        (timeout poll-delay) (do
+                               (>! work-loop-chan 1)
+                               (recur nil last-health-check true))
 
-                                (log :info "Waiting in the queue.")
-                                (recur nil last-health-check true))
+        ;; otherwise we will loop onwards with a timeout
+        work-loop-chan
+        (cond
+          (should-check-health? last-health-check)
+          (let [[status health msgs] (healthy conf)]
+            (log :info "Checking node health...")
+            (case status
+              :success (do
+                         (log :info "Node is healthy")
+                         (recur active-flow (flow/current-time) true))
+              :error (do
+                       (log :info (str "Node not healthy, waiting. Status:\n"
+                                       (string/join "\n- " msgs)))
+                       (recur nil (flow/current-time) false))))
 
-            :else (let [enter-sig (enter-market conf)]
-                    (log :info "Entering the queue")
-                    (when enter-sig
-                      (<! (sol/await-tx< enter-sig (:network conf))))
-                    (recur nil last-health-check true))))))))
+          (not healthy?) (do
+                           (log :info "Node not healthy, waiting.")
+                           (recur nil last-health-check false))
+          active-flow (do
+                        (log :info "Checking progress of flow " active-flow)
+                        (recur (<! (process-flow! active-flow conf system))
+                               last-health-check true))
+          :else
+          (let [my-run (find-next-run conf)]
+            (cond
+              my-run (do
+                       (log :info "Found claimed jobs to work on")
+                       (recur (<! (start-flow-for-run! my-run conf system))
+                              last-health-check true))
+
+              (is-queued? conf) (do
+
+                                  (log :info "Waiting in the queue.")
+                                  (recur nil last-health-check true))
+
+              :else (let [enter-sig (enter-market conf)]
+                      (log :info "Entering the queue")
+                      (when enter-sig
+                        (<! (sol/await-tx< enter-sig (:network conf))))
+                      (recur nil last-health-check true)))))))))
 
 (defn use-nosana
   [{:nos/keys [store flow-chan vault] :as system}]
   ;; Wait a bit for podman to boot
   (log :info "Waiting 5s for podman")
   (Thread/sleep 6000)
-  (let [network    (:solana-network vault)
-        market     (:nosana-market vault)
-        conf       (make-config system)
-        exit-ch    (chan)
+  (Thread/sleep 6)
+  (let [network      (:solana-network vault)
+        market       (:nosana-market vault)
+        conf         (make-config system)
+        exit-ch      (chan)
+        work-loop-ch (chan 5)
 
         [status health msgs] (healthy conf)]
 
@@ -770,6 +788,7 @@ market. Returns a tuple of [run-address run-data]."
                                    {:nos/exit-chan  exit-ch
                                     :nos/poll-delay (:poll-delay-ms vault)})))
          :nos/exit-chan exit-ch
+         :nos/work-loop-chan work-loop-ch
          :nos/poll-delay (:poll-delay-ms vault)
          :nos/solana-network (:network conf)
          :nos/programs (:programs conf))
