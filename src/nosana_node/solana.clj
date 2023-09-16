@@ -12,7 +12,7 @@
    [org.bitcoinj.core Utils Base58 Sha256Hash]
    [java.io ByteArrayOutputStream ByteArrayInputStream]
    [java.nio.charset Charset StandardCharsets]
-   [java.util Arrays]
+   [java.util Arrays Base64]
    [java.math BigDecimal BigInteger]
    [java.util.zip Inflater InflaterInputStream]
    [org.p2p.solanaj.core Transaction TransactionInstruction PublicKey
@@ -52,6 +52,22 @@
                                            :method  method
                                            :params  params})
                :content-type :json})))
+
+(defn get-recent-blockhash [network]
+  (->
+   (rpc-call "getRecentBlockhash" [] network)
+   :body
+   (json/decode true)
+   :result
+   :value
+   :blockhash))
+
+(defn send-encoded-transaction [tx network]
+  (-> (rpc-call "sendTransaction" [tx {:skipPreflight true
+                                       :encoding "base64"}] network)
+      :body
+      (json/decode true)
+      :result))
 
 (defn get-balance [addr network]
   (->
@@ -472,11 +488,13 @@
 (defn send-tx
   "Sign and send a transaction using solanaj rpc.
   `signers` should be clojure seq of PublicKeys"
-  [tx signers network]
-  (let [client (RpcClient. (get rpc network))
-        api (.getApi client)
-        sig (.sendTransaction api tx (java.util.ArrayList. signers))]
-    sig))
+  [^Transaction tx signers network]
+  (let [blockhash (get-recent-blockhash network)]
+    (.setRecentBlockHash tx blockhash)
+    (.sign tx signers)
+    (let [tx-base64 (util/bytes->base64 (.serialize tx))
+          sig (send-encoded-transaction tx-base64 network)]
+      sig)))
 
 (defn get-tx
   "Get transaction `sig` as keywordized map"
