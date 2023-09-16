@@ -376,7 +376,6 @@ Running Nosana Node %s
   (let [run (get-run conf run-addr)
         job (get-job conf job-addr)
         market (get-market conf market-addr)]
-    (prn "8888" (:vault market))
     (-> (build-idl-tx :job "finish"
                       [(ipfs-hash->bytes ipfs-hash)]
                       conf
@@ -559,7 +558,7 @@ Running Nosana Node %s
           flow-id)))))
 
 (defn- create-flow-dispatch [job run-addr run conf]
-  (prn "Checking Type Of Job " job)
+  (log :trace "Checking Type Of Job " job)
   (let [res
         (or (get-in job [:state :nosana/job-type])
             (get-in job [:state :nosana/type]))]
@@ -622,8 +621,7 @@ Running Nosana Node %s
           :else
           (do
             (log :info "Starting job" job-addr)
-            (log :trace "Processing flow" flow-id)
-
+            (log :info "Processing flow" flow-id)
             (<!! (kv/assoc store [:job->flow job-addr] flow-id))
             (go
               (<! (flow/save-flow flow store))
@@ -661,10 +659,13 @@ Running Nosana Node %s
 
 (defn work-loop
   "Main loop."
-  [conf {:nos/keys [poll-delay exit-chan flow-chan work-loop-chan] :as system}]
-  (let [finish-flow-chan (chan)]
+  [conf {:nos/keys [poll-delay exit-chan flow-chan-mult work-loop-chan] :as system}]
+  (let [finish-flow-chan (chan)
+        flow-chan-tap (chan)]
     ;; we subscribe to all `flow-chan` messages that start with `:finished`
-    (async/sub (async/pub flow-chan first) :finished finish-flow-chan)
+    (async/tap flow-chan-mult flow-chan-tap)
+    (async/sub (async/pub flow-chan-tap first) :finished finish-flow-chan)
+
     (go-loop [active-flow nil
               last-health-check (flow/current-time)
               healthy? true]
@@ -704,15 +705,15 @@ Running Nosana Node %s
                            (recur nil last-health-check false))
           active-flow (do
                         (log :info "Checking progress of flow " active-flow)
-                        (recur (<! (process-flow! active-flow conf system))
-                               last-health-check true))
+                        (let [flow-id (<! (process-flow! active-flow conf system))]
+                          (recur flow-id last-health-check true)))
           :else
           (let [my-run (find-next-run conf)]
             (cond
               my-run (do
                        (log :info "Found claimed jobs to work on")
-                       (recur (<! (start-flow-for-run! my-run conf system))
-                              last-health-check true))
+                       (let [flow-id (<! (start-flow-for-run! my-run conf system))]
+                         (recur flow-id last-health-check true)))
 
               (is-queued? conf) (do
 
