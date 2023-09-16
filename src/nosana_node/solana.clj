@@ -481,7 +481,8 @@
 (defn get-tx
   "Get transaction `sig` as keywordized map"
   [sig network]
-  (-> (rpc-call "getTransaction" [sig "json" {:commitment "confirmed"}] network)
+  (-> (rpc-call "getTransaction" [sig {:encoding "json"
+                                       :commitment "confirmed"}] network)
       :body
       (json/decode true)
       :result))
