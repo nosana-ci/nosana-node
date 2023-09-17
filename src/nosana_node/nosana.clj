@@ -200,7 +200,7 @@ Running Nosana Node %s
   (let [network      (:solana-network vault)
         signer       (try (get-signer-key vault)
                           (catch Exception e
-                            nil))
+                            (throw (ex-info "Node key pair could not be loaded" {}))))
         signer-pub   (if signer
                        (.getPublicKey signer)
                        (:system sol/addresses))
@@ -234,6 +234,9 @@ Running Nosana Node %s
                signer-pub
                (:nodeAccessKey market)
                network))
+
+        _ (when (nil? nft)
+            (throw (ex-info "Could not find Access Key and no NFT was provided" {})))
 
         ;; when the market does not have an NFT, we pass the nos-ata
         ;; as the nft-ata. this is because the program requires the
