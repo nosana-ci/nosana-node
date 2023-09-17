@@ -37,6 +37,15 @@
    [nil "--ipfs-url URL" "IPFS url"]
    [nil "--podman URI" "Podman connection URI"
     :id :podman-conn-uri]
+   [nil "--market ADDR" "Solana address of the market the node will join."
+    :default-desc "$MARKET"
+    :id :nosana-market]
+   [nil "--pinata-jwt" "JWT used for communicating with Pinata."
+    :default-desc "$PINATA_JWT"]
+   ["-n" "--network NETWORK" "Network to run on"
+    :default-desc "$SOLANA_NETWORK"
+    :parse-fn #(keyword %)
+    :id :solana-network]
    [nil "--branch REF"
     "Git branch to checkout when running a pipeline locally. If not set will use HEAD and include staged changes."
     :id :git-branch]
@@ -56,7 +65,7 @@
         options-summary
         ""
         "Actions:"
-        "  pipeline   Run a local pipeilne"
+        "  pipeline   Run a local pipeline"
         "  start      Start a node server"
         ""
         "Please refer to the docs for more information."]
@@ -64,7 +73,7 @@
 
 (defn use-cli
   "Parse CLI arguments using `tools.cli` and add to system map."
-  [{:keys [cli-args] :as sys}]
+  [{:keys [cli-args nos/vault] :as sys}]
 
   (let [{:keys [errors options arguments summary] :as res}
         (cli/parse-opts cli-args cli-options)
@@ -79,20 +88,24 @@
       (do
         (println (:exit-message state))
         (System/exit (if (:ok? state) 0 1)))
+
       :else
       (do
+        ;; set logging level
+        (let [{:keys [verbosity]} options
+              log-level
+              (nth (reverse [:trace :debug :info :warn :error
+                             :fatal :report])
+                   verbosity)]
+          (log/set-min-level! log-level))
+
+        ;; merge CLI over existing config
         (cond->
           (update sys :nos/vault merge state)
           (= "pipeline" (first arguments))
           (dissoc :run-server?))))))
 
 (defn use-pipeline [{:keys [nos/vault] :as system}]
-  (let [{:keys [verbosity]} vault
-        log-level           (nth (reverse [:trace :debug :info :warn :error
-                                           :fatal :report])
-                                 verbosity)]
-    (log/set-min-level! log-level))
-
   (let [dir (System/getProperty "user.dir")]
     (try
       (pipeline/run-local-pipeline dir (:nos/vault system))
@@ -100,22 +113,27 @@
         (println "Error: " (ex-message e))))))
 
 (defn -main [& args]
-  (start-system
-   system
-   {:http/handler      #'nos-sys/handler
-    :system/components [use-vault
-                        use-cli
-                        store/use-fs-store
-                        (use-when :run-server?
-                                  use-nostromo
-                                  use-nosana
-                                  nos-sys/use-wrap-ctx
-                                  use-jetty)
-                        (use-when #(not (:run-server? %))
-                                  use-pipeline)]
-    :system/profile    :prod
-    :run-server?       true
-    :cli-args          args
-    :nos/log-dir       "/tmp/logs"
-    :nos/store-path    "/tmp/store"
-    :nos/vault-path    (io/resource "config.edn")}))
+  (try
+    (start-system
+     system
+     {:http/handler      #'nos-sys/handler
+      :system/components [use-vault
+                          use-cli
+                          store/use-fs-store
+                          (use-when :run-server?
+                                    use-nostromo
+                                    use-nosana
+                                    nos-sys/use-wrap-ctx
+                                    use-jetty)
+                          (use-when #(not (:run-server? %))
+                                    use-pipeline)]
+      :system/profile    :prod
+      :run-server?       true
+      :cli-args          args
+      :nos/log-dir       "/tmp/logs"
+      :nos/store-path    "/tmp/store"
+      :nos/vault-path    (io/resource "config.edn")})
+    (catch Exception e
+      (do
+        (log/log :trace e)
+        (println (ex-message e))))))

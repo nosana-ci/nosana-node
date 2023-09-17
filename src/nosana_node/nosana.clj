@@ -205,9 +205,10 @@ Running Nosana Node %s
                        (.getPublicKey signer)
                        (:system sol/addresses))
         programs     (network nos-accounts)
-        market-pub   (if (:nosana-market vault)
+        market-pub   (try
                        (PublicKey. (:nosana-market vault))
-                       (get-in nos-accounts [network :market]))
+                       (catch Exception e
+                         (throw (ex-info "Invalid market account" {}))))
         market-vault (sol/pda
                       [(.toByteArray market-pub)
                        (.toByteArray (:nos-token programs))]
@@ -729,10 +730,11 @@ Running Nosana Node %s
 (defn use-nosana
   [{:nos/keys [store flow-chan vault] :as system}]
   ;; Wait a bit for podman to boot
-  (log :info "Waiting 5s for podman")
-  (Thread/sleep 6000)
+  (log :trace "Waiting 5s for podman")
   (Thread/sleep 6)
   (let [network      (:solana-network vault)
+        _            (when (not (contains? sol/rpc network))
+                       (throw (ex-info (str "Network must be in " (keys sol/rpc)) {})))
         market       (:nosana-market vault)
         conf         (make-config system)
         exit-ch      (chan)
@@ -754,8 +756,10 @@ Running Nosana Node %s
 
     (case status
       :success (println "Node healthy. LFG.")
-      :error   (println (str "\u001B[31mNode not healthy:\u001B[0m\n- "
-                             (string/join "\n- " msgs))))
+      :error   (do
+                 (println (str "\u001B[31mNode not healthy:\u001B[0m\n- "
+                               (string/join "\n- " msgs)))
+                 (throw (ex-info "Failed to start" {}))))
 
     ;; Add a shutdown hook, will be called when the JVM exits
     (.addShutdownHook
