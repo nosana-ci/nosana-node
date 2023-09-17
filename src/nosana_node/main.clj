@@ -51,7 +51,7 @@
     :id :git-branch]
    ["-v" nil "Use verbose output (-vvvvv very verbose output)"
     :id :verbosity
-    :default 0
+    :default 4
     :default-desc ""
     :update-fn inc]
    ["-h" "--help"]])
