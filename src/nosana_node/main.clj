@@ -121,6 +121,7 @@
                           use-cli
                           store/use-fs-store
                           (use-when :run-server?
+                                    use-nrepl
                                     use-nostromo
                                     use-nosana
                                     nos-sys/use-wrap-ctx
