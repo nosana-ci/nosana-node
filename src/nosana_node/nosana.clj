@@ -687,7 +687,7 @@ Running Nosana Node %s
         ;; after a delay we will always loop
         (timeout poll-delay) (do
                                (>! work-loop-chan 1)
-                               (recur nil last-health-check true))
+                               (recur active-flow last-health-check true))
 
         ;; otherwise we will loop onwards with a timeout
         work-loop-chan
