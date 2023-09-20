@@ -21,7 +21,7 @@
 
 (def rpc {:testnet "https://api.testnet.solana.com"
           :devnet  "https://api.devnet.solana.com"
-          :mainnet "https://lively-sparkling-shape.solana-mainnet.discover.quiknode.pro/515f35af4d64f05ab7b10cd8cd88f34f9d1ec7d0"})
+          :mainnet "https://solana-mainnet.gateway.pokt.network/v1/lb/e8b2e8a5"})
 
 (def addresses
   {:token             (PublicKey. "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
