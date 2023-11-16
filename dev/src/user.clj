@@ -21,7 +21,7 @@
    [nos.ops.docker :as docker]
    [aero.core :refer (read-config)]
    [konserve.core :as kv]
-   [clojure.core.async :as async :refer [<!! <! >!!]]
+   [clojure.core.async :as async :refer [<!! <! >!! chan pub sub put!]]
    [nos.store :as store]
    [nos.system :refer [use-nostromo]]
    [clojure.java.io :as io]
@@ -62,14 +62,16 @@
 (defn kv-set [key val]
   (<!! (kv/assoc (:nos/store @system) key val)))
 
-(defn run-flow [flow]
-  (prn ">> Starting flow from REPL >>" (:id flow))
-  (->>
-   (assoc flow :default-args (:nos-default-args conf))
-   (flow/run-flow! @system)
-   (kv/assoc-in (:nos/store @system) [(:id flow)])
-   <!!
-   second))
+(defn run-flow
+  ([flow] (run-flow flow @system))
+  ([flow system]
+   (prn ">> Starting flow from REPL >>" (:id flow))
+   (->>
+    (assoc flow :default-args (:nos-default-args conf))
+    (flow/run-flow! system)
+    (kv/assoc-in (:nos/store system) [(:id flow)])
+    <!!
+    second)))
 
 (defn expand-flow [flow-id graph]
   (let [flow (->> flow-id (conj []) kv-get)]

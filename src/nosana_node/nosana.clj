@@ -656,8 +656,11 @@ Running Nosana Node %s
   (let [runs (find-my-runs conf)]
     (loop [[[run-addr run] & rst] runs]
       (when run-addr
-        (let [job (get-job conf (:job run))]
-          (if (.equals (:market job) (:market conf))
+        (let [job (try (get-job conf (:job run))
+                       (catch Exception e
+                         (log :error "Error feching job for run" e)
+                         nil))]
+          (if (and job (.equals (:market job) (:market conf)))
             [run-addr run]
             (recur rst)))))))
 
