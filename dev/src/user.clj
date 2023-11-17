@@ -26,6 +26,7 @@
    [nos.system :refer [use-nostromo]]
    [clojure.java.io :as io]
    [nosana-node.main :as main]
+   [nosana-node.cli :as cli]
    [nosana-node.pipeline :as pl]
    [nosana-node.nosana :as nos :refer [use-nosana]]
    [nosana-node.solana :as sol])
@@ -41,7 +42,7 @@
    system
    {:http/handler      #'nos-sys/handler
     :system/components [use-vault
-                        main/use-cli
+                        cli/use-cli
                         store/use-fs-store
                         use-nostromo
                         use-nosana
