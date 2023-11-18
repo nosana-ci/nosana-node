@@ -1,6 +1,5 @@
 (ns nosana-node.nosana
-  (:require [integrant.core :as ig]
-            [nos.ops.docker :as docker]
+  (:require [nos.ops.docker :as docker]
             [nos.core :as flow]
             [clojure.edn :as edn]
             [clj-http.client :as http]

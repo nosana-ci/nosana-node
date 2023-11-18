@@ -54,11 +54,16 @@
   (let [{:keys [errors options arguments summary] :as res}
         (cli/parse-opts cli-args cli-options)
 
+        action (first arguments)
+
         state (cond
                 (:help options)
                 {:exit-message (usage summary) :ok? true}
-                :else
-                options)]
+
+                (not (contains? #{"start" "register-test-grid"} action))
+                {:exit-message (str "Unknown action " action) :ok? false}
+
+                 :else options)]
     (cond
       (:exit-message state)
       (do
@@ -78,5 +83,5 @@
         ;; merge CLI over existing config
         (cond->
           (update sys :nos/vault merge state)
-          (= "pipeline" (first arguments))
-          (dissoc :run-server?))))))
+          (= "start" action)
+          (assoc :run-server? true))))))

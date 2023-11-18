@@ -1,7 +1,5 @@
 (ns nosana-node.main
   (:require [nosana-node.nosana :as nosana :refer [use-nosana]]
-            nosana-node.handler
-            nos.ops.git
             [nos.core :as flow]
             [nosana-node.system :refer [start-system use-jetty use-when] :as nos-sys]
             [nosana-node.pipeline :as pipeline]
@@ -11,10 +9,8 @@
             [nos.store :as store]
             [nos.vault :refer [use-vault]]
             [nos.system :refer [use-nostromo]]
-            nos.module.http
             [clojure.java.io :as io]
             [taoensso.timbre :as log]
-            [integrant.core :as ig]
             [clojure.string :as string]
             [nrepl.server :as nrepl-server]
             [cider.nrepl :refer (cider-nrepl-handler)])
@@ -52,7 +48,7 @@
      system
      {:http/handler      #'nos-sys/handler
       :system/components [use-vault
-                          use-cli
+                          cli/use-cli
                           store/use-fs-store
                           (use-when :run-server?
                                     use-nrepl
@@ -63,7 +59,6 @@
                           (use-when #(not (:run-server? %))
                                     use-pipeline)]
       :system/profile    :prod
-      :run-server?       true
       :cli-args          args
       :nos/log-dir       "/tmp/logs"
       :nos/store-path    "/tmp/store"
