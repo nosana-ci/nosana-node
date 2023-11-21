@@ -6,6 +6,10 @@
             [clojure.tools.cli :as cli]))
 
 (defn get-env-fn
+  ([e default parse-fn] (fn [_] (let [env (System/getenv e)]
+                                  (if env
+                                    (parse-fn env)
+                                    default))))
   ([e default] (fn [_] (or (System/getenv e) default)))
   ([e] (fn [_] (System/getenv e))))
 
@@ -27,7 +31,7 @@
       :default-fn (get-env-fn "NOSANA_NFT")
       :id :nft]
      ["-n" "--network NETWORK" "Solana network to run on (mainnet or devnet)"
-      :default-fn (get-env-fn "SOLANA_NETWORK" :devnet)
+      :default-fn (get-env-fn "SOLANA_NETWORK" :mainnet)
       :parse-fn #(keyword %)
       :id :solana-network]
      ["-w" "--wallet PATH" "Path to wallet private key"
