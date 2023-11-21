@@ -154,7 +154,7 @@
   (let [{:keys [errors options arguments summary] :as res}
         (cli/parse-opts cli-args (get-in cli-options [nil :options]) :in-order true)
 
-        action (first arguments)
+        action (or (first arguments) "start")
 
         state (cond
                 (:help options)
