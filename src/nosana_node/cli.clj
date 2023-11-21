@@ -31,7 +31,7 @@
       :default-fn (get-env-fn "NOSANA_NFT")
       :id :nft]
      ["-n" "--network NETWORK" "Solana network to run on (mainnet or devnet)"
-      :default-fn (get-env-fn "SOLANA_NETWORK" :mainnet)
+      :default-fn (get-env-fn "SOLANA_NETWORK" :mainnet #(keyword %))
       :parse-fn #(keyword %)
       :id :solana-network]
      ["-w" "--wallet PATH" "Path to wallet private key"
