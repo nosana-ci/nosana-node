@@ -27,7 +27,7 @@
       :default-fn (get-env-fn "NOSANA_NFT")
       :id :nft]
      ["-n" "--network NETWORK" "Solana network to run on (mainnet or devnet)"
-      :default-fn (get-env-fn "SOLANA_NETWORK")
+      :default-fn (get-env-fn "SOLANA_NETWORK" :devnet)
       :parse-fn #(keyword %)
       :id :solana-network]
      ["-w" "--wallet PATH" "Path to wallet private key"
@@ -195,8 +195,8 @@
               (nth (reverse [:trace :debug :info :warn :error
                              :fatal :report])
                    verbosity)]
-          (log/warn "Log level is " log-level)
-          (log/set-min-level! log-level))
+          (log/set-min-level! log-level)
+          (log/debug "Log level is " log-level))
 
         ;; merge CLI over existing config
         (cond->

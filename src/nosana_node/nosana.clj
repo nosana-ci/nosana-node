@@ -166,11 +166,9 @@
  |_| |_|\\___/|___/\\__,_|_| |_|\\__,_|")
 
 ;;(nos/print-head "v0.3.19" "4HoZogbrDGwK6UsD1eMgkFKTNDyaqcfb2eodLLtS8NTx" "0.084275" "13,260.00")
-(defn print-head [version address network market balance stake nft owned]
+(defn print-head [address network market balance stake nft owned]
   (logg/infof "
 %s
-
-Running Nosana Node %s
 
   Validator  \u001B[34m%s\u001B[0m
   Network    Solana \u001B[34m%s\u001B[0m
@@ -182,7 +180,6 @@ Running Nosana Node %s
   Owned      \u001B[34m%s\u001B[0m NFT
 "
               ascii-logo
-              version
               address
               network
               market
@@ -749,7 +746,6 @@ Running Nosana Node %s
 
     (print-head
      ;; TODO: version from env
-     "v0.3.19"
      (:address conf)
      (:network conf)
      (:market conf)
