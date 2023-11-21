@@ -727,7 +727,9 @@ Running Nosana Node %s
               :else (let [enter-sig (enter-market conf)]
                       (log :info "Entering the queue")
                       (when enter-sig
-                        (<! (sol/await-tx< enter-sig (:network conf))))
+                        (let [tx (<! (sol/await-tx< enter-sig (:network conf)))]
+                          (when (:err (:meta tx))
+                            (log :error "Error: could not enter the market."))))
                       (recur nil last-health-check true)))))))))
 
 (defn use-nosana
