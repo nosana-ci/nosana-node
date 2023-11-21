@@ -166,7 +166,7 @@
  |_| |_|\\___/|___/\\__,_|_| |_|\\__,_|")
 
 ;;(nos/print-head "v0.3.19" "4HoZogbrDGwK6UsD1eMgkFKTNDyaqcfb2eodLLtS8NTx" "0.084275" "13,260.00")
-(defn print-head [version address network market balance stake nft owned allowed-ops]
+(defn print-head [version address network market balance stake nft owned]
   (logg/infof "
 %s
 
@@ -176,11 +176,10 @@ Running Nosana Node %s
   Network    Solana \u001B[34m%s\u001B[0m
   Market     \u001B[34m%s\u001B[0m
   Balance    \u001B[34m%s\u001B[0m SOL
-  Stake      \u001B[34m%s\u001B[0m NOS
+  Tokens     \u001B[34m%s\u001B[0m NOS
   Slashed    \u001B[34m0.00\u001B[0m NOS
   NFT        \u001B[34m%s\u001B[0m
   Owned      \u001B[34m%s\u001B[0m NFT
-  OPS        \u001B[34m%s\u001B[0m
 "
               ascii-logo
               version
@@ -190,8 +189,7 @@ Running Nosana Node %s
               balance
               stake
               nft
-              owned
-              allowed-ops))
+              owned))
 
 (defn make-config
   "Build the node's config to interact with the Nosana Network."
@@ -756,11 +754,10 @@ Running Nosana Node %s
      (-> health :sol)
      (-> health :nos)
      (:nft conf)
-     (-> health :nft)
-     (:allowed-ops conf))
+     (-> health :nft))
 
     (case status
-      :success (println "Node healthy. LFG.")
+      :success nil
       :error   (do
                  (println (str "\u001B[31mNode not healthy:\u001B[0m\n- "
                                (string/join "\n- " msgs)))
@@ -794,18 +791,14 @@ Running Nosana Node %s
     (-> system
         (assoc
          :nos/loop-chan
-         (when (and (:start-job-loop? vault) (= :success status))
-           (work-loop conf (merge  system
-                                   {:nos/exit-chan exit-ch
-                                    :nos/work-loop-chan work-loop-ch
-                                    :nos/poll-delay (:poll-delay-ms vault)})))
+         (when (and (:nos/start-job-loop? system) (= :success status))
+           (<!! (work-loop conf (merge  system
+                                       {:nos/exit-chan exit-ch
+                                        :nos/work-loop-chan work-loop-ch
+                                        :nos/poll-delay (:poll-delay-ms vault)}))))
          :nos/exit-chan exit-ch
          :nos/work-loop-chan work-loop-ch
          :nos/poll-delay (:poll-delay-ms vault)
          :nos/solana-network (:network conf)
          :nos/programs (:programs conf))
         (update :system/stop conj #(put! exit-ch true)))))
-
-(defmethod ig/halt-key! :nos/jobs
-  [_ {:keys [exit-chan]}]
-  (put! exit-chan true))

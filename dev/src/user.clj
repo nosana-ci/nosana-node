@@ -5,19 +5,16 @@
    [clojure.java.io :as io]
    [cheshire.core :as json]
    [nosana-node.secrets :as secrets]
-   nosana-node.handler
    [clojure.pprint :refer [pprint]]
    [taoensso.timbre :as timbre]
    [contajners.core :as c]
    [nos.core :as flow]
-   nos.module.http
    [nos.vault :refer [use-vault]]
    [nosana-node.system :as nos-sys
     :refer [start-system
             use-jetty
             use-wrap-ctx]]
    [nosana-node.util :refer [bytes->hex hex->bytes base58] :as util]
-   nos.ops.git
    [nos.ops.docker :as docker]
    [aero.core :refer (read-config)]
    [konserve.core :as kv]
@@ -37,12 +34,24 @@
 
 (defonce conf nil)
 
+(defn use-config
+  "Add the default `config.edn` file to the system."
+  [{:keys [cli-args nos/vault] :as sys}]
+  (let [config
+        (->
+         (edn/read-string (slurp (str (System/getenv "HOME") "/nosana_config.edn")))
+         (assoc :solana-private-key (slurp (str (System/getenv "HOME") "/nosana_key.json"))))]
+    (->
+     (update sys :nos/vault merge config)
+     (assoc :run-server? true
+            :nos/start-job-loop? true))))
+
 (defn go []
   (start-system
    system
    {:http/handler      #'nos-sys/handler
     :system/components [use-vault
-                        cli/use-cli
+                        use-config
                         store/use-fs-store
                         use-nostromo
                         use-nosana

@@ -66,7 +66,10 @@
    :headers {"Content-Type" "text/plain"}
    :body "Not found"})
 
-(defn get-op-log [store uri http-headers solana-network nos-programs]
+(defn get-op-log
+  "Handler for getting the logs of an op in a flow.
+  The flow ID and op ID are encoded in the `uri`."
+  [store uri http-headers solana-network nos-programs]
   (let [auth-header (get http-headers "authorization")
 
         [[_ flow-id op-id-raw] :as boo]
@@ -116,12 +119,17 @@
                        :headers {"Content-Type" "text/html"}
                        :body    "Not found"}))
 
-(defn use-wrap-ctx [{:keys [http/handler] :as ctx}]
+(defn use-wrap-ctx
+  "Middleware that injects the system map into the request after
+  removing `:nos:vault`"
+  [{:keys [http/handler] :as ctx}]
   (assoc ctx :http/handler (fn [req]
                              (handler (merge (dissoc ctx :nos/vault) req)))))
 
 
-(defn use-jetty [{:keys [http/handler] :as system}]
+(defn use-jetty
+  "Component that starts a HTTP server with `handler`."
+  [{:keys [http/handler] :as system}]
   (let [port (get-in system [:nos/vault :port])
         server (jetty/run-jetty (wrap-all-cors handler)
                                 {:host "0.0.0.0"

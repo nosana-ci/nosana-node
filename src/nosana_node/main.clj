@@ -1,20 +1,29 @@
 (ns nosana-node.main
-  (:require [nosana-node.nosana :as nosana :refer [use-nosana]]
-            [nos.core :as flow]
-            [nosana-node.system :refer [start-system use-jetty use-when] :as nos-sys]
-            [nosana-node.pipeline :as pipeline]
-            [nosana-node.cli :as cli]
-            nosana-node.gitlab
-            nos.ops.docker
-            [nos.store :as store]
-            [nos.vault :refer [use-vault]]
-            [nos.system :refer [use-nostromo]]
-            [clojure.java.io :as io]
-            [taoensso.timbre :as log]
-            [clojure.string :as string]
-            [nrepl.server :as nrepl-server]
-            [cider.nrepl :refer (cider-nrepl-handler)])
+  (:require
+   [taoensso.timbre :as log])
   (:gen-class))
+
+;; first set the logging level so we can suprress debug logs generated
+;; by importing org.eclipse.jetty.util.log
+(log/set-min-level! :warn)
+
+(ns nosana-node.main
+  (:require
+   [nosana-node.nosana :as nosana :refer [use-nosana]]
+   [nos.core :as flow]
+   [nosana-node.system :refer [start-system use-when] :as nos-sys]
+   [nosana-node.pipeline :as pipeline]
+   [nosana-node.cli :as cli]
+   nosana-node.gitlab
+   nos.ops.docker
+   [nos.store :as store]
+   [nos.vault :refer [use-vault]]
+   [nos.system :refer [use-nostromo]]
+   [clojure.java.io :as io]
+
+   [clojure.string :as string]
+   [nrepl.server :as nrepl-server]
+   [cider.nrepl :refer (cider-nrepl-handler)]))
 
 (defonce system (atom nil))
 
@@ -51,11 +60,11 @@
                           cli/use-cli
                           store/use-fs-store
                           (use-when :run-server?
-                                    use-nrepl
+                                    ;; use-nrepl
                                     use-nostromo
                                     use-nosana
                                     nos-sys/use-wrap-ctx
-                                    use-jetty)
+                                    )
                           (use-when #(not (:run-server? %))
                                     use-pipeline)]
       :system/profile    :prod
@@ -63,6 +72,7 @@
       :nos/log-dir       "/tmp/logs"
       :nos/store-path    "/tmp/store"
       :nos/vault-path    (io/resource "config.edn")})
+
     (catch Exception e
       (do
         (log/log :trace e)
