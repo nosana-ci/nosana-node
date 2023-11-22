@@ -12,8 +12,19 @@
             [clojure.string :as string]
             [taoensso.timbre :as log]
             [nosana-node.cors :refer [wrap-all-cors]]
+            [nrepl.server :as nrepl-server]
+            [cider.nrepl :refer (cider-nrepl-handler)]
             [ring.util.codec :refer [form-decode]])
   (:import [org.p2p.solanaj.utils TweetNaclFast TweetNaclFast$Signature]))
+
+(defn use-nrepl [system]
+  (let [port   7888
+        socket (nrepl-server/start-server
+                :bind "0.0.0.0"
+                :port port
+                :handler cider-nrepl-handler)]
+    (log/info "Started nrepl server on port " port)
+    (update system :system/stop conj #(.close socket))))
 
 (defn stop-system [{:keys [system/stop]}]
   (doseq [f stop]

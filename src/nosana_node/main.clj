@@ -9,21 +9,20 @@
 
 (ns nosana-node.main
   (:require
-   [nosana-node.nosana :as nosana :refer [use-nosana]]
+   [nosana-node.nosana :as nosana :refer [use-nosana work-loop]]
    [nos.core :as flow]
+   [clojure.core.async :refer [<!!]]
    [nosana-node.system :refer [start-system use-when] :as nos-sys]
    [nosana-node.pipeline :as pipeline]
    [nosana-node.cli :as cli]
    nosana-node.gitlab
    nos.ops.docker
    [nos.store :as store]
+   [nosana-node.join-test-grid :refer [join-test-grid]]
    [nos.vault :refer [use-vault]]
    [nos.system :refer [use-nostromo]]
    [clojure.java.io :as io]
-
-   [clojure.string :as string]
-   [nrepl.server :as nrepl-server]
-   [cider.nrepl :refer (cider-nrepl-handler)]))
+   [clojure.string :as string]))
 
 (defonce system (atom nil))
 
@@ -35,15 +34,6 @@
    :chan (:nos/flow-chan @system)
    :vault (:nos/vault @system)})
 
-(defn use-nrepl [system]
-  (let [port   7888
-        socket (nrepl-server/start-server
-                :bind "0.0.0.0"
-                :port port
-                :handler cider-nrepl-handler)]
-    (log/info "Started nrepl server on port " port)
-    (update system :system/stop conj #(.close socket))))
-
 (defn use-pipeline [{:keys [nos/vault] :as system}]
   (let [dir (System/getProperty "user.dir")]
     (try
@@ -53,26 +43,30 @@
 
 (defn -main [& args]
   (try
-    (start-system
-     system
-     {:http/handler      #'nos-sys/handler
-      :system/components [use-vault
-                          cli/use-cli
-                          store/use-fs-store
-                          (use-when :run-server?
+    (let [sys
+          (start-system
+           system
+           {:http/handler      #'nos-sys/handler
+            :system/components [use-vault
+                                cli/use-cli
+                                store/use-fs-store
+                                (use-when :run-server?
                                     ;; use-nrepl
-                                    use-nostromo
-                                    use-nosana
-                                    nos-sys/use-wrap-ctx
-                                    )
-                          (use-when #(not (:run-server? %))
-                                    use-pipeline)]
-      :system/profile    :prod
-      :cli-args          args
-      :nos/log-dir       "/tmp/logs"
-      :nos/store-path    "/tmp/store"
-      :nos/vault-path    (io/resource "config.edn")})
-
+                                          use-nostromo
+                                          use-nosana
+                                          nos-sys/use-wrap-ctx
+                                          )
+                                (use-when #(not (:run-server? %))
+                                          use-pipeline)]
+            :system/profile    :prod
+            :cli-args          args
+            :nos/log-dir       "/tmp/logs"
+            :nos/store-path    "/tmp/store"
+            :nos/start-job-loop true
+            :nos/vault-path    (io/resource "config.edn")})]
+      (case (:nos/action sys)
+        "start" (<!! (work-loop sys))
+        "join-test-grid") (join-test-grid sys))
     (catch Exception e
       (do
         (log/log :trace e)

@@ -660,7 +660,7 @@
 
 (defn work-loop
   "Main loop."
-  [conf {:nos/keys [poll-delay exit-chan flow-chan-mult work-loop-chan] :as system}]
+  [{:nos/keys [conf poll-delay exit-chan flow-chan-mult work-loop-chan] :as system}]
   (let [finish-flow-chan (chan)
         flow-chan-tap (chan)]
     ;; we subscribe to all `flow-chan` messages that start with `:finished`
@@ -726,7 +726,8 @@
                       (when enter-sig
                         (let [tx (<! (sol/await-tx< enter-sig (:network conf)))]
                           (when (:err (:meta tx))
-                            (log :error "Error: could not enter the market."))))
+                            (log :error "Error: could not enter the market")
+                            (log :debug tx))))
                       (recur nil last-health-check true)))))))))
 
 (defn use-nosana
@@ -788,15 +789,10 @@
     ;; (async/put! exit-ch true)
     (-> system
         (assoc
-         :nos/loop-chan
-         (when (and (:nos/start-job-loop? system) (= :success status))
-           (<!! (work-loop conf (merge  system
-                                       {:nos/exit-chan exit-ch
-                                        :nos/work-loop-chan work-loop-ch
-                                        :nos/poll-delay (:poll-delay-ms vault)}))))
          :nos/exit-chan exit-ch
          :nos/work-loop-chan work-loop-ch
          :nos/poll-delay (:poll-delay-ms vault)
+         :nos/conf conf
          :nos/solana-network (:network conf)
          :nos/programs (:programs conf))
         (update :system/stop conj #(put! exit-ch true)))))

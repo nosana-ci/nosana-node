@@ -170,7 +170,7 @@
                 (not (contains? cli-actions action))
                 {:exit-message (str "Unknown action " action) :ok? false}
 
-                ;; parse the arguments for this action
+                ;; parse the inner options passed this the action
                 :else
                 (let [{a-summary :summary a-errors :errors a-args :arguments a-options :options}
                       (cli/parse-opts (rest arguments) (get-in cli-options [action :options]))]
@@ -204,7 +204,10 @@
 
         ;; merge CLI over existing config
         (cond->
-          (update sys :nos/vault merge state)
+         (-> sys
+             (assoc :nos/action action)
+             (update :nos/vault merge state))
           (= "start" action)
-          (assoc :run-server? true
-                 :nos/start-job-loop? true))))))
+          (assoc :run-server? true)
+          (not= "start" action)
+          (:nos/start-job-loop? false))))))

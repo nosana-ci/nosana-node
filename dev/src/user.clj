@@ -13,7 +13,8 @@
    [nosana-node.system :as nos-sys
     :refer [start-system
             use-jetty
-            use-wrap-ctx]]
+            use-wrap-ctx
+            use-nrepl]]
    [nosana-node.util :refer [bytes->hex hex->bytes base58] :as util]
    [nos.ops.docker :as docker]
    [aero.core :refer (read-config)]
@@ -22,7 +23,6 @@
    [nos.store :as store]
    [nos.system :refer [use-nostromo]]
    [clojure.java.io :as io]
-   [nosana-node.main :as main]
    [nosana-node.cli :as cli]
    [nosana-node.pipeline :as pl]
    [nosana-node.nosana :as nos :refer [use-nosana]]
@@ -44,15 +44,17 @@
     (->
      (update sys :nos/vault merge config)
      (assoc :run-server? true
-            :nos/start-job-loop? true))))
+            :nos/start-job-loop? false))))
 
 (defn go []
+  (taoensso.timbre/set-min-level! :info)
   (start-system
    system
    {:http/handler      #'nos-sys/handler
     :system/components [use-vault
                         use-config
                         store/use-fs-store
+                        use-nrepl
                         use-nostromo
                         use-nosana
                         use-wrap-ctx
