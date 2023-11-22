@@ -67,8 +67,9 @@
    {:options
     [["-p" "--port PORT" "HTTP port"
       :default-desc "3000"
-      :default-fn (get-env-fn "PORT" 3000)
+      :default-fn (get-env-fn "PORT" 3000 #(Integer/parseInt %))
       :parse-fn #(Integer/parseInt %)
+      :id :port
       :validate [#(< 0 % 0x10000) "Must be a number between 0 and 65536"]]
      [nil "--market ADDR" "Solana address of the market the node will join."
       :default-desc ""
