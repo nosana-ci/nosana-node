@@ -12,7 +12,7 @@
    [nosana-node.nosana :as nosana :refer [use-nosana work-loop]]
    [nos.core :as flow]
    [clojure.core.async :refer [<!!]]
-   [nosana-node.system :refer [start-system use-when] :as nos-sys]
+   [nosana-node.system :refer [start-system use-when use-jetty] :as nos-sys]
    [nosana-node.pipeline :as pipeline]
    [nosana-node.cli :as cli]
    nosana-node.gitlab
@@ -51,6 +51,8 @@
                                 cli/use-cli
                                 store/use-fs-store
                                  ;; use-nrepl
+                                 (use-when :run-server?
+                                           use-jetty)
                                  use-nostromo
                                  use-nosana
                                  nos-sys/use-wrap-ctx]
@@ -61,6 +63,7 @@
             :nos/store-path     "/tmp/store"
             :nos/start-job-loop true
             :nos/vault-path     (io/resource "config.edn")})]
+      ;; :nos/action is the CLI action invoked, as parsed by `use-cli`
       (case (:nos/action sys)
         "start" (<!! (work-loop sys))
         "join-test-grid" (<!! (join-test-grid sys))))

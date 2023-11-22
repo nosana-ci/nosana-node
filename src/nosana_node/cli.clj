@@ -154,8 +154,11 @@
 (defn use-cli
   "Parse CLI arguments using `tools.cli` and add to system map.
 
-  The `:id` and value of each attribute is merged into the `:nos/vault`
-  map in the system."
+  The `:id` and value of each config attribute is merged into the `:nos/vault`
+  map in the system.
+
+  `:nos/action` is added to the global system which is the command
+  used."
   [{:keys [cli-args nos/vault] :as sys}]
   (let [{:keys [errors options arguments summary] :as res}
         (cli/parse-opts cli-args (get-in cli-options [nil :options]) :in-order true)
