@@ -34,7 +34,7 @@
       :default-fn (get-env-fn "SOLANA_NETWORK" :mainnet #(keyword %))
       :parse-fn #(keyword %)
       :id :solana-network]
-     ["-w" "--wallet PATH" "Path to wallet private key"
+     ["-k" "--keypair PATH" "Path to wallet private key"
       :default-fn (fn [_]
                     (or (System/getenv "SOLANA_PRIVATE_KEY")
                         (slurp (str (System/getenv "HOME") "/nosana_key.json"))))
