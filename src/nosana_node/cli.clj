@@ -151,6 +151,15 @@
   (cond
     ))
 
+(defn use-set-log-level [{:nos/keys [vault] :as sys}]
+  (let [log-level
+        (nth (reverse [:trace :debug :info :warn :error
+                       :fatal :report])
+             (:verbosity vault))]
+    (log/set-min-level! log-level)
+    (log/debug "Log level is " log-level))
+  sys)
+
 (defn use-cli
   "Parse CLI arguments using `tools.cli` and add to system map.
 
@@ -196,16 +205,7 @@
 
       :else
       (do
-        ;; set logging level
-        (let [{:keys [verbosity]} options
 
-              log-level
-              (nth (reverse [:trace :debug :info :warn :error
-                             :fatal :report])
-                   verbosity)]
-
-          (log/set-min-level! log-level)
-          (log/debug "Log level is " log-level))
 
         ;; merge CLI over existing config
         (cond->

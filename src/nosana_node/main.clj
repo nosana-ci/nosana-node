@@ -9,10 +9,11 @@
 
 (ns nosana-node.main
   (:require
-   [nosana-node.nosana :as nosana :refer [use-nosana work-loop]]
+   [nosana-node.nosana :as nosana :refer [use-nosana work-loop
+                                          use-create-ata-and-stake]]
    [nos.core :as flow]
    [clojure.core.async :refer [<!!]]
-   [nosana-node.system :refer [start-system use-when use-jetty] :as nos-sys]
+   [nosana-node.system :refer [start-system use-when use-jetty use-nrepl] :as nos-sys]
    [nosana-node.pipeline :as pipeline]
    [nosana-node.cli :as cli]
    nosana-node.gitlab
@@ -50,11 +51,18 @@
             :system/components  [use-vault
                                 cli/use-cli
                                 store/use-fs-store
-                                 ;; use-nrepl
+                                 ;; nrepl is useful for debugging,
+                                 ;; make config later
+                                 (use-when (constantly false)
+                                           use-nrepl)
                                  (use-when :run-server?
                                            use-jetty)
+                                 ;; we change the log level after
+                                 ;; jetty, as it prints a lot of INFO
+                                 cli/use-set-log-level
                                  use-nostromo
                                  use-nosana
+                                 use-create-ata-and-stake
                                  nos-sys/use-wrap-ctx]
             :system/profile     :prod
             :cli-args           args
@@ -70,4 +78,5 @@
     (catch Exception e
       (do
         (log/log :trace e)
-        (println (ex-message e))))))
+        (println (ex-message e))
+        (System/exit 1)))))

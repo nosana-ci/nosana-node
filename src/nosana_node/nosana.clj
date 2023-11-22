@@ -113,7 +113,8 @@
                "0")))})
 
 (def min-sol-balance
-  "Minimum Solana balance to be healthy" (sol/format-sol "10000000"))
+  "Minimum Solana balance to be healthy"
+  (sol/format-sol "10000000"))
 
 (defn healthy
   "Check if the current node is healthy."
@@ -740,7 +741,21 @@
                             (log :debug tx))))
                       (recur nil last-health-check true)))))))))
 
+(defn use-create-ata-and-stake
+  "Component that creates the NOS ATA and stake account if they don't
+  exist yet."
+  [{:nos/keys [conf] :as sys}]
+  (let [ata (:nos-ata conf)
+        stake (get-in conf [:accounts "stake"])]
+    ;; TODO: use `sol/get-account-data` on ata and stake. if it
+    ;; returns `nil` the account does not exist
+
+    ;; TODO: create method for opening a stake and opening an ata
+
+    sys))
+
 (defn use-nosana
+  "Component that loads the Nosana config."
   [{:nos/keys [store flow-chan vault] :as system}]
   ;; Wait a bit for podman to boot
   (log :trace "Waiting 5s for podman")
