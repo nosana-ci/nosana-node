@@ -72,7 +72,7 @@
       :validate [#(< 0 % 0x10000) "Must be a number between 0 and 65536"]]
      [nil "--market ADDR" "Solana address of the market the node will join."
       :default-desc ""
-      :default-fn (get-env-fn "MARKET")
+      :default-fn (get-env-fn "NOSANA_MARKET")
       :id :nosana-market]
      [nil "--poll-frequency MS" "How often to poll the blockchain in milliseconds."
       :parse-fn #(Integer/parseInt %)
