@@ -38,6 +38,7 @@
             {:error "Could not find a Test Grid slot, please try again later." :ok? true}))))))
 
 (defn print-results [sig run-addr flow]
+  ;; TODO: print which GPU was detected, formatting
   (println "Benchmark finished.")
   (println "Receipt" sig "\n")
   (println "---\n")
