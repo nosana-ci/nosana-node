@@ -46,27 +46,24 @@
     (let [sys
           (start-system
            system
-           {:http/handler      #'nos-sys/handler
-            :system/components [use-vault
+           {:http/handler       #'nos-sys/handler
+            :system/components  [use-vault
                                 cli/use-cli
                                 store/use-fs-store
-                                (use-when :run-server?
-                                    ;; use-nrepl
-                                          use-nostromo
-                                          use-nosana
-                                          nos-sys/use-wrap-ctx
-                                          )
-                                (use-when #(not (:run-server? %))
-                                          use-pipeline)]
-            :system/profile    :prod
-            :cli-args          args
-            :nos/log-dir       "/tmp/logs"
-            :nos/store-path    "/tmp/store"
+                                 ;; use-nrepl
+                                 use-nostromo
+                                 use-nosana
+                                 nos-sys/use-wrap-ctx]
+            :system/profile     :prod
+            :cli-args           args
+            :run-server?        true
+            :nos/log-dir        "/tmp/logs"
+            :nos/store-path     "/tmp/store"
             :nos/start-job-loop true
-            :nos/vault-path    (io/resource "config.edn")})]
+            :nos/vault-path     (io/resource "config.edn")})]
       (case (:nos/action sys)
         "start" (<!! (work-loop sys))
-        "join-test-grid") (join-test-grid sys))
+        "join-test-grid" (<!! (join-test-grid sys))))
     (catch Exception e
       (do
         (log/log :trace e)

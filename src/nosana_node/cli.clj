@@ -94,7 +94,11 @@
 
    "join-test-grid"
    {:options
-    [["-h" "--help"]]
+    [[nil "--market ADDR" "Solana address of the Test Grid market."
+      :default-desc ""
+      :default "2kNSniTBsLCioSr4dgdZh6S1JKQc8cZQvxrPWkEn1ERj"
+      :id :nosana-market]
+     ["-h" "--help"]]
 
     :usage
     (fn [options-summary]
@@ -136,10 +140,9 @@
   []
   (reduce
    (fn [conf-map [conf-key env-var]]
-     (let [env-val (System/getenv env-var)]
-       (if env-val
-         (assoc conf-map conf-key env-val)
-         conf-map)))
+     (if-let [env-val (System/getenv env-var)]
+       (assoc conf-map conf-key env-val)
+       conf-map))
    {}
    env-config))
 
@@ -147,8 +150,6 @@
   [action options]
   (cond
     ))
-
-
 
 (defn use-cli
   "Parse CLI arguments using `tools.cli` and add to system map.
@@ -171,7 +172,7 @@
                 (not (contains? cli-actions action))
                 {:exit-message (str "Unknown action " action) :ok? false}
 
-                ;; parse the inner options passed this the action
+                ;; parse the inner options passed to this action
                 :else
                 (let [{a-summary :summary a-errors :errors a-args :arguments a-options :options}
                       (cli/parse-opts (rest arguments) (get-in cli-options [action :options]))]
@@ -184,7 +185,6 @@
 
                     :else
                     (merge options a-options))))]
-
     (cond
       (:exit-message state)
       (do
@@ -200,6 +200,7 @@
               (nth (reverse [:trace :debug :info :warn :error
                              :fatal :report])
                    verbosity)]
+
           (log/set-min-level! log-level)
           (log/debug "Log level is " log-level))
 
@@ -207,8 +208,4 @@
         (cond->
          (-> sys
              (assoc :nos/action action)
-             (update :nos/vault merge state))
-          (= "start" action)
-          (assoc :run-server? true)
-          (not= "start" action)
-          (:nos/start-job-loop? false))))))
+             (update :nos/vault merge state)))))))

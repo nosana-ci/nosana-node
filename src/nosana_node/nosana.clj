@@ -521,7 +521,7 @@
                                   result-ipfs)
           tx          (<! (sol/await-tx< sig (:network conf)))]
       (log :info "Job results posted " result-ipfs sig)
-      nil)))
+      sig)))
 
 (defn process-flow!
   "Check the state of a flow and finalize its job if finished.
@@ -539,7 +539,8 @@
             ;; TODO: consider moving garbage-collecting to an op in
             ;; the flow
             (docker/gc-volumes! flow {:uri (:podman-conn-uri vault)})
-            (<! (finish-flow-2 flow conf)))
+            (<! (finish-flow-2 flow conf))
+            nil)
           (flow-expired? flow)
           (do
             (log :info "Flow has expired at " (:expired flow))
@@ -644,8 +645,8 @@
   (> (- (flow/current-time) timestamp) (* 60 15)))
 
 (defn find-next-run
-  "Find all assigned runs and return the first assigned to our
-  market. Returns a tuple of [run-address run-data]."
+  "Find the first run assigned to us in the configure market.
+  Returns a tuple of [run-address run-data]."
   [conf]
   (let [runs (find-my-runs conf)]
     (loop [[[run-addr run] & rst] runs]
@@ -657,6 +658,15 @@
           (if (and job (.equals (:market job) (:market conf)))
             [run-addr run]
             (recur rst)))))))
+
+(defn subscribe-to-finished-flows
+  "Return a chan that publishes messages of finished flows."
+  [{:nos/keys [flow-chan-mult]}]
+  (let [finish-flow-chan (chan)
+        flow-chan-tap (chan)]
+    (async/tap flow-chan-mult flow-chan-tap)
+    (async/sub (async/pub flow-chan-tap first) :finished finish-flow-chan)
+    finish-flow-chan))
 
 (defn work-loop
   "Main loop."
