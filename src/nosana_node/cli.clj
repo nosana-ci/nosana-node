@@ -78,7 +78,7 @@
      [nil "--poll-frequency MS" "How often to poll the blockchain in milliseconds."
       :parse-fn #(Integer/parseInt %)
       :default-desc "5000"
-      :default-fn (get-env-fn "NOSANA_POLL_DELAY_MS" 5000)
+      :default-fn (get-env-fn "NOSANA_POLL_DELAY_MS" 5000 #(Integer/parseInt %))
       :validate [#(< 3000 % 60000) "Must be a number between 3000 and 60000"]
       :id :poll-delay-ms]
       ["-h" "--help"]]
