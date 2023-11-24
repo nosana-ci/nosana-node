@@ -401,6 +401,29 @@
                 (.addInstruction txi))]
       tx)))
 
+(defn make-ata-tx [accounts]
+  (let [ins-accounts [{:name "authority" :isSigner true :isMut true}
+                      {:name "user" :isSigner false :isMut true}
+                      {:name "authority" :isSigner false :isMut false}
+                      {:name "mint" :isSigner false :isMut false}
+                      {:name "systemProgram" :isSigner false :isMut false}
+                      {:name "tokenProgram" :isSigner false :isMut false}]
+        ins-keys      (java.util.ArrayList.)
+        ins-data      (byte-array 1)]
+    ;; build up the instructions ArrayList with the accounts
+    (doseq [{:keys [name isMut isSigner]} ins-accounts]
+      (when (not (contains? accounts name))
+        (throw (ex-info "Missing required account for instruction" {:missing name})))
+      (.add ins-keys (AccountMeta. (get accounts name) isSigner isMut)))
+
+    ;; ata needs [1] as data
+    (write-type ins-data 0 "u8" 1 nil)
+
+    (let [txi (TransactionInstruction. (:associated-token addresses) ins-keys ins-data)
+          tx  (doto (Transaction.)
+                (.addInstruction txi))]
+      tx)))
+
 ;; (let [data (byte-array 30)] (sol/write-type data  0  {:array ["u8" 30]}  (range 30) {}) data)
 ;; (def tx (nos/build-idl-tx :job "work" [] conf {"job" (.getPublicKey (:dummy-signer conf))}))
 ;; (def tx (nos/build-idl-tx :job "list" [(range 32)] conf {"job" (.getPublicKey (:dummy-signer conf))}))
