@@ -180,7 +180,9 @@
     (= type "i64")       8
     (= type "u32")       4
     (= type "u8")        1
+    (= type "u16")       2
     (= type "publicKey") 32
+    (= type "string")    4
 
     ;; array is fixed length
     (:array type)
@@ -231,8 +233,6 @@
                         (map (fn [[idx pk]] [idx (.toString pk)]))
                         (filter #(= (second %) (.toString collection)))
                         first)]
-    (prn "==> " addr)
-    (prn "**>" (-> tokens (nth idx) :account :data :parsed :info :mint PublicKey.))
     (when idx
       (-> tokens (nth idx) :account :data :parsed :info :mint PublicKey.))))
 
@@ -379,8 +379,7 @@
         ins-keys      (java.util.ArrayList.)
         args-size     (reduce #(+ %1 (idl-type->size (:type %2) idl)) 0 (:args ins))
         ins-data      (byte-array (+ 8 args-size))]
-
-    ;; build up the instructions ArrayList
+    ;; build up the instructions ArrayList with the accounts
     (doseq [{:keys [name isMut isSigner]} (:accounts ins)]
       (when (not (contains? accounts name))
         (throw (ex-info "Missing required account for instruction" {:missing name})))
@@ -389,12 +388,17 @@
 
     ;; in anchor the instruction data always starts with 8 bytes id
     (System/arraycopy discriminator 0 ins-data 0 8)
-    (doseq [[arg-value {:keys [name type]}] (zipmap args (:args ins))]
-      (write-type ins-data 8 type arg-value idl))
+    (loop [ofs 8
+           args (zipmap args (:args ins))]
+      (when (not-empty args)
+        (let [[arg-value {:keys [name type]}] (first args)]
+          (write-type ins-data ofs type arg-value idl)
+          (recur (+ ofs (idl-type->size type idl)) (rest args)))))
 
+    ;; add instruction arguments
     (let [txi (TransactionInstruction. program-id ins-keys ins-data)
-        tx  (doto (Transaction.)
-              (.addInstruction txi))]
+          tx  (doto (Transaction.)
+                (.addInstruction txi))]
       tx)))
 
 ;; (let [data (byte-array 30)] (sol/write-type data  0  {:array ["u8" 30]}  (range 30) {}) data)
