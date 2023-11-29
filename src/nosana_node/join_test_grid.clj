@@ -44,7 +44,7 @@
   (println "---\n")
   
   (if (= (:status flow) :failed)
-    (println (str "Job failed: https://explorer.nosana.io/jobs/"(.toString run-addr)"?network=devnet"))
+    (println (str "Could not detect NVIDIA Video Card: https://explorer.nosana.io/jobs/"(.toString run-addr)"?network=devnet"))
     ((println (str "Job Succeeded: https://explorer.nosana.io/jobs/"(.toString run-addr)"?network=devnet"))
      (println "Test Grid Registration code: " (.toString run-addr)))
     )
