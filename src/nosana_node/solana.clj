@@ -581,3 +581,21 @@
 
 ;; (def tx (nos/build-idl-tx :job "work" conf {"job" (.getPublicKey (:dummy-signer conf))}))
 ;; (sol/send-tx tx [(:signer conf) (:dummy-signer conf)] :devnet)
+
+
+;; KEY PAIR GENERATION AND SAVING
+(comment
+  ;; generate keypair
+  (def kp (TweetNaclFast$Signature/keyPair))
+
+  ;; make Solana address
+  (util/base58 (.getPublicKey kp))
+
+  ;; generate new keypair and save private key file
+  (->>
+   (TweetNaclFast$Signature/keyPair)  ; this generates a new random key pair
+   .getSecretKey                      ; get the private key as byte array
+   (map #(bit-and % 0xff))            ; in java, bytes shown as signed ints. this converts the bytes to unsigned
+   json/encode                        ; confert the int array to a JSON string
+   (spit "/tmp/pk.json")              ; save it to a file
+   ))
