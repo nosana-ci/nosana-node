@@ -74,7 +74,8 @@
       ;; :nos/action is the CLI action invoked, as parsed by `use-cli`
       (case (:nos/action sys)
         "start" (<!! (work-loop sys))
-        "join-test-grid" (<!! (join-test-grid sys))))
+        "join-test-grid" (<!! (join-test-grid sys)))
+      (System/exit 0))
     (catch Exception e
       (do
         (log/log :trace e)
