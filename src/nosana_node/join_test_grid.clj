@@ -88,5 +88,4 @@
               (do
                 (println (:error result))
                 (System/exit 1))
-              ((print-results (:sig result) (-> run second :job) (:flow result))
-               (System/exit 0)))))))))
+              (print-results (:sig result) (-> run second :job) (:flow result)))))))))
