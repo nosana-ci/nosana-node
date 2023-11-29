@@ -776,16 +776,17 @@
   "Component that creates the NOS ATA and stake account if they don't
   exist yet."
   [{:nos/keys [conf] :as sys}]
-  (when (not (sol/get-account-data (:nos-ata sys) (:network sys)))
+  (when (not (sol/get-account-data (:nos-ata conf) (:network conf)))
     (try
-      (create-nos-ata sys)
+      (create-nos-ata conf)
       (catch Exception e
+        (log :debug e)
         (throw (ex-info "Could not create NOS ATA" {}))
         nil)))
-  (when (not (sol/get-account-data (sol/get-nos-stake-pda (:address sys)) (:network sys)))
+  (when (not (sol/get-account-data (sol/get-nos-stake-pda (:address conf)) (:network conf)))
       ;; create stake with 0 NOS and 364 days duration
      (try
-        (open-stake sys 0 (* 24 60 60 364))
+        (open-stake conf 0 (* 24 60 60 364))
         (catch Exception e
           (throw (ex-info "Could not create stake" {}))
           nil))
