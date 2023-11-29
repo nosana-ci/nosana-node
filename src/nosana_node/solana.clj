@@ -5,7 +5,8 @@
             [clojure.core.async :as async :refer [<!! <! >!! put! go go-loop >! timeout take! chan]]
             [cheshire.core :as json]
             [clj-http.client :as http]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [taoensso.timbre :as log])
   (:import
    [org.p2p.solanaj.utils ByteUtils]
    [org.p2p.solanaj.rpc RpcClient Cluster]
@@ -116,7 +117,20 @@
           (recur rst)
           (->> head (conj rst) (take 32) reverse byte-array  public-key))))))
 
-
+(defn create-private-key
+  "Save new keypair as JSON at `file-name`, returns public key."
+  [file-name]
+  (let [keypair (TweetNaclFast$Signature/keyPair)
+        ;; convert private key to a unsigned int array format
+        private-key (json/encode (map #(bit-and % 0xff) (.getSecretKey keypair)))
+        public-key (util/base58 (.getPublicKey keypair))]
+    (if (.exists (io/as-file file-name))
+      (log :error "KeyPair already exists at " file-name)
+      (do
+        (io/make-parents file-name)
+        (spit file-name private-key)
+        (log :debug "Created Solana Key Pair at " file-name public-key)
+        public-key))))
 
 (defn create-pub-key-from-seed
   "Derive a public key from another key, a seed, and a program ID.

@@ -42,7 +42,13 @@
   (println "Benchmark finished.")
   (println "Receipt" sig "\n")
   (println "---\n")
-  (println "Test Grid Registration code: " run-addr))
+  
+  (if (= (:status flow) :failed)
+    (println (str "Could not detect NVIDIA Video Card: https://explorer.nosana.io/jobs/"(.toString run-addr)"?network=devnet"))
+    ((println (str "Job Succeeded: https://explorer.nosana.io/jobs/"(.toString run-addr)"?network=devnet"))
+     (println "Test Grid Registration code: " (.toString run-addr)))
+    )
+  )
 
 (defn join-test-grid
   "Handle the `join-test-grid` command."
@@ -78,11 +84,10 @@
                    {:sig (<! (nos/finish-flow-2 flow conf))
                     :flow flow})
 
-                  ;; TODO: does this timeout make sense?
-                  (timeout 5000)
+                  (timeout 300000)
                   {:error "Error: timed out while waiting for benchmark results."})]
             (if (:error result)
               (do
                 (println (:error result))
                 (System/exit 1))
-              (print-results (:sig result) (first run) (:flow result)))))))))
+              (print-results (:sig result) (-> run second :job) (:flow result)))))))))
