@@ -25,6 +25,7 @@
 
 (def addresses
   {:token             (PublicKey. "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+   :associated-token  (PublicKey. "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
    :system            (PublicKey. "11111111111111111111111111111111")
    :rent              (PublicKey. "SysvarRent111111111111111111111111111111111")
    :clock             (PublicKey. "SysvarC1ock11111111111111111111111111111111")
@@ -249,10 +250,11 @@
 (defn get-nos-stake-pda
   "Find the PDA of a stake for an account."
   [addr]
-  (PublicKey/findProgramAddress [(.getBytes "stake")
+  (.getAddress
+   (PublicKey/findProgramAddress [(.getBytes "stake")
                                  (.toByteArray nos-addr)
                                  (.toByteArray addr)]
-                                nos-stake))
+                                nos-stake)))
 
 (defn get-ata
   "Find the Associated Token Account for an address and mint."
