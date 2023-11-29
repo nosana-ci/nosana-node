@@ -49,8 +49,9 @@
            system
            {:http/handler       #'nos-sys/handler
             :system/components  [use-vault
-                                cli/use-cli
-                                store/use-fs-store
+                                 cli/use-cli
+                                 nosana/use-fund-sol-wallet
+                                 store/use-fs-store
                                  ;; nrepl is useful for debugging,
                                  ;; make config later
                                  (use-when (constantly false)

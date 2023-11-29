@@ -792,6 +792,10 @@
         nil)))
   sys)
 
+(defn use-fund-sol-wallet [{:nos/keys [conf] :as sys}]
+
+  sys)
+
 (defn use-nosana
   "Component that loads the Nosana config."
   [{:nos/keys [store flow-chan vault] :as system}]

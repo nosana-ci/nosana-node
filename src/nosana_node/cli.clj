@@ -1,5 +1,6 @@
  (ns nosana-node.cli
   (:require [taoensso.timbre :as log]
+            [nosana-node.solana :as sol]
             [clojure.string :as string]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
@@ -36,9 +37,14 @@
       :id :solana-network]
      ["-k" "--keypair PATH" "Path to wallet private key"
       :default-fn (fn [_]
-                    (or (System/getenv "SOLANA_PRIVATE_KEY")
-                        (slurp (str (System/getenv "HOME") "/nosana_key.json"))))
-      :default-desc "~/nosana_key.json"
+                    (let [default-key-file-name (str (System/getenv "HOME") "/.nosana/nosana_key.json")]
+                      (or (System/getenv "SOLANA_PRIVATE_KEY")
+                          (do
+                            (when (not (.exists (io/as-file default-key-file-name)))
+                              (let [public-key (sol/create-private-key default-key-file-name)]
+                                (println "Created SOL Keypair at: \u001B[34m" default-key-file-name "\u001B[0m")))
+                            (slurp default-key-file-name)))))
+      :default-desc "~/.nosana/nosana_key.json"
       :parse-fn slurp
       :id :solana-private-key]
      ["-v" nil "Use verbose output (-vvvvv very verbose output)"
