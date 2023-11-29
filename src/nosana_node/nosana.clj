@@ -28,6 +28,9 @@
 ;; (def ipfs-base-url "https://cloudflare-ipfs.com/ipfs/")
 (def pinata-api-url "https://api.pinata.cloud")
 
+;; for airdrop
+(def backend-url {:devnet "https://backend.k8s.dev.nos.ci"})
+
 (defn ipfs-upload
   "Converts a map to a JSON string and pins it using Pinata.
   Returns the CID string of the IPFS object."
@@ -778,6 +781,7 @@
   [{:nos/keys [conf] :as sys}]
   (when (not (sol/get-account-data (:nos-ata conf) (:network conf)))
     (try
+      (println "> Opening a NOS ATA account")
       (create-nos-ata conf)
       (catch Exception e
         (log :debug e)
@@ -786,11 +790,38 @@
   (when (not (sol/get-account-data (sol/get-nos-stake-pda (:address conf)) (:network conf)))
     ;; create stake with 0 NOS and 364 days duration
     (try
+      (println "> Opening a NOS Stake account")
       (open-stake conf 0 (* 24 60 60 364))
       (catch Exception e
         (throw (ex-info "Could not create stake" {}))
         nil)))
   sys)
+
+(defn use-fund-sol-wallet [{:nos/keys [conf vault] :as sys}]
+  (let [network (:solana-network vault)
+        account (Account. (byte-array (edn/read-string (:solana-private-key vault))))
+        balance (-> (sol/get-balance (.getPublicKey account) network))
+        address (.toString (.getPublicKey account))]
+    ;; on devnet request an aidrdop
+    (when (and (< balance min-sol-balance) (= :devnet network))
+      (println (str "\n> Requesting NOS airdrop (balance " balance ")"))
+      (let [res (http/get (str (:devnet backend-url) "/airdrop?address=" address))]
+        (case (:status res)
+              200 (do
+                    (println "> Airdrop successful")
+                    (let [txid (-> res :body json/decode)]
+                      ;; wait for the airdrop transaction to propegate
+                      (<!! (sol/await-tx< txid network))))
+              :else (do
+                      (println "x Airdrop failed")))))
+
+    ;; if there is still not enough balance request use to deposit funds
+    (let [new-balance (-> (sol/get-balance (.getPublicKey account) network))]
+      (if (< new-balance min-sol-balance)
+        (throw (ex-info (str "Insufficient SOL to operate,"
+                             "deposit 0.1 SOL on the node address:\n" address)
+                        {}))
+        sys))))
 
 (defn use-nosana
   "Component that loads the Nosana config."

@@ -94,7 +94,7 @@
                  first)]
     (-> data util/base64->bytes byte-array)
     (do
-      (log :error "No account data for " (.toString addr))
+      (log :debug "No account data for " (.toString addr))
       nil)))
 
 (defn get-token-accounts [owner network]
