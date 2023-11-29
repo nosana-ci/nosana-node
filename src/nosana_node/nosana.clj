@@ -426,7 +426,7 @@
 (defn find-dangling-jobs
   "Find all jobs in Stopped state."
   [{:keys [network programs address]}]
-    (sol/get-idl-program-accounts
+   (sol/get-idl-program-accounts
    network
    (:job programs)
    "JobAccount"
@@ -740,18 +740,55 @@
                             (log :error "Error: could not enter the market")
                             (log :debug tx))))
                       (recur nil last-health-check true)))))))))
+(defn open-stake
+  "Opens stake account"
+  [conf amount duration]
+   (let [tx (build-idl-tx :stake "stake" [(str amount) (str duration)]
+                          conf {"vault" (:stake-vault conf)})]
+     (try
+       (sol/send-tx tx [(:signer conf)] (:network conf))
+       (catch Exception e
+         (throw (ex-info "Could not create stake" {}))
+         nil))))
+
+(defn close-stake
+  "Closes stake account"
+  [conf]
+  (let [tx (build-idl-tx :stake "close" []
+                         conf {"vault" (:stake-vault conf)})]
+    (try
+      (sol/send-tx tx [(:signer conf)] (:network conf))
+      (catch Exception e
+        (log :error "Failed to close stake" e)
+        nil))))
+
+(defn create-nos-ata
+  "Creates NOS ATA"
+  [conf]
+  (let [tx (sol/make-ata-tx (:accounts conf))]
+    (try
+      (sol/send-tx tx [(:signer conf)] (:network conf))
+      (catch Exception e
+        (throw (ex-info "Could not create NOS ATA" {}))
+        nil))))
 
 (defn use-create-ata-and-stake
   "Component that creates the NOS ATA and stake account if they don't
   exist yet."
   [{:nos/keys [conf] :as sys}]
-  (let [ata (:nos-ata conf)
-        stake (get-in conf [:accounts "stake"])]
-    ;; TODO: use `sol/get-account-data` on ata and stake. if it
-    ;; returns `nil` the account does not exist
-
-    ;; TODO: create method for opening a stake and opening an ata
-
+  (when (not (sol/get-account-data (:nos-ata sys) (:network sys)))
+    (try
+      (create-nos-ata sys)
+      (catch Exception e
+        (throw (ex-info "Could not create NOS ATA" {}))
+        nil)))
+  (when (not (sol/get-account-data (sol/get-nos-stake-pda (:address sys)) (:network sys)))
+      ;; create stake with 0 NOS and 364 days duration
+     (try
+        (open-stake sys 0 (* 24 60 60 364))
+        (catch Exception e
+          (throw (ex-info "Could not create stake" {}))
+          nil))
     sys))
 
 (defn use-nosana
