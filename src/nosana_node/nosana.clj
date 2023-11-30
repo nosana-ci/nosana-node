@@ -818,8 +818,8 @@
     ;; if there is still not enough balance request use to deposit funds
     (let [new-balance (-> (sol/get-balance (.getPublicKey account) network))]
       (if (< new-balance min-sol-balance)
-        (throw (ex-info (str "Insufficient SOL to operate,"
-                             "deposit 0.1 SOL on the node address:\n" address)
+        (throw (ex-info (str "Insufficient SOL to operate, "
+                             "please deposit 0.1 SOL on the node address:\n" address)
                         {}))
         sys))))
 
