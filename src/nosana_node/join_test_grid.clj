@@ -42,13 +42,12 @@
   (println "Benchmark finished.")
   (println "Receipt" sig "\n")
   (println "---\n")
-  
+
   (if (= (:status flow) :failed)
-    (println (str "Could not detect NVIDIA Video Card: https://explorer.nosana.io/jobs/"(.toString run-addr)"?network=devnet"))
-    ((println (str "Job Succeeded: https://explorer.nosana.io/jobs/"(.toString run-addr)"?network=devnet"))
-     (println "Test Grid Registration code: " (.toString run-addr)))
-    )
-  )
+    (println (str "Could not detect NVIDIA Video Card: https://explorer.nosana.io/jobs/" (.toString run-addr) "?network=devnet"))
+    (do
+      (println (str "Job Succeeded: https://explorer.nosana.io/jobs/" (.toString run-addr) "?network=devnet"))
+      (println "Test Grid Registration code: " (.toString run-addr)))))
 
 (defn join-test-grid
   "Handle the `join-test-grid` command."
