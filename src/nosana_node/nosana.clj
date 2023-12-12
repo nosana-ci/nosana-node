@@ -257,7 +257,9 @@
      :market            market-pub
      :nos-default-args  {:container/run
                          {:conn         {:uri (:podman-conn-uri vault)}
-                          :inline-logs? true}}
+                          :inline-logs? true}
+                         :container/create-volume
+                         {:conn {:uri (:podman-conn-uri vault)}}}
      :open-market?      open-market?
      :market-collection (:nodeAccessKey market)
      :job-timeout       (:jobTimeout market)
