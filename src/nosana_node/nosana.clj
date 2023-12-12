@@ -497,7 +497,8 @@
     (let [market (get-market conf)]
       (not-empty (filter #(.equals %1 (:address conf)) (:queue market))))
     (catch Exception e
-      (log :error "Failed checking if node is queued" e)
+      (log :error "Failed checking if node is queued")
+      (log :debug e)
       nil)))
 
 (defn- finish-flow-dispatch [flow conf]
@@ -733,7 +734,6 @@
                          (recur flow-id last-health-check true)))
 
               (is-queued? conf) (do
-
                                   (log :info "Waiting in the queue.")
                                   (recur nil last-health-check true))
 
