@@ -149,6 +149,13 @@
     (catch Exception e
       [:error {} ["Unexpected error" (ex-message e)]])))
 
+(defn flow-failed?
+  "Return `true` any results in `_flow` contains a `:nos/error` value."
+  [{:keys [status state ops] :as _flow}]
+  (not
+   (nil?
+    (some #(= :nos/error (-> % second first)) state))))
+
 (defn flow-finished? [flow]
   (flow/finished? flow))
 
@@ -347,7 +354,8 @@
     (try
       (sol/send-tx tx [(:signer conf)] (:network conf))
       (catch Exception e
-        (log :error "Failed exit market" e)
+        (log :error "Failed exit market")
+        (log :debug e)
         nil))))
 
 (defn get-job [{:keys [network programs]} addr]
@@ -355,8 +363,6 @@
 
 (defn get-run [{:keys [network programs]} addr]
   (sol/get-idl-account (:job programs) "RunAccount" addr network))
-
-
 
 (defn quit-job
   "Quit a job."
@@ -540,6 +546,15 @@
           run-addr (get-in flow [:state :input/run-addr])]
       (try
         (cond
+          (flow-failed? flow)
+          (do
+            (log :info "Flow failed, finalizing")
+            (let [sig (quit-job conf (sol/public-key run-addr))]
+              (<! (sol/await-tx< sig (:network conf)))
+              (log :info "Flow finalized, preparing to enter the queue")
+              (Thread/sleep 60000)
+              nil))
+
           (flow-finished? flow)
           (do
             (log :info "Flow finished, posting results")
@@ -548,12 +563,14 @@
             (docker/gc-volumes! flow {:uri (:podman-conn-uri vault)})
             (<! (finish-flow-2 flow conf))
             nil)
+
           (flow-expired? flow)
           (do
             (log :info "Flow has expired at " (:expired flow))
             (let [sig (quit-job conf (sol/public-key run-addr))]
               (<! (sol/await-tx< sig (:network conf)))
               nil))
+
           :else
           (let [_ (log :trace "Flow still running")]
             flow-id))
@@ -694,7 +711,7 @@
         ;; if the flow is finished we quit
         finish-flow-chan
         ([[_ flow-id flow]]
-         (log :info "Receive flow finished message")
+         (log :debug "Receive flow finished message")
          (recur (<! (process-flow! active-flow conf system))
                 last-health-check true))
 
@@ -804,6 +821,10 @@
         account (Account. (byte-array (edn/read-string (:solana-private-key vault))))
         balance (-> (sol/get-balance (.getPublicKey account) network))
         address (.toString (.getPublicKey account))]
+
+    (when (nil? balance)
+      (throw (ex-info "Could not check SOL balance, please try again later." {})))
+
     ;; on devnet request an aidrdop
     (when (and (< balance min-sol-balance) (= :devnet network))
       (println (str "\n> Requesting NOS airdrop (balance " balance ")"))
@@ -819,6 +840,8 @@
 
     ;; if there is still not enough balance request use to deposit funds
     (let [new-balance (-> (sol/get-balance (.getPublicKey account) network))]
+      (when (nil? new-balance)
+        (throw (ex-info "Could verify SOL balance, please try again later." {})))
       (if (< new-balance min-sol-balance)
         (throw (ex-info (str "Insufficient SOL to operate, "
                              "please deposit 0.1 SOL on the node address:\n" address)

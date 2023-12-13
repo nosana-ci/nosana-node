@@ -72,9 +72,13 @@
       :result))
 
 (defn get-balance [addr network]
-  (->
-   (rpc-call "getBalance" [(.toString addr) {:commitment "confirmed"}] network)
-   :body (json/decode true) :result :value))
+  (try
+    (let [res (rpc-call "getBalance" [(.toString addr) {:commitment "confirmed"}] network)]
+      (-> res :body (json/decode true) :result :value))
+    (catch Exception e
+      (log :error "Could not fetch account balance")
+      (log :debug e)
+      nil)))
 
 (defn get-token-balance [addr network]
   (->
