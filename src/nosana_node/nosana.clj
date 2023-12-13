@@ -552,7 +552,7 @@
             (let [sig (quit-job conf (sol/public-key run-addr))]
               (<! (sol/await-tx< sig (:network conf)))
               (log :info "Flow finalized, preparing to enter the queue")
-              (Thread/sleep 60000)
+              (Thread/sleep 300000)
               nil))
 
           (flow-finished? flow)
