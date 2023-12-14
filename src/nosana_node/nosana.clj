@@ -149,12 +149,14 @@
     (catch Exception e
       [:error {} ["Unexpected error" (ex-message e)]])))
 
-(defn flow-failed?
-  "Return `true` any results in `_flow` contains a `:nos/error` value."
+
+  "Return `true` any results in `_flow` contains a `:nos/error` or a `:nos/cmd-error`."
   [{:keys [status state ops] :as _flow}]
   (not
    (nil?
-    (some #(= :nos/error (-> % second first)) state))))
+    (some #(or (= :nos/error (-> % second first))
+               (= :nos/cmd-error (-> % second first))
+               ) state))))
 
 (defn flow-finished? [flow]
   (flow/finished? flow))
@@ -797,7 +799,7 @@
 (defn use-create-ata-and-stake
   "Component that creates the NOS ATA and stake account if they don't
   exist yet."
-  [{:nos/keys [conf] :as sys}]
+  [{:nos/keys [conf] :as sys}] 
   (when (not (sol/get-account-data (:nos-ata conf) (:network conf)))
     (try
       (println "> Opening a NOS ATA account")
