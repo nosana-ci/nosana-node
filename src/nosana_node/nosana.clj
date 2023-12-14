@@ -806,14 +806,15 @@
         (log :debug e)
         (throw (ex-info "Could not create NOS ATA" {}))
         nil)))
-  (when (not (sol/get-account-data (sol/get-nos-stake-pda (:address conf)) (:network conf)))
-    ;; create stake with 0 NOS and 364 days duration
-    (try
-      (println "> Opening a NOS Stake account")
-      (open-stake conf 0 (* 24 60 60 364))
-      (catch Exception e
-        (throw (ex-info "Could not create stake" {}))
-        nil)))
+  (let [stake-pda  (sol/get-nos-stake-pda (:address conf) (-> conf :programs :nos-token))]
+    (when (not (sol/get-account-data stake-pda (:network conf)))
+      ;; create stake with 0 NOS and 364 days duration
+      (try
+        (println "> Opening a NOS Stake account")
+        (open-stake conf 0 (* 24 60 60 364))
+        (catch Exception e
+          (throw (ex-info "Could not create stake" {}))
+          nil))))
   sys)
 
 (defn use-fund-sol-wallet [{:nos/keys [conf vault] :as sys}]

@@ -24,7 +24,7 @@
           :devnet  "https://api.devnet.solana.com"
           :mainnet "https://rpc.hellomoon.io/853e30f5-383d-4cc6-a5ee-b5fb4c7a7178"})
 
-(def addresses
+(def addresses  
   {:token             (PublicKey. "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
    :associated-token  (PublicKey. "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
    :system            (PublicKey. "11111111111111111111111111111111")
@@ -267,7 +267,7 @@
 
 (defn get-nos-stake-pda
   "Find the PDA of a stake for an account."
-  [addr]
+  [addr nos-addr]
   (.getAddress
    (PublicKey/findProgramAddress [(.getBytes "stake")
                                  (.toByteArray nos-addr)
