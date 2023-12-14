@@ -149,7 +149,7 @@
     (catch Exception e
       [:error {} ["Unexpected error" (ex-message e)]])))
 
-
+(defn flow-failed?
   "Return `true` any results in `_flow` contains a `:nos/error` or a `:nos/cmd-error`."
   [{:keys [status state ops] :as _flow}]
   (not
