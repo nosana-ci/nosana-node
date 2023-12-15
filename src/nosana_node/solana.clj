@@ -117,7 +117,7 @@
   (when (not (empty? data))
     (let [r-data (reverse data)]
       (loop [[head & rst] r-data]
-        (if (zero? head)
+        (if (or (= 1 head) (zero? head))
           (recur rst)
           (->> head (conj rst) (take 32) reverse byte-array  public-key))))))
 
@@ -253,7 +253,7 @@
                         (filter #(= (second %) (.toString collection)))
                         first)]
     (when idx
-      (-> tokens (nth idx) :account :data :parsed :info :mint PublicKey.))))
+      (-> tokens (nth idx) :account :data :parsed :info :mint PublicKey.)))) 
 
 (defn get-nos-market-pda
   "Find the PDA of a markets vault."
