@@ -569,7 +569,7 @@
 
           (flow-expired? flow)
           (do
-            (log :info "Flow has expired at " (:expired flow))
+            (log :info "Flow has expired")
             (let [sig (quit-job conf (sol/public-key run-addr))]
               (<! (sol/await-tx< sig (:network conf)))
               nil))
@@ -654,7 +654,8 @@
               (>! flow-chan [:trigger flow-id])
               flow-id))))
     (catch Exception e
-      (log :error "Error starting flow" e)
+      (log :error "Error starting flow")
+      (log :debug e)
       (go
         (log :info "Quit run because of error" (.toString run-addr))
         (let [sig (quit-job conf (sol/public-key run-addr))]
