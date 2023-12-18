@@ -412,7 +412,8 @@
      "RunAccount"
      {"node"  (.toString address)})
     (catch Exception e
-      (log :error "RPC error fetching runs" e)
+      (log :error "RPC error while looking for assigned jobs" )
+      (log :debug e)
       {})))
 
 (defn clear-market
