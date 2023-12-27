@@ -579,7 +579,8 @@
           (let [_ (log :trace "Flow still running")]
             flow-id))
         (catch Exception e
-          (log :error "Failed processing flow " e)
+          (log :error "Failed processing flow")
+          (log :debug e)
           (try (docker/gc-volumes! flow {:uri (:podman-conn-uri vault)})
                (catch Exception e (log :error "Failes gc-volumes" e)))
           flow-id)))))
