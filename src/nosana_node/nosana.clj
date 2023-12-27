@@ -345,7 +345,8 @@
     (try
       (sol/send-tx tx [(:signer conf) run] (:network conf))
       (catch Exception e
-        (log :error "Failed entering market" e)
+        (log :error "Failed entering market")
+        (log :debug e)
         nil))))
 
 (defn exit-market
