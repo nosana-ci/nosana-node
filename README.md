@@ -58,7 +58,7 @@ Below is the table of config values that can be set:
 
 | Name            | Description                                    | ENV                    | Default                                |
 |-----------------|------------------------------------------------|------------------------|----------------------------------------|
-| **Private key** | **Private key for the node**                   | `SOLANA_PRIVATE_KEY`   | Read from `~/.config/solana/id.jon`    |
+| **Private key** | **Private key for the node**                   | `SOLANA_PRIVATE_KEY`   | Read from `~/.config/solana/id.json`   |
 | **Market**      | **Address of the Nosana market to use**        | `NOSANA_MARKET`        | In `~/.nosana-node-config.edn`         |
 | NFT             | Address of the NFT of the node                 | `NOSANA_NFT`           | In `~/.nosana-node-config.edn`         |
 | Network         | Solana network to use                          | `SOLANA_NETWORK`       | In `~/.nosana-node-config.edn`         |
