@@ -598,9 +598,10 @@
                      (assoc :expires (+ (:time run) (:job-timeout conf))))
 
           [_flow-valid? error-msg] (validate-flow-ops flow conf)
-          expired? (and (int? (:job-timeout conf))
-                        (> (flow/current-time)
-                           (+ (:time run) (:job-timeout conf))))
+          expired? false
+          ;; expired? (and (int? (:job-timeout conf))
+          ;;               (> (flow/current-time)
+          ;;                  (+ (:time run) (:job-timeout conf))))
           flow-id  (:id flow)]
       (cond
           error-msg
