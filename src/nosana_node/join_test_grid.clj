@@ -72,7 +72,7 @@
 
           ;; we can subscribe to a channel that will receive the run results when finished
           (let [finish-flow-chan (nos/subscribe-to-finished-flows system)
-                flow-id (nos/start-flow-for-run! run conf system)
+                flow-id (nos/start-flow-for-run! run conf system false)
 
                 result
                 ;; this will either return the flow results or timeout
