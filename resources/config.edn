@@ -8,5 +8,5 @@
  :solana-network     :devnet
  :allowed-ops        [:container/run :container/create-volume]
  :port               3000
- :poll-delay-ms      5000
+ :poll-delay-ms      10000
  :podman-conn-uri    "http://localhost:8080"}

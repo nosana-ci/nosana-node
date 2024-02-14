@@ -83,8 +83,8 @@
       :id :nosana-market]
      [nil "--poll-frequency MS" "How often to poll the blockchain in milliseconds."
       :parse-fn #(Integer/parseInt %)
-      :default-desc "5000"
-      :default-fn (get-env-fn "NOSANA_POLL_DELAY_MS" 5000 #(Integer/parseInt %))
+      :default-desc "10000"
+      :default-fn (get-env-fn "NOSANA_POLL_DELAY_MS" 10000 #(Integer/parseInt %))
       :validate [#(< 3000 % 60000) "Must be a number between 3000 and 60000"]
       :id :poll-delay-ms]
       ["-h" "--help"]]
@@ -193,7 +193,8 @@
                 ;; parse the inner options passed to this action
                 :else
                 (let [{a-summary :summary a-errors :errors a-args :arguments a-options :options}
-                      (cli/parse-opts (rest arguments) (get-in cli-options [action :options]))]
+                      (cli/parse-opts (rest arguments)
+                                      (get-in cli-options [action :options]))]
                   (cond
                     (:help a-options)
                     {:exit-message (usage action a-summary) :ok? true}
@@ -211,10 +212,11 @@
 
       :else
       (do
-
-
         ;; merge CLI over existing config
         (cond->
          (-> sys
              (assoc :nos/action action)
-             (update :nos/vault merge state)))))))
+             (update :nos/vault merge state))
+          ;; hard override the network to devnet for test grid registration
+          (= action "join-test-grid")
+          (assoc-in [:nos/vault :solana-network] :devnet))))))

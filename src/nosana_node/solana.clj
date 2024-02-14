@@ -21,10 +21,10 @@
    [org.p2p.solanaj.utils TweetNaclFast TweetNaclFast$Signature]))
 
 (def rpc {:testnet "https://api.testnet.solana.com"
-          :devnet  "https://api.devnet.solana.com"
-          :mainnet "https://solana-mainnet.gateway.pokt.network/v1/lb/e8b2e8a5"})
+          :devnet  "https://rpc.ironforge.network/devnet?apiKey=01HFRX48N027P9XQ07KH3DHBEA"
+          :mainnet "https://rpc.ironforge.network/mainnet?apiKey=01HFRX48N027P9XQ07KH3DHBEA"})
 
-(def addresses
+(def addresses  
   {:token             (PublicKey. "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
    :associated-token  (PublicKey. "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
    :system            (PublicKey. "11111111111111111111111111111111")
@@ -72,9 +72,13 @@
       :result))
 
 (defn get-balance [addr network]
-  (->
-   (rpc-call "getBalance" [(.toString addr) {:commitment "confirmed"}] network)
-   :body (json/decode true) :result :value))
+  (try
+    (let [res (rpc-call "getBalance" [(.toString addr) {:commitment "confirmed"}] network)]
+      (-> res :body (json/decode true) :result :value))
+    (catch Exception e
+      (log :error "Could not fetch account balance")
+      (log :debug e)
+      nil)))
 
 (defn get-token-balance [addr network]
   (->
@@ -113,7 +117,7 @@
   (when (not (empty? data))
     (let [r-data (reverse data)]
       (loop [[head & rst] r-data]
-        (if (zero? head)
+        (if (or (= 1 head) (zero? head))
           (recur rst)
           (->> head (conj rst) (take 32) reverse byte-array  public-key))))))
 
@@ -249,7 +253,7 @@
                         (filter #(= (second %) (.toString collection)))
                         first)]
     (when idx
-      (-> tokens (nth idx) :account :data :parsed :info :mint PublicKey.))))
+      (-> tokens (nth idx) :account :data :parsed :info :mint PublicKey.)))) 
 
 (defn get-nos-market-pda
   "Find the PDA of a markets vault."
@@ -263,7 +267,7 @@
 
 (defn get-nos-stake-pda
   "Find the PDA of a stake for an account."
-  [addr]
+  [addr nos-addr]
   (.getAddress
    (PublicKey/findProgramAddress [(.getBytes "stake")
                                  (.toByteArray nos-addr)

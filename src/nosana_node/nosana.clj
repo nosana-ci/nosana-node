@@ -149,6 +149,15 @@
     (catch Exception e
       [:error {} ["Unexpected error" (ex-message e)]])))
 
+(defn flow-failed?
+  "Return `true` any results in `_flow` contains a `:nos/error` or a `:nos/cmd-error`."
+  [{:keys [status state ops] :as _flow}]
+  (not
+   (nil?
+    (some #(or (= :nos/error (-> % second first))
+               (= :nos/cmd-error (-> % second first))
+               ) state))))
+
 (defn flow-finished? [flow]
   (flow/finished? flow))
 
@@ -257,7 +266,9 @@
      :market            market-pub
      :nos-default-args  {:container/run
                          {:conn         {:uri (:podman-conn-uri vault)}
-                          :inline-logs? true}}
+                          :inline-logs? true}
+                         :container/create-volume
+                         {:conn {:uri (:podman-conn-uri vault)}}}
      :open-market?      open-market?
      :market-collection (:nodeAccessKey market)
      :job-timeout       (:jobTimeout market)
@@ -334,7 +345,8 @@
     (try
       (sol/send-tx tx [(:signer conf) run] (:network conf))
       (catch Exception e
-        (log :error "Failed entering market" e)
+        (log :error "Failed entering market")
+        (log :debug e)
         nil))))
 
 (defn exit-market
@@ -345,7 +357,8 @@
     (try
       (sol/send-tx tx [(:signer conf)] (:network conf))
       (catch Exception e
-        (log :error "Failed exit market" e)
+        (log :error "Failed exit market")
+        (log :debug e)
         nil))))
 
 (defn get-job [{:keys [network programs]} addr]
@@ -353,8 +366,6 @@
 
 (defn get-run [{:keys [network programs]} addr]
   (sol/get-idl-account (:job programs) "RunAccount" addr network))
-
-
 
 (defn quit-job
   "Quit a job."
@@ -402,7 +413,8 @@
      "RunAccount"
      {"node"  (.toString address)})
     (catch Exception e
-      (log :error "RPC error fetching runs" e)
+      (log :error "RPC error while looking for assigned jobs" )
+      (log :debug e)
       {})))
 
 (defn clear-market
@@ -495,7 +507,8 @@
     (let [market (get-market conf)]
       (not-empty (filter #(.equals %1 (:address conf)) (:queue market))))
     (catch Exception e
-      (log :error "Failed checking if node is queued" e)
+      (log :error "Failed checking if node is queued")
+      (log :debug e)
       nil)))
 
 (defn- finish-flow-dispatch [flow conf]
@@ -537,6 +550,15 @@
           run-addr (get-in flow [:state :input/run-addr])]
       (try
         (cond
+          (flow-failed? flow)
+          (do
+            (log :info "Flow failed, finalizing")
+            (let [sig (quit-job conf (sol/public-key run-addr))]
+              (<! (sol/await-tx< sig (:network conf)))
+              (log :info "Flow finalized, preparing to enter the queue")
+              (Thread/sleep 300000)
+              nil))
+
           (flow-finished? flow)
           (do
             (log :info "Flow finished, posting results")
@@ -545,17 +567,20 @@
             (docker/gc-volumes! flow {:uri (:podman-conn-uri vault)})
             (<! (finish-flow-2 flow conf))
             nil)
+
           (flow-expired? flow)
           (do
-            (log :info "Flow has expired at " (:expired flow))
+            (log :info "Flow has expired")
             (let [sig (quit-job conf (sol/public-key run-addr))]
               (<! (sol/await-tx< sig (:network conf)))
               nil))
+
           :else
           (let [_ (log :trace "Flow still running")]
             flow-id))
         (catch Exception e
-          (log :error "Failed processing flow " e)
+          (log :error "Failed processing flow")
+          (log :debug e)
           (try (docker/gc-volumes! flow {:uri (:podman-conn-uri vault)})
                (catch Exception e (log :error "Failes gc-volumes" e)))
           flow-id)))))
@@ -632,7 +657,8 @@
               (>! flow-chan [:trigger flow-id])
               flow-id))))
     (catch Exception e
-      (log :error "Error starting flow" e)
+      (log :error "Error starting flow")
+      (log :debug e)
       (go
         (log :info "Quit run because of error" (.toString run-addr))
         (let [sig (quit-job conf (sol/public-key run-addr))]
@@ -692,7 +718,7 @@
         ;; if the flow is finished we quit
         finish-flow-chan
         ([[_ flow-id flow]]
-         (log :info "Receive flow finished message")
+         (log :debug "Receive flow finished message")
          (recur (<! (process-flow! active-flow conf system))
                 last-health-check true))
 
@@ -732,7 +758,6 @@
                          (recur flow-id last-health-check true)))
 
               (is-queued? conf) (do
-
                                   (log :info "Waiting in the queue.")
                                   (recur nil last-health-check true))
 
@@ -779,7 +804,7 @@
 (defn use-create-ata-and-stake
   "Component that creates the NOS ATA and stake account if they don't
   exist yet."
-  [{:nos/keys [conf] :as sys}]
+  [{:nos/keys [conf] :as sys}] 
   (when (not (sol/get-account-data (:nos-ata conf) (:network conf)))
     (try
       (println "> Opening a NOS ATA account")
@@ -788,14 +813,15 @@
         (log :debug e)
         (throw (ex-info "Could not create NOS ATA" {}))
         nil)))
-  (when (not (sol/get-account-data (sol/get-nos-stake-pda (:address conf)) (:network conf)))
-    ;; create stake with 0 NOS and 364 days duration
-    (try
-      (println "> Opening a NOS Stake account")
-      (open-stake conf 0 (* 24 60 60 364))
-      (catch Exception e
-        (throw (ex-info "Could not create stake" {}))
-        nil)))
+  (let [stake-pda  (sol/get-nos-stake-pda (:address conf) (-> conf :programs :nos-token))]
+    (when (not (sol/get-account-data stake-pda (:network conf)))
+      ;; create stake with 0 NOS and 364 days duration
+      (try
+        (println "> Opening a NOS Stake account")
+        (open-stake conf 0 (* 24 60 60 364))
+        (catch Exception e
+          (throw (ex-info "Could not create stake" {}))
+          nil))))
   sys)
 
 (defn use-fund-sol-wallet [{:nos/keys [conf vault] :as sys}]
@@ -803,6 +829,10 @@
         account (Account. (byte-array (edn/read-string (:solana-private-key vault))))
         balance (-> (sol/get-balance (.getPublicKey account) network))
         address (.toString (.getPublicKey account))]
+
+    (when (nil? balance)
+      (throw (ex-info "Could not check SOL balance, please try again later." {})))
+
     ;; on devnet request an aidrdop
     (when (and (< balance min-sol-balance) (= :devnet network))
       (println (str "\n> Requesting NOS airdrop (balance " balance ")"))
@@ -818,9 +848,11 @@
 
     ;; if there is still not enough balance request use to deposit funds
     (let [new-balance (-> (sol/get-balance (.getPublicKey account) network))]
+      (when (nil? new-balance)
+        (throw (ex-info "Could verify SOL balance, please try again later." {})))
       (if (< new-balance min-sol-balance)
-        (throw (ex-info (str "Insufficient SOL to operate,"
-                             "deposit 0.1 SOL on the node address:\n" address)
+        (throw (ex-info (str "Insufficient SOL to operate, "
+                             "please deposit 0.1 SOL on the node address:\n" address)
                         {}))
         sys))))
 
