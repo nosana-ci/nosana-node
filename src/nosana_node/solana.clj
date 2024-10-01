@@ -21,8 +21,8 @@
    [org.p2p.solanaj.utils TweetNaclFast TweetNaclFast$Signature]))
 
 (def rpc {:testnet "https://api.testnet.solana.com"
-          :devnet  "https://rpc.ironforge.network/devnet?apiKey=01HFRX48N027P9XQ07KH3DHBEA"
-          :mainnet "https://rpc.ironforge.network/mainnet?apiKey=01HFRX48N027P9XQ07KH3DHBEA"})
+          :devnet  "https://rpc.ironforge.network/devnet?apiKey=01HSGSY23DXCE3SWPGQK5H4XPT"
+          :mainnet "https://rpc.ironforge.network/mainnet?apiKey=01HSGSY23DXCE3SWPGQK5H4XPT"})
 
 (def addresses  
   {:token             (PublicKey. "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
