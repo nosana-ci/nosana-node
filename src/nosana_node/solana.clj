@@ -121,6 +121,11 @@
           (recur rst)
           (->> head (conj rst) (take 32) reverse byte-array  public-key))))))
 
+(defn create-key-pair
+  "Create new random generated key pair."
+  []
+  (TweetNaclFast$Signature/keyPair))
+
 (defn create-private-key
   "Save new keypair as JSON at `file-name`, returns public key."
   [file-name]
