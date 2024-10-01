@@ -199,6 +199,7 @@
   Input is an IDL type like \"u64\" or `{:array [\"u8\" 32]}`"
   [type idl]
   (cond
+    (= type "bool")      1
     (= type "u64")       8
     (= type "u128")      16
     (= type "i64")       8
@@ -318,7 +319,8 @@
        (= type "u128")      [16 (read-uint128 data ofs)]
        (= type "i64")       [8 (Utils/readInt64 data ofs)]
        (= type "u32")       [4 (Utils/readUint32 data ofs)]
-       (= type "u8")        [1 (get data ofs)]
+       (or (= type "u8")
+           (= type "bool")) [1 (get data ofs)]
        (= type "publicKey") [32 (PublicKey/readPubkey data ofs)]
 
        ;; TODO: string and u16 might be shank only?
@@ -368,10 +370,14 @@
   "Writes a single IDL parameter of `type` to byte array `data`."
   [data ofs type value idl]
   (cond
-    (= type "u8") (aset-byte data ofs (unchecked-byte value))
+    (or (= type "u8")
+        (= type "bool")) (aset-byte data ofs (unchecked-byte value))
     ;; TODO: implement i64 (using LE two's complement encoding)
     (= type "i64")
-    (throw (ex-info "i64 type not supported for IDL write" {:value value}))
+    (let [bos (ByteArrayOutputStream.)]
+      (ByteUtils/uint64ToByteStreamLE (BigInteger. value) bos)
+      (System/arraycopy (.toByteArray bos) 0 data ofs 8))
+    ;; (throw (ex-info "i64 type not supported for IDL write" {:value value}))
     (= type "u64")
     (let [bos (ByteArrayOutputStream.)]
       (ByteUtils/uint64ToByteStreamLE (BigInteger. value) bos)
