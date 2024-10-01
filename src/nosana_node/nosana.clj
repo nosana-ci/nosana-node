@@ -784,6 +784,43 @@
          (throw (ex-info "Could not create stake" {}))
          nil))))
 
+;; example:
+;; (nos/open-pool conf 634 1718704800)
+(defn open-pool
+  "Opens stake account"
+  [conf beneficiary emmission start-time]
+  (let [kp (Account. (.getSecretKey (sol/create-key-pair)))
+        pub (.getPublicKey kp)
+        benef beneficiary
+        benef-ata (sol/get-ata benef
+                               (:nos-token (:programs conf)))
+
+        tx (build-idl-tx :nos-pools "open" [(str emmission) (str start-time) 0 1]
+                         conf {"pool" pub
+                               "vault" (sol/pda [(.getBytes "vault")
+                                                 (.toByteArray pub)]
+                                                (:nos-pools (:programs conf)))
+                               "beneficiary" benef-ata})
+        blockhash (sol/get-recent-blockhash (:network conf))]
+    (sol/send-tx tx [(:signer conf) kp] (:network conf))))
+
+(defn close-pool
+  "Opens stake account"
+  [conf pool-addr]
+  (let [vault-addr (sol/pda [(.getBytes "vault")
+                             (.toByteArray pool-addr)]
+                            (:nos-pools (:programs conf)))
+        owner-ata (sol/get-ata (:signer-pub conf)
+                               (:nos-token (:programs conf)))
+
+        kp (Account. (.getSecretKey (sol/create-key-pair)))
+        pub (.getPublicKey kp)
+        tx (build-idl-tx :nos-pools "close" []
+                         conf {"vault" vault-addr
+                               "user" owner-ata
+                               "pool" pool-addr})]
+    (sol/send-tx tx [(:signer conf)] (:network conf))))
+
 (defn close-stake
   "Closes stake account"
   [conf]
