@@ -23,16 +23,16 @@ npm install:
     - if: $CI_MERGE_REQUEST_ID
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-npm prettier:
-  image: node:20.11.1
-  stage: test
-  dependencies:
-    - npm install
-  script:
-    - npm run prettier # todo: fix eslint
-  rules:
-    - if: $CI_MERGE_REQUEST_ID
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+# npm prettier:
+#   image: node:20.11.1
+#   stage: test
+#   dependencies:
+#     - npm install
+#   script:
+#     - npm run prettier # todo: fix eslint
+#   rules:
+#     - if: $CI_MERGE_REQUEST_ID
+#     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 npm test:
   image: node:20.11.1

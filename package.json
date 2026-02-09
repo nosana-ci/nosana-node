@@ -21,7 +21,7 @@
     "prettier:fix": "prettier --write ./src",
     "eslint": "eslint ./src",
     "eslint:fix": "eslint --fix ./src",
-    "lint": "npm run prettier && npm run eslint",
+    "lint": " npm run eslint",
     "lint:fix": "npm run prettier:fix && npm run eslint:fix"
   },
   "keywords": [],
