@@ -1,0 +1,32 @@
+{
+  "ops": [
+    {
+      "id": "sogni-ai",
+      "args": {
+        "cmd": ["ls /data-models/ControlNet"],
+        "env": {},
+        "gpu": true,
+        "image": "ubuntu",
+        "expose": 8000,
+        "resources": [
+          {
+            "url": "https://pub-5bc58981af9f42659ff8ada57bfea92c.r2.dev/controlnets",
+            "type": "S3",
+            "files": [
+              "control_v11e_sd15_ip2p_fp16.safetensors",
+              "control_v11e_sd15_shuffle_fp16.safetensors"
+            ],
+            "target": "/data-models/ControlNet/",
+            "allowWrite": true
+          }
+        ]
+      },
+      "type": "container/run"
+    }
+  ],
+  "meta": {
+    "trigger": "cli"
+  },
+  "type": "container",
+  "version": "0.1"
+}

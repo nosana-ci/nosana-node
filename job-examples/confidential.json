@@ -1,0 +1,20 @@
+{
+  "version": "0.1",
+  "type": "container",
+  "meta": {
+    "trigger": "cli"
+  },
+  "logistics": {
+    "send": {
+      "type": "api",
+      "args": {
+        "endpoint": "https://nosana.mypinata.cloud/ipfs/QmeKbLG32Dps9RuEndWFCeYfW1zYnB7dZMvDEPY6mvwLyu"
+      }
+    },
+    "receive": {
+      "type": "api-listen",
+      "args": {}
+    }
+  },
+  "ops": []
+}

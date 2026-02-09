@@ -1,0 +1,52 @@
+{
+  "version": "0.1",
+  "type": "container",
+  "meta": {
+    "trigger": "cli"
+  },
+  "ops": [
+    {
+      "type": "container/run",
+      "id": "system-info",
+      "args": {
+        "cmd": ["./system.sh"],
+        "image": "registry.hub.docker.com/nosana/stats:v1.2.1",
+        "env": {
+          "DEBUG": "1"
+        }
+      },
+      "execution": {
+        "group": "spec"
+      }
+    },
+    {
+      "type": "container/run",
+      "id": "network-info",
+      "args": {
+        "cmd": ["./network.sh"],
+        "image": "registry.hub.docker.com/nosana/stats:v1.2.1",
+        "env": {
+          "DEBUG": "1"
+        }
+      },
+      "execution": {
+        "group": "network"
+      }
+    },
+    {
+      "type": "container/run",
+      "id": "gpu-info",
+      "args": {
+        "cmd": ["./cuda_check"],
+        "image": "registry.hub.docker.com/nosana/stats:v1.2.1",
+        "env": {
+          "DEBUG": "1"
+        },
+        "gpu": true
+      },
+      "execution": {
+        "group": "spec"
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "version": "0.1",
+  "type": "container",
+  "meta": {
+    "trigger": "cli"
+  },
+  "ops": [
+    {
+      "type": "container/run",
+      "id": "ollama",
+      "args": {
+        "cmd": [],
+        "image": "docker.io/ollama/ollama",
+        "gpu": false,
+        "expose": 11434,
+        "resources": [
+          {
+            "type": "S3",
+            "url": "s3://nos-ai-models-qllsn32u/ollama/llama3.1/8b",
+            "target": "/root/.ollama/models"
+          }
+        ]
+      }
+    }
+  ]
+}

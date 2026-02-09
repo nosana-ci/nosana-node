@@ -1,0 +1,28 @@
+import { Response } from 'express';
+
+import { JobDefinition } from '@nosana/sdk';
+import { NodeAPIRequest } from '../../types/index.js';
+
+export function postJobDefinitionRoute(
+  req: NodeAPIRequest<{ jobId: string }, JobDefinition>,
+  res: Response,
+) {
+  const id = req.params.jobId;
+  const jobDefinition = req.body;
+  if (!jobDefinition || !id) {
+    return res.status(400).send('job definition parameters not provided');
+  }
+
+  if (!req.repository!.getFlowState(id)) {
+    return res.status(400).send('invalid job id');
+  }
+
+  if (
+    req.repository!.getFlowState(id).status !== 'waiting-for-job-definition'
+  ) {
+    return res.status(400).send('cannot send job definition at this time');
+  }
+
+  req.eventEmitter!.emit('job-definition', { jobDefinition, id });
+  res.status(200).send('Job definition received');
+}

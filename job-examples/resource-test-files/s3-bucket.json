@@ -1,0 +1,31 @@
+{
+  "version": "0.1",
+  "type": "container",
+  "meta": {
+    "trigger": "cli"
+  },
+  "ops": [
+    {
+      "id": "huggingface",
+      "type": "container/run",
+      "args": {
+        "cmd": ["ls", "/data-models"],
+        "gpu": true,
+        "image": "ubuntu",
+        "resources": [
+          {
+            "type": "S3",
+            "url": "https://ai.r2.cloudflarestorage.com/ai-model/entrypoint",
+            "bucket": "ai-model",
+            "target": "/data-models/",
+            "IAM": {
+              "REGION": "",
+              "ACCESS_KEY_ID": "",
+              "SECRET_ACCESS_KEY": ""
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

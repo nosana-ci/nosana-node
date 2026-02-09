@@ -1,0 +1,18 @@
+{
+  "version": "0.1",
+  "type": "container",
+  "ops": [
+    {
+      "type": "container/run",
+      "id": "hello-world",
+      "args": {
+        "cmd": [
+          "echo",
+          "hello",
+          "world"
+        ],
+        "image": "ubuntu"
+      }
+    }
+  ]
+}
