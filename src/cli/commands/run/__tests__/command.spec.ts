@@ -25,12 +25,11 @@ describe('runNodeCommand', () => {
     expect(runNodeCommand.args[0]).toBe('job definition path');
   });
 
-  it('should have 7 options', () => {
-    expect(runNodeCommand.options.length).toBe(7);
+  it('should have 6 options', () => {
+    expect(runNodeCommand.options.length).toBe(6);
   });
 
   it.each([
-    ['--provider', undefined, 'podman'],
     ['--config', '-c', '~/.nosana/'],
     ['--podman', '--docker', '~/.nosana/podman/podman.sock'],
     ['--url', undefined, undefined],
