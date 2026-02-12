@@ -4,11 +4,6 @@ import { pruneResources } from './action.js';
 export const nodePruneCommand = new Command('prune')
   .description('Safely prune none required images and resources.')
   .addOption(
-    new Option('--provider <provider>', 'provider used to run the job')
-      .choices(['docker', 'podman'])
-      .default('podman'),
-  )
-  .addOption(
     new Option(
       '--docker, --podman <URI>',
       'Podman/Docker connection URI',

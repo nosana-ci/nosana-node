@@ -23,6 +23,8 @@ export async function runJob(
     [key: string]: any;
   },
 ) {
+  options.provider = process.argv.some(arg => arg === '--docker') ? 'docker' : 'podman';
+
   try {
     const sdk = getSDK();
     const jobDefinition = await resolveJobDefinition(

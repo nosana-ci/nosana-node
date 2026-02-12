@@ -72,7 +72,7 @@ export class Provider {
     port: string,
   ): Promise<boolean> {
     try {
-      const nodeName = `nosana-node`;
+      const nodeName = configs().frp.nodeInternalHostName;
       const networkName = `api-${address}`;
       const frpc_name = `frpc-api-${address}`;
 

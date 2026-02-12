@@ -8,4 +8,4 @@ const VERSION: string = pkg.version;
 
 startCLI(VERSION);
 
-export * from './cli/node/index.js';
+export * from './cli/createNosanaCli.js';

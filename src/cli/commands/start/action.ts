@@ -7,6 +7,8 @@ export async function startNode(
     [key: string]: any;
   },
 ): Promise<void> {
+  options.provider = process.argv.some(arg => arg === '--docker') ? 'docker' : 'podman';
+
   const nodeManager = new NodeManager(options);
 
   while (true) {

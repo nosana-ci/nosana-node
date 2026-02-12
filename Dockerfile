@@ -1,5 +1,14 @@
-FROM node:18.18.0 as base
-WORKDIR /app
-COPY . .
+FROM node:20.11.1 AS base
+
+WORKDIR /nosana
+
+COPY package.json .
+COPY npm-shrinkwrap.json .
+
 RUN npm ci
-CMD ["npm", "run", "dev"]
+
+FROM base AS production
+
+COPY . .
+
+ENTRYPOINT ["node", "--no-warnings", "--loader", "ts-node/esm", "src/index.ts"]

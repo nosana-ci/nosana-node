@@ -21,6 +21,7 @@ import {
 
 import { ReturnedStatus } from '../../types.js';
 import { checkDeprecationDeadline } from './utils/deadline.js';
+import { createDockerRunOptions } from './createDockerRunOptions.js';
 
 export class DockerContainerOrchestration
   implements ContainerOrchestrationInterface {
@@ -146,15 +147,16 @@ export class DockerContainerOrchestration
   }
 
   async createNetwork(
-    name: string,
+    _name: string,
     controller?: AbortController,
   ): Promise<void> {
     try {
       if (await this.hasNetwork('NOSANA_GATEWAY')) return;
       await this.docker.createNetwork({
         Name: 'NOSANA_GATEWAY',
+        Driver: 'bridge',
         IPAM: {
-          Driver: 'bridge',
+          Driver: 'default',
           Config: [{ Subnet: '192.168.101.0/24', Gateway: '192.168.101.1' }],
         },
         abortSignal: controller?.signal,
@@ -312,7 +314,7 @@ export class DockerContainerOrchestration
       }
 
       const container = await this.docker.createContainer({
-        ...mapRunContainerArgsToContainerCreateOpts(image, args, this.gpu),
+        ...createDockerRunOptions(image, args, this.gpu),
         abortSignal: controller?.signal,
       });
 
@@ -400,78 +402,4 @@ export class DockerContainerOrchestration
   }
 }
 
-function mapRunContainerArgsToContainerCreateOpts(
-  image: string,
-  {
-    name,
-    cmd,
-    gpu,
-    volumes,
-    env,
-    work_dir,
-    entrypoint,
-    aliases,
-  }: RunContainerArgs,
-  gpuOption: string,
-): ContainerCreateOptions {
-  const devices = gpu
-    ? [
-      {
-        ...(gpuOption === 'all'
-          ? { Count: -1 }
-          : { device_ids: gpuOption.split(',') }),
-        Driver: 'nvidia',
-        Capabilities: [['gpu']],
-      },
-    ]
-    : [];
-  const dockerVolumes: MountSettings[] = [];
-  if (volumes && volumes.length > 0) {
-    for (let i = 0; i < volumes.length; i++) {
-      const volume = volumes[i];
-      dockerVolumes.push({
-        Target: volume.dest,
-        Source: volume.name,
-        Type: 'volume',
-        ReadOnly: volume.readonly || false,
-      });
-    }
-  }
 
-  const vars: string[] = [];
-  if (env) {
-    for (const [key, value] of Object.entries(env)) {
-      vars.push(`${key}=${value}`);
-    }
-  }
-  return {
-    name: name,
-    Hostname: '',
-    User: '',
-    AttachStdin: false,
-    AttachStdout: true,
-    AttachStderr: true,
-    Tty: false,
-    OpenStdin: false,
-    StdinOnce: false,
-    Env: vars,
-    Cmd: cmd,
-    Image: image,
-    WorkingDir: work_dir,
-    Entrypoint: entrypoint,
-    NetworkingConfig: {
-      EndpointsConfig: {
-        NOSANA_GATEWAY: aliases ? { Aliases: aliases } : {},
-      },
-    },
-    HostConfig: {
-      ExtraHosts: [
-        'host.docker.internal:8.8.8.8',
-        'host.containers.internal:8.8.8.8',
-      ],
-      Mounts: dockerVolumes,
-      NetworkMode: 'bridge',
-      DeviceRequests: devices,
-    },
-  };
-}

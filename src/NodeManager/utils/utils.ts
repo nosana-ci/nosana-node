@@ -125,9 +125,12 @@ export {
  * @return {string} The value of the specified environment variable.
  * @throws {Error} If the environment variable is not defined.
  */
-export function loadConfigurationValue(key: string) {
+export function loadConfigurationValue(key: string, defaultValue?: string): string {
   let value = process.env[key];
   if (!value) {
+    if (defaultValue !== undefined) {
+      return defaultValue;
+    }
     throw new Error(`Missing environment variable ${key}`);
   }
   return value;

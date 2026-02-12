@@ -12,6 +12,7 @@ export type configType = {
     serverAddr: string;
     serverPort: number;
     containerImage: string;
+    nodeInternalHostName: string;
   };
   api: {
     port: number;
@@ -36,6 +37,7 @@ export const configs = (options?: { [key: string]: any }): configType => {
       serverAddr: loadConfigurationValue('FRP_SERVER_ADDRESS'),
       serverPort: parseInt(loadConfigurationValue('FRP_SERVER_PORT')),
       containerImage: loadConfigurationValue('FRP_SERVER_IMAGE'),
+      nodeInternalHostName: loadConfigurationValue('FRP_NODE_INTERNAL_HOSTNAME', "nosana-node"),
     },
     api: {
       port: parseInt(loadConfigurationValue('API_PORT')),

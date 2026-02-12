@@ -6,6 +6,8 @@ import { NodeRepository } from '../../../NodeManager/repository/NodeRepository.j
 export * from './action.js';
 
 export async function pruneResources(options: { [key: string]: any }) {
+  options.provider = process.argv.some(arg => arg === '--docker') ? 'docker' : 'podman';
+
   try {
     const db = new DB(options.config).db;
     const repository = new NodeRepository(db);

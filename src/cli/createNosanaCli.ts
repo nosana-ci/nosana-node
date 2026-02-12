@@ -1,12 +1,19 @@
 import { Command, Option } from 'commander';
-import { nodeCommand } from './node/index.js';
-import { addressCommand } from './address/command.js';
+import { addressCommand } from './commands/address/command.js';
 import { OUTPUT_EVENTS } from '../output-formatter/outputEvents.js';
 import { outputFormatArgumentParser } from '../output-formatter/outputFormatArgumentParser.js';
 import { outputFormatSelector } from '../output-formatter/outputFormatSelector.js';
 import { setSDK } from '../NodeManager/sdk/index.js';
 import { configs } from '../NodeManager/configs/configs.js';
 import { NodeConfigsSingleton } from '../NodeManager/configs/NodeConfigs.js';
+
+import { runNodeCommand } from './commands/run/command.js';
+import { startNodeCommand } from './commands/start/command.js';
+import { nodePruneCommand } from './commands/prune/command.js';
+
+export * from './commands/run/command.js';
+export * from './commands/start/command.js';
+export * from './commands/prune/command.js';
 
 export const createNosanaCLI = (version: string) =>
   new Command()
@@ -42,5 +49,7 @@ export const createNosanaCLI = (version: string) =>
         .default('debug')
         .choices(['info', 'none', 'debug', 'trace']),
     )
-    .addCommand(nodeCommand)
+    .addCommand(nodePruneCommand)
+    .addCommand(runNodeCommand)
+    .addCommand(startNodeCommand)
     .addCommand(addressCommand)

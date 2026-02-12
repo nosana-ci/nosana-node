@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { type Client } from '@nosana/sdk';
 
-import { getSDK } from '../../NodeManager/sdk/index.js';
+import { getSDK } from '../../../NodeManager/sdk/index.js';
 
 export async function getAddress(
   options: {

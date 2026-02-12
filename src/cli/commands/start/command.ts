@@ -8,7 +8,7 @@ import {
   walletOption,
   verboseOption,
   gpuOption
-} from '../../sharedOptions/index.js';
+} from '../sharedOptions/index.js';
 
 export * from './action.js';
 
@@ -18,11 +18,6 @@ export const startNodeCommand = new Command('start')
   .addOption(networkOption)
   .addOption(rpcOption)
   .addOption(walletOption)
-  .addOption(
-    new Option('--provider <provider>', 'provider used to run the job')
-      .choices(['docker', 'podman'])
-      .default('podman'),
-  )
   .addOption(
     new Option(
       '--docker, --podman <URI>',

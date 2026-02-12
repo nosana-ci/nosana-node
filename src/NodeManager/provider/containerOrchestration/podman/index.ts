@@ -30,6 +30,28 @@ export class PodmanContainerOrchestration extends DockerContainerOrchestration {
     return fetch(`${this.api}${path}`, options);
   }
 
+  async createNetwork(
+    _name: string,
+    controller?: AbortController,
+  ): Promise<void> {
+    try {
+      if (await this.hasNetwork('NOSANA_GATEWAY')) return;
+      await this.docker.createNetwork({
+        Name: 'NOSANA_GATEWAY',
+        IPAM: {
+          Driver: 'bridge',
+          Config: [{ Subnet: '192.168.101.0/24', Gateway: '192.168.101.1' }],
+        },
+        abortSignal: controller?.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        error.eventType = 'resource-error';
+      }
+      throw error;
+    }
+  }
+
   async runFlowContainer(
     image: string,
     args: RunContainerArgs,
