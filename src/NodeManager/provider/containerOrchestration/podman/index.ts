@@ -9,7 +9,7 @@ export class PodmanContainerOrchestration extends DockerContainerOrchestration {
   private api: string;
   public name: string = 'podman';
 
-  constructor(server: string, gpu: string) {
+  constructor(server: string, gpu: string, _teeRuntime?: string) {
     super(server, gpu);
     if (this.protocol === 'socket') {
       this.api = `http://localhost/v4.5.0/libpod`;
@@ -55,7 +55,6 @@ export class PodmanContainerOrchestration extends DockerContainerOrchestration {
   async runFlowContainer(
     image: string,
     args: RunContainerArgs,
-    controller?: AbortController,
   ): Promise<Container> {
     try {
       let error: any;
@@ -81,9 +80,6 @@ export class PodmanContainerOrchestration extends DockerContainerOrchestration {
           );
           if (start.status === 204) {
             const container = this.docker.getContainer(createResult.Id);
-            if (controller) {
-              this.setupContainerAbortListener(container.id, controller);
-            }
             return container;
           } else {
             throw new Error(

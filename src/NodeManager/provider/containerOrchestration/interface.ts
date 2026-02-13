@@ -74,9 +74,11 @@ export type RunContainerArgs = {
   entrypoint?: string | string[];
   restart_policy?: RestartPolicy;
   aliases?: string[] | undefined;
+  runtime?: string;
 };
 
 export interface ContainerOrchestrationInterface {
+  teeRuntime?: string;
   getConnection(): any;
 
   pullImage(
@@ -115,7 +117,6 @@ export interface ContainerOrchestrationInterface {
   runFlowContainer(
     image: string,
     args: RunContainerArgs,
-    controller?: AbortController,
   ): Promise<Container>;
 
   stopContainer(id: string, controller?: AbortController): Promise<void>;

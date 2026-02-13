@@ -55,6 +55,7 @@ export async function runJob(
       options.provider,
       options.podman,
       options.gpu,
+      options.trustedExecutionRuntime
     );
 
     const resourceManager = new ResourceManager(

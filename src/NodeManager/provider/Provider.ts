@@ -9,6 +9,7 @@ import {
   OperationType,
   Ops,
   Resource,
+  TrustedExecutionEnv,
 } from '@nosana/sdk';
 import EventEmitter from 'events';
 import Dockerode from 'dockerode';
@@ -37,6 +38,10 @@ export class Provider {
     private resourceManager: ResourceManager,
   ) {
     applyLoggingProxyToClass(this);
+  }
+
+  public async hasTrustedExecutionEnvCapability(required_environment: TrustedExecutionEnv): Promise<boolean> {
+    return this.containerOrchestration.teeRuntime === required_environment;
   }
 
   public async stopReverseProxyApi(address: string): Promise<boolean> {
@@ -331,6 +336,7 @@ export class Provider {
             volumes,
             aliases,
             restart_policy: op.args.restart_policy,
+            runtime: op.args.trusted_execution_env
           },
         );
 

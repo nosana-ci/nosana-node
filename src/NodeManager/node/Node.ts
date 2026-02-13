@@ -58,6 +58,7 @@ export class BasicNode {
       options.provider,
       options.podman,
       options.gpu,
+      options.trustedExecutionRuntime
     );
     this.resourceManager = new ResourceManager(
       this.containerOrchestration,

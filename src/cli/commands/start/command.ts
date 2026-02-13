@@ -7,7 +7,8 @@ import {
   rpcOption,
   walletOption,
   verboseOption,
-  gpuOption
+  gpuOption,
+  teeRuntimeOption,
 } from '../sharedOptions/index.js';
 
 export * from './action.js';
@@ -30,6 +31,7 @@ export const startNodeCommand = new Command('start')
       'Config path (to store the flows database and other config)',
     ).default('~/.nosana/'),
   )
+  .addOption(teeRuntimeOption)
   .addOption(gpuOption)
   .addOption(portOption)
   .addOption(verboseOption)

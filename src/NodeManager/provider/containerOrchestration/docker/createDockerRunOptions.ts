@@ -27,6 +27,7 @@ export function createDockerRunOptions(
     entrypoint,
     aliases,
     restart_policy,
+    runtime
   }: RunContainerArgs,
   gpuOption: string,
 ): ContainerCreateOptions {
@@ -76,6 +77,7 @@ export function createDockerRunOptions(
       NetworkMode: 'bridge',
       DeviceRequests: devices,
       RestartPolicy: parseRestartPolicy(restart_policy),
+      ...(runtime ? { Runtime: runtime } : {}),
     },
   };
 }

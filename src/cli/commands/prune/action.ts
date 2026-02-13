@@ -16,6 +16,7 @@ export async function pruneResources(options: { [key: string]: any }) {
       options.provider,
       options.podman,
       options.gpu,
+      undefined,
     );
 
     const resourceManager = new ResourceManager(

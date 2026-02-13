@@ -31,11 +31,12 @@ export class DockerContainerOrchestration
   public protocol: 'https' | 'http' | 'ssh' | 'socket';
   public name: string = 'docker';
   public gpu: string = 'all';
-
+  public teeRuntime?: string;
   public listeners = new Map<string, Array<() => Promise<void>>>();
 
-  constructor(server: string, gpu: string) {
+  constructor(server: string, gpu: string, teeRuntime?: string) {
     this.gpu = gpu;
+    this.teeRuntime = teeRuntime;
     if (server.startsWith('http') || server.startsWith('ssh')) {
       const { host, port, protocol } = createSeverObject(server);
 
@@ -56,6 +57,19 @@ export class DockerContainerOrchestration
       this.host = server;
       this.port = '';
       this.docker = new DockerExtended({ socketPath: this.host });
+    }
+  }
+
+  async checkCustomRuntimeAvailability(runtime: string): Promise<boolean> {
+    // TODO: implement a better check for custom runtimes by creating and starting a basic container with the runtime
+    try {
+      const info = await this.docker.info();
+      if (info.Runtimes && info.Runtimes[runtime]) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      return false;
     }
   }
 
@@ -306,23 +320,13 @@ export class DockerContainerOrchestration
   async runFlowContainer(
     image: string,
     args: RunContainerArgs,
-    controller?: AbortController,
   ): Promise<Container> {
     try {
-      if (controller?.signal.aborted) {
-        throw controller.signal.reason;
-      }
-
       const container = await this.docker.createContainer({
         ...createDockerRunOptions(image, args, this.gpu),
-        abortSignal: controller?.signal,
       });
 
       await container.start();
-
-      if (controller) {
-        this.setupContainerAbortListener(container.id, controller);
-      }
 
       return container;
     } catch (error) {
