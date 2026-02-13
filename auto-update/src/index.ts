@@ -33,7 +33,7 @@ async function nosanaCLIRunner() {
       }
     }
     console.log(chalk.green('Starting Nosana Node'));
-    const code = await spawnPromise('nosana', process.argv.slice(2), {
+    const code = await spawnPromise('nosana-node', process.argv.slice(2), {
       cwd: process.cwd(),
       detached: true,
       stdio: 'inherit',
