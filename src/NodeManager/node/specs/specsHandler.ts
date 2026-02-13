@@ -152,6 +152,8 @@ export class SpecsHandler {
   private processSystemInfoBenchmark(logs: OpState['logs']): void {
     if (!logs[0]) throw new Error('Could not find system info logs');
 
+    console.log('System Info Logs:', logs);
+
     const {
       system_environment,
       cpu_model: model,
@@ -183,6 +185,8 @@ export class SpecsHandler {
   private processNetworkInfoBenchmark(logs: OpState['logs']): void {
     if (!logs[0]) throw new Error('Could not find network info logs');
 
+    console.log('Network Info Logs:', logs);
+
     const { country, ip, ping_ms, download_mbps, upload_mbps } =
       this.parseLogsIntoJSON<NetworkInfoResults>(logs);
 
@@ -199,6 +203,8 @@ export class SpecsHandler {
 
   private processGPUInfoBenchmark(logs: OpState['logs']): void {
     if (!logs[0]) throw new Error('Could not find GPU info logs');
+
+    console.log('GPU Info Logs:', logs);
 
     const results = this.parseLogsIntoJSON<CudaCheckSuccessResponse>(logs);
     this.repository.updateNodeInfo({ gpus: results });
