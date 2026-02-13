@@ -37,7 +37,7 @@ export function createDockerRunOptions(
     devices.push({
       ...(gpuOption === 'all'
         ? { Count: -1 }
-        : { device_ids: gpuOption.split(',') }),
+        : { DeviceIDs: gpuOption.split(',') }),
       Driver: 'nvidia',
       Capabilities: [['gpu']],
     })
