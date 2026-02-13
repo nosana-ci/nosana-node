@@ -43,6 +43,7 @@ export function createDockerRunOptions(
     })
   };
 
+
   return {
     name: name,
     Hostname: '',
@@ -76,6 +77,15 @@ export function createDockerRunOptions(
       })),
       NetworkMode: 'bridge',
       DeviceRequests: devices,
+      ...(runtime === 'SEV-SNP' ? {
+        Devices: [
+          {
+            PathOnHost: '/dev/sev-guest',
+            PathInContainer: '/dev/sev-guest',
+            CgroupPermissions: 'r'
+          }
+        ]
+      } : {}),
       RestartPolicy: parseRestartPolicy(restart_policy),
       ...(runtime ? { Runtime: runtime } : {}),
     },
