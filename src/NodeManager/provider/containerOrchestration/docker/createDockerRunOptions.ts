@@ -68,10 +68,12 @@ export function createDockerRunOptions(
       }
     } : {}),
     HostConfig: {
-      ExtraHosts: [
-        'host.docker.internal:8.8.8.8',
-        'host.containers.internal:8.8.8.8',
-      ],
+      ...(!bind_network_to_container ? {
+        ExtraHosts: [
+          'host.docker.internal:8.8.8.8',
+          'host.containers.internal:8.8.8.8',
+        ]
+      } : {}),
       Mounts: volumes?.map(({ dest, name, readonly }) => ({
         Target: dest,
         Source: name,
