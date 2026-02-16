@@ -360,7 +360,7 @@ export class Provider {
 
         emitter.emit('updateOpState', { providerId: container.id });
 
-        if (info.NetworkSettings.Networks["NOSANA_GATEWAY"].IPAddress) {
+        if (info.NetworkSettings?.Networks["NOSANA_GATEWAY"].IPAddress) {
           emitter.emit('setContainerInternalIp', info.NetworkSettings.Networks["NOSANA_GATEWAY"].IPAddress);
         }
 
