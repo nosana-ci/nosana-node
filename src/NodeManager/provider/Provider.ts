@@ -348,7 +348,7 @@ export class Provider {
               cmd: ['sleep', 'infinity'],
             })
 
-          createContainerOptions.bind_network_to_container = `bridge-${name}`;
+          createContainerOptions.bind_network_to_container = `container:bridge-${name}`;
         }
 
         container = await this.containerOrchestration.runFlowContainer(
