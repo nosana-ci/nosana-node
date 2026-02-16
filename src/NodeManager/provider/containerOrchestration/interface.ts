@@ -75,6 +75,7 @@ export type RunContainerArgs = {
   restart_policy?: RestartPolicy;
   aliases?: string[] | undefined;
   runtime?: string;
+  bind_network_to_container?: string;
 };
 
 export interface ContainerOrchestrationInterface {

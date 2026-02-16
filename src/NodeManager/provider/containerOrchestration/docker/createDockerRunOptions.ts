@@ -27,7 +27,8 @@ export function createDockerRunOptions(
     entrypoint,
     aliases,
     restart_policy,
-    runtime
+    runtime,
+    bind_network_to_container
   }: RunContainerArgs,
   gpuOption: string,
 ): ContainerCreateOptions {
@@ -59,11 +60,13 @@ export function createDockerRunOptions(
     Image: image,
     WorkingDir: work_dir,
     Entrypoint: entrypoint,
-    NetworkingConfig: {
-      EndpointsConfig: {
-        NOSANA_GATEWAY: aliases ? { Aliases: aliases } : {},
-      },
-    },
+    ...(!bind_network_to_container ? {
+      NetworkingConfig: {
+        EndpointsConfig: {
+          NOSANA_GATEWAY: aliases ? { Aliases: aliases } : {},
+        },
+      }
+    } : {}),
     HostConfig: {
       ExtraHosts: [
         'host.docker.internal:8.8.8.8',
@@ -75,7 +78,7 @@ export function createDockerRunOptions(
         Type: 'volume',
         ReadOnly: readonly || false,
       })),
-      NetworkMode: 'bridge',
+      NetworkMode: bind_network_to_container ? bind_network_to_container : 'bridge',
       DeviceRequests: devices,
       ...(runtime === 'SEV-SNP' ? {
         Devices: [

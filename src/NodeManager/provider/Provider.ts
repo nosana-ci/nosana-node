@@ -22,7 +22,7 @@ import { s3HelperImage } from '../node/resource/definition/index.js';
 import { ResourceManager } from '../node/resource/resourceManager.js';
 import { applyLoggingProxyToClass } from '../monitoring/proxy/loggingProxy.js';
 import { promiseTimeoutWrapper } from '../utils/timeoutPromiseWrapper.js';
-import { ContainerOrchestrationInterface } from './containerOrchestration/interface.js';
+import { ContainerOrchestrationInterface, RunContainerArgs } from './containerOrchestration/interface.js';
 import {
   generateProxies,
   generateUrlSecretObject,
@@ -320,27 +320,49 @@ export class Provider {
           volumes.push(...resourceVolumes);
         }
 
+        const createContainerOptions: RunContainerArgs = {
+          name,
+          cmd,
+          env,
+          networks,
+          requires_network_mode: isOpExposed(
+            op as Operation<'container/run'>,
+          ),
+          gpu,
+          entrypoint,
+          work_dir,
+          volumes,
+          aliases,
+          restart_policy: op.args.restart_policy,
+          runtime: op.args.trusted_execution_env
+        };
+
+        if (op.args.trusted_execution_env) {
+          await this.containerOrchestration.pullImage("busybox");
+          await this.resourceManager.images.setImage("busybox");
+
+          await this.containerOrchestration.runFlowContainer(
+            "busybox",
+            {
+              name: `bridge-${name}`,
+              cmd: ['sleep', 'infinity'],
+            })
+
+          createContainerOptions.bind_network_to_container = `bridge-${name}`;
+        }
+
         container = await this.containerOrchestration.runFlowContainer(
           op.args.image ?? flow.jobDefinition.global?.image!,
-          {
-            name,
-            cmd,
-            env,
-            networks,
-            requires_network_mode: isOpExposed(
-              op as Operation<'container/run'>,
-            ),
-            gpu,
-            entrypoint,
-            work_dir,
-            volumes,
-            aliases,
-            restart_policy: op.args.restart_policy,
-            runtime: op.args.trusted_execution_env
-          },
+          createContainerOptions
         );
 
+        const info = await container.inspect();
+
         emitter.emit('updateOpState', { providerId: container.id });
+
+        if (info.NetworkSettings.Networks["NOSANA_GATEWAY"].IPAddress) {
+          emitter.emit('setContainerInternalIp', info.NetworkSettings.Networks["NOSANA_GATEWAY"].IPAddress);
+        }
 
         stateManager = new ContainerStateManager(
           container,
@@ -427,11 +449,10 @@ export class Provider {
       const index = getOpStateIndex(flow.jobDefinition.ops, op.id);
       const name = flow.id + '-' + index;
 
-      const opContainer = await this.containerOrchestration.getContainerByName(
-        name,
-      );
-      const frpcContainer =
-        await this.containerOrchestration.getContainerByName('frpc-' + name);
+      const [opContainer, getSupportContainers] = await Promise.all([
+        this.containerOrchestration.getContainerByName(name),
+        this.containerOrchestration.getContainersByName([`frpc-${name}`, `bridge-${name}`]),
+      ]);
 
       if (opContainer) {
         const info = await this.containerOrchestration.stopAndDeleteContainer(
@@ -450,9 +471,11 @@ export class Provider {
         }
       }
 
-      if (frpcContainer) {
-        await this.containerOrchestration.stopAndDeleteContainer(
-          frpcContainer.id,
+      if (getSupportContainers) {
+        await Promise.all(
+          getSupportContainers.map((container) =>
+            this.containerOrchestration.stopAndDeleteContainer(container.id)
+          )
         );
       }
 

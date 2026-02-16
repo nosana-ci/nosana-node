@@ -36,6 +36,7 @@ import {
   setResults,
   setHost,
   setDefaults,
+  setContainerIp,
   rehydrateEndpointsForOperation,
   getByPath,
   resolveLiteralsInString,
@@ -101,6 +102,7 @@ export interface TaskLog {
 
 export type OperationData = {
   host?: string;
+  container_ip?: string;
   endpoint?: {
     [key: string]: string;
   };
@@ -295,6 +297,7 @@ export default class TaskManager {
     this.setResult = setResult.bind(this);
     this.setResults = setResults.bind(this);
     this.setHost = setHost.bind(this);
+    this.setContainerIp = setContainerIp.bind(this);
     this.setDefaults = setDefaults.bind(this);
     this.rehydrateEndpointsForOperation =
       rehydrateEndpointsForOperation.bind(this);
@@ -362,6 +365,7 @@ export default class TaskManager {
   public setResult: (opId: string, key: string, value: any) => void;
   public setResults: (opId: string, values: Record<string, any>) => void;
   public setHost: (opId: string, host: string) => void;
+  public setContainerIp: (opId: string, ip: string) => void;
   public setDefaults: (
     flowId: string,
     project: string,

@@ -178,6 +178,10 @@ export async function runTaskManagerOperation(
     this.setHost(op.id, body.name);
   });
 
+  emitter.on('setContainerInternalIp', (ip: string) => {
+    this.setContainerIp(op.id, ip);
+  });
+
   /**
    * Subscribes to the 'start' event, which marks the official beginning of an operation’s execution.
    *
