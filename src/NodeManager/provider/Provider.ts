@@ -341,14 +341,22 @@ export class Provider {
           await this.containerOrchestration.pullImage("busybox");
           await this.resourceManager.images.setImage("busybox");
 
-          await this.containerOrchestration.runFlowContainer(
+          const bridgeContainer = await this.containerOrchestration.runFlowContainer(
             "busybox",
             {
               name: `bridge-${name}`,
               cmd: ['sleep', 'infinity'],
+              aliases: createContainerOptions.aliases
             })
 
+          delete createContainerOptions.aliases;
           createContainerOptions.bind_network_to_container = `container:bridge-${name}`;
+
+          const bridgeInfo = await bridgeContainer.inspect();
+
+          if (bridgeInfo.NetworkSettings?.Networks["NOSANA_GATEWAY"].IPAddress) {
+            emitter.emit('setContainerInternalIp', bridgeInfo.NetworkSettings.Networks["NOSANA_GATEWAY"].IPAddress);
+          }
         }
 
         container = await this.containerOrchestration.runFlowContainer(
@@ -360,7 +368,7 @@ export class Provider {
 
         emitter.emit('updateOpState', { providerId: container.id });
 
-        if (info.NetworkSettings?.Networks["NOSANA_GATEWAY"].IPAddress) {
+        if (!op.args.trusted_execution_env && info.NetworkSettings?.Networks["NOSANA_GATEWAY"].IPAddress) {
           emitter.emit('setContainerInternalIp', info.NetworkSettings.Networks["NOSANA_GATEWAY"].IPAddress);
         }
 
