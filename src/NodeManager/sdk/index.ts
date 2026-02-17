@@ -22,6 +22,10 @@ import { configs } from '../configs/configs.js';
 let nosana: Client;
 let nosBalance: TokenAmount | undefined, solBalance: number;
 
+export function setSDKInstance(instance: Client) {
+  nosana = instance;
+}
+
 export async function setSDK(
   network: 'mainnet' | 'devnet',
   rpc: string | undefined,
