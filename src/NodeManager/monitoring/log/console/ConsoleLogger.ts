@@ -4,6 +4,7 @@ import { MultiBar, Presets, SingleBar } from 'cli-progress';
 
 import { log, LogObserver, NodeLogEntry } from '../NodeLog.js';
 import { convertFromBytes } from '../../../utils/convertFromBytes.js';
+import { formatTime } from '../../../utils/formatTime.js';
 
 export const consoleLogging = (() => {
   let instance: ConsoleLogger | null = null;
@@ -27,6 +28,9 @@ export class ConsoleLogger implements LogObserver {
   private benchmarking: boolean = false;
   private taskManagerActive: boolean = false;
   private running: boolean = false;
+
+  private expiry: number | undefined;
+  private taskManagerRunInterval: NodeJS.Timeout | undefined;
 
   spinner!: Ora;
 
@@ -81,6 +85,9 @@ export class ConsoleLogger implements LogObserver {
     }
 
     if (isNode) {
+      if (log.method === 'Job:ExpiryUpdated') {
+        this.expiry = log.payload?.expiry;
+      }
       // --- TaskManager quiet window ---
       if (log.method === 'TaskManager.start' && log.type === 'process') {
         // Stop anything currently animating
@@ -90,12 +97,25 @@ export class ConsoleLogger implements LogObserver {
 
         this.taskManagerActive = true;
         this.pending = true;
+        this.expiry = log.payload?.expiry;
+        const startTime = Date.now();
 
         this.spinner = ora(
           chalk.magenta(
-            `${chalk.bgMagenta.bold(' TASKMANAGER ')} Running ${log.job}...`,
+            `${chalk.bgMagenta.bold(' TASKMANAGER ')} ${chalk.bgGreen.bold(' Duration: 0s ')} ${chalk.bgCyan.bold(` Max Duration: ${formatTime(this.expiry ?? 0)} `)}`,
           ),
         ).start();
+
+        this.taskManagerRunInterval = setInterval(() => {
+          if (this.taskManagerActive) {
+            const duration = (Date.now() - startTime) / 1000;
+            this.spinner.text = chalk.magenta(
+              `${chalk.bgMagenta.bold(' TASKMANAGER ')} ${chalk.bgGreen.bold(` Duration: ${formatTime(duration)} `)} ${chalk.bgCyan.bold(` Max Duration: ${formatTime((this.expiry ?? 0))} `)}`,
+            );
+          } else {
+            clearInterval(this.taskManagerRunInterval!);
+          }
+        }, 5000);
 
         // Block everything else until we see TaskManager.stop
         return;

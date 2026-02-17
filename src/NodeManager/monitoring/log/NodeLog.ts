@@ -4,6 +4,7 @@ import { SECONDS_PER_DAY } from '../../utils/utils.js';
 import { LogMonitoringRegistry } from '../LogMonitoringRegistry.js';
 import type { LogType } from '../../node/task/TaskManager.js';
 import { TaskManagerRegistry } from '../../node/task/TaskManagerRegistry.js';
+import { Job } from '@nosana/sdk';
 
 export interface LogObserver {
   isNodeObserver(): boolean;
@@ -38,8 +39,9 @@ export interface NodeLogEntry {
 
 class NodeLog {
   private observers: LogObserver[] = [];
-  private shared: { [key: string]: string | boolean } = {};
+  private shared: { [key: string]: string | boolean | number } = {};
   private job: string | undefined;
+  private expiry: number | undefined;
 
   constructor() {
     logEmitter.on('log', (data) => this.process(data));
@@ -92,6 +94,9 @@ class NodeLog {
             log: '',
             timestamp: Date.now(),
             type: 'process',
+            payload: {
+              expiry: this.expiry
+            }
           });
         }
 
@@ -561,6 +566,23 @@ class NodeLog {
     if (data.method === 'init') {
       if (data.type === 'return') {
         this.shared.expiry = data.result;
+      }
+    }
+
+    if (data.method === 'extendExpiryTime') {
+      if (data.type === 'call') {
+        this.expiry = data.arguments[0];
+        this.addLog({
+          method: `Job:ExpiryUpdated`,
+          job: this.job,
+          log: 'Job expiry time extended',
+          timestamp: Date.now(),
+          type: 'update',
+          payload: {
+            expiry: this.expiry
+          }
+        })
+
       }
     }
 
@@ -1320,6 +1342,13 @@ class NodeLog {
         } else {
           this.shared.exposed = false;
         }
+      }
+    }
+
+    if (data.method === 'register') {
+      if (data.type === 'call') {
+        const timeout = (data.arguments[2] as Job).timeout;
+        this.expiry = typeof timeout === 'number' ? timeout : Number(timeout);
       }
     }
 
