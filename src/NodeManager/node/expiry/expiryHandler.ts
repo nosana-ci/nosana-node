@@ -4,6 +4,7 @@ import { Client as SDK, Run, Job } from '@nosana/sdk';
 import { ClientSubscriptionId } from '@solana/web3.js';
 
 import ApiEventEmitter from '../api/ApiEventEmitter.js';
+import { logEmitter } from '../../monitoring/proxy/loggingProxy.js';
 
 export class ExpiryHandler {
   private jobAddress: string | undefined;
@@ -54,7 +55,7 @@ export class ExpiryHandler {
         .toNumber();
 
       if (newExpiryTime != this.expiryEndTime) {
-        this.extendExpiryTime(newExpiryTime - this.expiryEndTime);
+        this.extendExpiryTime(newExpiryTime - this.expiryEndTime, timeout);
       }
     });
 
@@ -87,7 +88,7 @@ export class ExpiryHandler {
 
     // Set up the warning timer
     if (warningTime > 0) {
-      this.warningTimer = setTimeout(() => {}, warningTime);
+      this.warningTimer = setTimeout(() => { }, warningTime);
     }
 
     // Set up the expiry timer
@@ -100,7 +101,15 @@ export class ExpiryHandler {
     }, remainingTime);
   }
 
-  public extendExpiryTime(additionalTimeMs: number) {
+  public extendExpiryTime(additionalTimeMs: number, timeout: number) {
+    // Manually emit log event since internal calls bypass the proxy
+    logEmitter.emit('log', {
+      class: 'ExpiryHandler',
+      method: 'extendExpiryTime',
+      arguments: [timeout],
+      timestamp: new Date().toISOString(),
+      type: 'call',
+    });
     this.expiryEndTime += additionalTimeMs;
     this.startOrResetTimer();
   }
