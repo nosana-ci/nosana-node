@@ -45,6 +45,8 @@ export class ConsoleLogger implements LogObserver {
   }
 
   public update(log: NodeLogEntry, isNode: boolean = true) {
+    const renderBase = `${chalk.bgGreenBright.black.bold('  RUNNING JOB  ')} ${chalk.reset('')}`;
+
     if (!this.kill && log.type == 'kill-process') {
       if (this.pending) {
         this.spinner.stop();
@@ -62,7 +64,7 @@ export class ConsoleLogger implements LogObserver {
 
       if (isNode && this.taskManagerActive) {
         this.spinner.succeed(
-          chalk.magenta(`${chalk.bgMagenta.bold(' TASKMANAGER ')} Exited`),
+          renderBase + ' Exited',
         );
       }
 
@@ -100,18 +102,16 @@ export class ConsoleLogger implements LogObserver {
         this.expiry = log.payload?.expiry;
         const startTime = Date.now();
 
+        const renderBar = (duration = 0) => `${renderBase} ${chalk.bgYellow.black.bold(`  ⏱ Duration: ${formatTime(duration)}  `)} ${chalk.reset('')} ${chalk.bgBlue.black.bold(`  ⚡ Max Duration: ${formatTime(this.expiry ?? 0)}  `)}`;
+
         this.spinner = ora(
-          chalk.magenta(
-            `${chalk.bgMagenta.bold(' TASKMANAGER ')} ${chalk.bgGreen.bold(' Duration: 0s ')} ${chalk.bgCyan.bold(` Max Duration: ${formatTime(this.expiry ?? 0)} `)}`,
-          ),
+          renderBar(0)
         ).start();
 
         this.taskManagerRunInterval = setInterval(() => {
           if (this.taskManagerActive) {
             const duration = (Date.now() - startTime) / 1000;
-            this.spinner.text = chalk.magenta(
-              `${chalk.bgMagenta.bold(' TASKMANAGER ')} ${chalk.bgGreen.bold(` Duration: ${formatTime(duration)} `)} ${chalk.bgCyan.bold(` Max Duration: ${formatTime((this.expiry ?? 0))} `)}`,
-            );
+            this.spinner.text = renderBar(duration);
           } else {
             clearInterval(this.taskManagerRunInterval!);
           }
@@ -125,9 +125,7 @@ export class ConsoleLogger implements LogObserver {
       if (this.taskManagerActive) {
         if (log.method === 'TaskManager.start') {
           this.spinner.succeed(
-            chalk.magenta(
-              `${chalk.bgMagenta.bold(' TASKMANAGER ')} Ending ${log.job}...`,
-            ),
+            renderBase + ` Ending ${log.job}...`
           );
           this.taskManagerActive = false;
           this.pending = false;
