@@ -5,6 +5,7 @@ import { MultiBar, Presets, SingleBar } from 'cli-progress';
 import { log, LogObserver, NodeLogEntry } from '../NodeLog.js';
 import { convertFromBytes } from '../../../utils/convertFromBytes.js';
 import { formatTime } from '../../../utils/formatTime.js';
+import { configs } from '../../../configs/configs.js';
 
 export const consoleLogging = (() => {
   let instance: ConsoleLogger | null = null;
@@ -68,7 +69,7 @@ export class ConsoleLogger implements LogObserver {
         );
       }
 
-      this.spinner = ora(log.log).start();
+      this.spinner = ora({ text: log.log, interval: configs().spinnerInterval }).start();
     }
 
     if (this.kill) {
@@ -105,7 +106,7 @@ export class ConsoleLogger implements LogObserver {
         const renderBar = (duration = 0) => `${renderBase} ${chalk.bgYellow.black.bold(`  ⏱ Duration: ${formatTime(duration)}  `)} ${chalk.reset('')} ${chalk.bgBlue.black.bold(`  ⚡ Max Duration: ${formatTime(this.expiry ?? 0)}  `)}`;
 
         this.spinner = ora(
-          renderBar(0)
+          { text: renderBar(0), interval: configs().spinnerInterval }
         ).start();
 
         this.taskManagerRunInterval = setInterval(() => {
@@ -146,7 +147,7 @@ export class ConsoleLogger implements LogObserver {
       this.pending = true;
 
       this.spinner = ora(
-        chalk.green(`${chalk.bgGreen.bold(' Checking Specs ')}`),
+        { text: chalk.green(`${chalk.bgGreen.bold(' Checking Specs ')}`), interval: configs().spinnerInterval }
       ).start();
       return;
     }
@@ -352,7 +353,7 @@ export class ConsoleLogger implements LogObserver {
       if (log.pending?.isPending) {
         this.pending = true;
         this.expecting = log.pending?.expecting;
-        this.spinner = ora(log.log).start();
+        this.spinner = ora({ text: log.log, interval: configs().spinnerInterval }).start();
       } else {
         console.log(log.log);
       }

@@ -2,6 +2,7 @@ import ora from 'ora';
 import chalk from 'chalk';
 import { Client as SDK } from '@nosana/sdk';
 import { TokenAmount, PublicKey } from '@solana/web3.js';
+import { configs } from '../../configs/configs';
 
 type Balances = {
   sol: number;
@@ -58,7 +59,7 @@ export class BalanceHandler {
         throw new Error(insufficentSolMessage);
       }
 
-      const spinner = ora(chalk.yellow(insufficentSolMessage)).start();
+      const spinner = ora({ text: chalk.yellow(insufficentSolMessage), interval: configs().spinnerInterval }).start();
       await this.waitForSufficentSol();
       spinner.succeed();
     }

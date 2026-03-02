@@ -19,6 +19,7 @@ export type configType = {
   };
   minDiskSpace: number;
   network: 'devnet' | 'mainnet';
+  spinnerInterval: number;
 };
 
 export const configs = (options?: { [key: string]: any }): configType => {
@@ -44,5 +45,6 @@ export const configs = (options?: { [key: string]: any }): configType => {
     },
     minDiskSpace: parseInt(loadConfigurationValue('MIN_DISK_SPACE')),
     network: options?.network ?? 'mainnet',
+    spinnerInterval: parseInt(loadConfigurationValue('SPINNER_INTERVAL', '5000')),
   };
 };
