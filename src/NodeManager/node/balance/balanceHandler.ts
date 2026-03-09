@@ -2,7 +2,7 @@ import ora from 'ora';
 import chalk from 'chalk';
 import { Client as SDK } from '@nosana/sdk';
 import { TokenAmount, PublicKey } from '@solana/web3.js';
-import { configs } from '../../configs/configs';
+import { configs } from '../../configs/configs.js';
 
 type Balances = {
   sol: number;
