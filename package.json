@@ -7,8 +7,7 @@
   },
   "type": "module",
   "scripts": {
-    "dev:start": "./docker-run.sh start --docker /var/run/docker.sock",
-    "dev:run": "./docker-run.sh run --docker /var/run/docker.sock",
+    "dev": "APP_ENV=development node --no-warnings --loader ts-node/esm src/index.ts",
     "build": "npm run prepare && tsc && cp .env ./dist/ && cp .env.prd ./dist/ && cp .env.dev ./dist/",
     "generate": "openapi-typescript http://dashboard.k8s.prd.nos.ci/api/swagger/json -o ./src/NodeManager/client/schema.d.ts",
     "test": "APP_ENV=development DOCKER_CERT_PATH= vitest run",
@@ -58,7 +57,6 @@
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-promise": "^6.0.0",
     "husky": "^9.1.7",
-    "nodemon": "^3.0.2",
     "prettier": "^2.8.8",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.2",
