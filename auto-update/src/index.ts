@@ -4,8 +4,6 @@ import ora from 'ora';
 
 type SpawnParameters = Parameters<typeof spawn>;
 
-const SPINNER_INTERVAL = process.env.SPINNER_INTERVAL ? parseInt(process.env.SPINNER_INTERVAL, 10) : 5000;
-
 async function installNosanaCLI(version?: string) {
   return new Promise((resolve) =>
     exec(`npm install -g @nosana/node${version ? '@' + version : ''}`, () => {
@@ -17,7 +15,7 @@ async function installNosanaCLI(version?: string) {
 async function nosanaCLIRunner() {
   let errorCode;
   const version: string | undefined = process.env.NOSANA_NODE_VERSION;
-  const spinner = ora({ text: chalk.cyan('Installing @nosana/node'), interval: SPINNER_INTERVAL }).start();
+  const spinner = ora(chalk.cyan('Installing @nosana/node')).start();
   await installNosanaCLI(version);
   spinner.succeed();
 
@@ -25,7 +23,7 @@ async function nosanaCLIRunner() {
     if (errorCode === 129) {
       if (!version) {
         console.log(chalk.yellow('New @nosana/node version found.'));
-        const spinner = ora({ text: chalk.cyan('Updating @nosana/node'), interval: SPINNER_INTERVAL }).start();
+        const spinner = ora(chalk.cyan('Updating @nosana/node')).start();
         await installNosanaCLI();
         spinner.succeed();
       } else {
