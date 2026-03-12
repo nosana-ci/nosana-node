@@ -14,8 +14,14 @@ const VERSION: string = pkg.version;
 setDefaultResultOrder('ipv4first');
 
 const cacheable = new CacheableLookup();
-cacheable.install(http.globalAgent);
-cacheable.install(https.globalAgent);
+const httpAgent = new http.Agent({ family: 4 });
+const httpsAgent = new https.Agent({ family: 4 });
+
+cacheable.install(httpAgent);
+cacheable.install(httpsAgent);
+
+http.globalAgent = httpAgent;
+https.globalAgent = httpsAgent;
 
 startCLI(VERSION);
 
