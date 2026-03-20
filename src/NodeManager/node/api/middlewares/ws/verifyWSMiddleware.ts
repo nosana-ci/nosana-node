@@ -1,22 +1,23 @@
 import WebSocket from 'ws';
 
 import { getSDK } from '../../../../sdk/index.js';
+import { WSBody } from '../../types/index.js';
 
 export async function verifyWSMiddleware(
   ws: WebSocket,
   headers: string,
-  body: { jobAddress: string },
+  body: WSBody,
   nextFunction: (
     ws: WebSocket,
     headers: string,
-    body: { jobAddress: string },
+    body: WSBody,
   ) => void,
 ) {
   const sdk = getSDK();
   const jobId = body.jobAddress;
 
   if (!jobId) {
-    ws.close(1007, 'Expected body to contain jobAddress.');
+    ws.close(1008, 'Expected body to contain jobAddress.');
     return;
   }
 
@@ -24,12 +25,12 @@ export async function verifyWSMiddleware(
     const job = await sdk.jobs.get(jobId);
 
     if (!job) {
-      ws.close(1007, `Could not find job with id ${jobId}`);
+      ws.close(1008, `Could not find job with id ${jobId}`);
       return;
     }
 
     nextFunction(ws, headers, body);
   } catch (error) {
-    ws.close(3000, `Unauthorized Request: ${(error as Error).message}`);
+    ws.close(4001, `Unauthorized Request: ${(error as Error).message}`);
   }
 }

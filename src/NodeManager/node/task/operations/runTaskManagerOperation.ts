@@ -156,6 +156,15 @@ export async function runTaskManagerOperation(
   });
 
   /**
+   * Subscribes to 'stat' events emitted by the container stats stream.
+   * Each stat snapshot is stored in the TaskManager's stat buffer and
+   * fanned out to any active WebSocket subscribers.
+   */
+  emitter.on('stat', (stat) => {
+    this.addStat({ ...stat, opId: op.id });
+  });
+
+  /**
    * Subscribes to 'updateOpState' events that allow partial mutation of the operation's state.
    *
    * This is a flexible and general-purpose hook. It accepts a `body` payload which is a partial

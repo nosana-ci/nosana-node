@@ -4,6 +4,8 @@ import { NodeRepository } from '../../../repository/NodeRepository.js';
 import ApiEventEmitter from '../ApiEventEmitter.js';
 import { Provider } from '../../../provider/Provider.js';
 
+export type WSBody = { jobAddress: string };
+
 export type NodeAPIRequest<Params = {}, Body = {}> = Request<
   Params,
   {},

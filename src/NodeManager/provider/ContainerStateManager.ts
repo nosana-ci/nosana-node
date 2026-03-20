@@ -1,9 +1,21 @@
+import { Readable } from 'stream';
+import { createInterface } from 'readline';
+
 import { parseBuffer } from './utils/parseBuffer.js';
+import { parseDockerStat } from './utils/parseDockerStat.js';
 
 import type EventEmitter from 'events';
 import type Dockerode from 'dockerode';
 import type { RestartPolicy } from '@nosana/sdk';
 type ContainerState = 'starting' | 'running' | 'exited' | 'restarting';
+
+function destroyStream(stream: NodeJS.ReadableStream | null): void {
+  if (!stream) return;
+  stream.removeAllListeners();
+  if (stream instanceof Readable) {
+    stream.destroy();
+  }
+}
 
 export class ContainerStateManager {
   private state: ContainerState = 'starting';
@@ -11,6 +23,7 @@ export class ContainerStateManager {
   private lastLogTimestamp: number = 0; // Unix timestamp in seconds from actual container logs
   private readonly EXITED_CHECKS_REQUIRED = 3; // Require 3 consecutive checks before confirming exit
   private currentLogStream: NodeJS.ReadableStream | null = null;
+  private currentStatsStream: NodeJS.ReadableStream | null = null;
   private pollingInterval: NodeJS.Timeout | null = null;
 
   constructor(
@@ -18,7 +31,7 @@ export class ContainerStateManager {
     private controller: AbortController,
     private emitter: EventEmitter,
     private restartPolicy: RestartPolicy | undefined,
-  ) {}
+  ) { }
 
   getState(): ContainerState {
     return this.state;
@@ -26,6 +39,7 @@ export class ContainerStateManager {
 
   async startMonitoring() {
     await this.attachLogStream();
+    this.attachStatsStream();
 
     if (!this.restartPolicy) {
       this.container
@@ -97,14 +111,7 @@ export class ContainerStateManager {
 
       // Clean up on abort
       const abortHandler = () => {
-        this.currentLogStream?.removeAllListeners();
-        if (
-          this.currentLogStream &&
-          'destroy' in this.currentLogStream &&
-          typeof this.currentLogStream.destroy === 'function'
-        ) {
-          this.currentLogStream.destroy();
-        }
+        destroyStream(this.currentLogStream);
         this.currentLogStream = null;
       };
       this.controller.signal.addEventListener('abort', abortHandler, {
@@ -134,15 +141,57 @@ export class ContainerStateManager {
       this.pollingInterval = null;
     }
 
-    if (this.currentLogStream) {
-      this.currentLogStream.removeAllListeners();
-      if (
-        'destroy' in this.currentLogStream &&
-        typeof this.currentLogStream.destroy === 'function'
-      ) {
-        (this.currentLogStream as any).destroy();
-      }
-      this.currentLogStream = null;
-    }
+    destroyStream(this.currentLogStream);
+    this.currentLogStream = null;
+
+    destroyStream(this.currentStatsStream);
+    this.currentStatsStream = null;
+  }
+
+  private readonly STATS_INTERVAL_MS = 5000;
+
+  private async attachStatsStream() {
+    if (this.controller.signal.aborted) return;
+
+    try {
+      this.currentStatsStream = await this.container.stats({ stream: true });
+
+      let peakStat: ReturnType<typeof parseDockerStat> = null;
+
+      const rl = createInterface({ input: this.currentStatsStream });
+      rl.on('line', (line) => {
+        try {
+          const raw: Dockerode.ContainerStats = JSON.parse(line);
+          const stat = parseDockerStat(raw);
+          if (!stat) return;
+
+          if (!peakStat || stat.cpu.cpu_percent > peakStat.cpu.cpu_percent) {
+            peakStat = stat;
+          }
+        } catch { }
+      });
+
+      const statsInterval = setInterval(() => {
+        if (peakStat) {
+          this.emitter.emit('stat', peakStat);
+          peakStat = null;
+        }
+      }, this.STATS_INTERVAL_MS);
+
+      const cleanup = () => {
+        clearInterval(statsInterval);
+        this.currentStatsStream = null;
+      };
+
+      this.currentStatsStream.on('close', cleanup);
+      this.currentStatsStream.on('error', cleanup);
+
+      const abortHandler = () => {
+        clearInterval(statsInterval);
+        destroyStream(this.currentStatsStream);
+        this.currentStatsStream = null;
+      };
+      this.controller.signal.addEventListener('abort', abortHandler, { once: true });
+    } catch { }
   }
 }

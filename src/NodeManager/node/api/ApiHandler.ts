@@ -43,6 +43,8 @@ import {
   moveGroupOperationHandler,
   getJobDefinitionRoute,
   getJobInfoRoute,
+  getJobStatsRoute,
+  getJobStatsStreamRoute,
 } from './routes/index.js';
 import { NodeAlreadyActiveError } from '../../errors/NodeAlreadyActiveError.js';
 
@@ -159,7 +161,7 @@ export class ApiHandler {
               );
               break;
             case '/flog':
-              await verifyWSMiddleware(
+              await verifyWSJobOwnerSignatureMiddleware(
                 ws,
                 header,
                 body,
@@ -232,6 +234,8 @@ export class ApiHandler {
     this.api.get('/job/:jobId/group/current', getCurrentGroupStatusHandler);
     this.api.get('/job/:jobId/group/:group', getGroupStatusHandler);
     this.api.get('/job/:jobId/endpoints', getServiceUrlRoute);
+    this.api.get('/job/:jobId/stats', getJobStatsRoute);
+    this.api.get('/job/:jobId/stats/stream', getJobStatsStreamRoute);
 
     // POST Routes
     this.api.post(

@@ -30,6 +30,15 @@ import {
   subscribe,
   unsubscribe,
 } from './loggers/logManager.js';
+import {
+  addStat,
+  getAllStats,
+  getStatsByOp,
+  queryStats,
+  getLatestStatPerOp,
+  subscribeStats,
+  unsubscribeStats,
+} from './loggers/statsManager.js';
 import { moveTaskManagerGroupOperations } from './operations/moveTaskManagerGroupOperation.js';
 import {
   setResult,
@@ -47,6 +56,7 @@ import {
 import { Flow } from '@nosana/sdk';
 import { configs } from '../../configs/configs.js';
 import { getSDK } from '../../sdk/index.js';
+import { StatsBuffer } from './loggers/StatsBuffer.js';
 
 export type TaskManagerOps = Array<Operation<OperationType>>;
 
@@ -91,6 +101,27 @@ export const OperationProgressStatuses = {
 } as const;
 
 export type LogType = 'container' | 'info' | 'error';
+
+export interface TaskStat {
+  opId: string;
+  timestamp: number;
+  cpu: {
+    cpu_percent: number;
+  };
+  memory: {
+    memory_usage: number;
+    memory_limit: number;
+    memory_percent: number;
+  };
+  disk: {
+    read: number;
+    write: number;
+  };
+  network: {
+    received: number;
+    sent: number;
+  };
+}
 
 export interface TaskLog {
   opId: string;
@@ -230,6 +261,11 @@ export default class TaskManager {
   protected opLogBuffers: Map<string, TaskLog[]> = new Map();
 
   /**
+   * save stat buffer for streaming container stats
+   */
+  protected opStatBuffers: Map<string, StatsBuffer> = new Map();
+
+  /**
    * this list of ws sub to the task managers events
    */
   protected subscribers: Set<WebSocket> = new Set();
@@ -238,6 +274,16 @@ export default class TaskManager {
    * stores filters
    */
   protected logMatchers: Map<WebSocket, (log: TaskLog) => boolean> = new Map();
+
+  /**
+   * ws subscribers for stats streaming
+   */
+  protected statSubscribers: Set<WebSocket> = new Set();
+
+  /**
+   * stores stat filters
+   */
+  protected statMatchers: Map<WebSocket, (stat: TaskStat) => boolean> = new Map();
 
   protected TOTAL_LOGS_COUNT: number = 0;
 
@@ -293,6 +339,14 @@ export default class TaskManager {
     this.getAllLogs = getAllLogs.bind(this);
     this.subscribe = subscribe.bind(this);
     this.unsubscribe = unsubscribe.bind(this);
+
+    this.addStat = addStat.bind(this);
+    this.getStatsByOp = getStatsByOp.bind(this);
+    this.getAllStats = getAllStats.bind(this);
+    this.queryStats = queryStats.bind(this);
+    this.getLatestStatPerOp = getLatestStatPerOp.bind(this);
+    this.subscribeStats = subscribeStats.bind(this);
+    this.unsubscribeStats = unsubscribeStats.bind(this);
 
     this.setResult = setResult.bind(this);
     this.setResults = setResults.bind(this);
@@ -361,6 +415,14 @@ export default class TaskManager {
   public getAllLogs: () => TaskLog[];
   public subscribe: (ws: WebSocket, matcher: (log: TaskLog) => boolean) => void;
   public unsubscribe: (ws: WebSocket) => void;
+
+  public addStat: (stat: TaskStat) => void;
+  public getStatsByOp: (opId: string) => TaskStat[];
+  public getAllStats: () => TaskStat[];
+  public queryStats: (start?: number, end?: number, intervalMs?: number) => TaskStat[];
+  public getLatestStatPerOp: (since: number) => TaskStat[];
+  public subscribeStats: (ws: WebSocket, matcher: (stat: TaskStat) => boolean) => void;
+  public unsubscribeStats: (ws: WebSocket) => void;
 
   public setResult: (opId: string, key: string, value: any) => void;
   public setResults: (opId: string, values: Record<string, any>) => void;
