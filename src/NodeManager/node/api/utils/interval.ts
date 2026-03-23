@@ -15,7 +15,7 @@ export function parseInterval(
   req: NodeAPIRequest<{ jobId: string }>,
   res: Response,
 ): Interval | null {
-  const raw = Number(req.query.interval) ?? DEFAULT_INTERVAL;
+  const raw = Number(req.query.interval ?? DEFAULT_INTERVAL);
 
   if (!validateInterval(raw)) {
     res
