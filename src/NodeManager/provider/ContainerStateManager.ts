@@ -38,8 +38,7 @@ export class ContainerStateManager {
   }
 
   async startMonitoring() {
-    await this.attachLogStream();
-    this.attachStatsStream();
+    await Promise.all([this.attachLogStream(), this.attachStatsStream()]);
 
     if (!this.restartPolicy) {
       this.container

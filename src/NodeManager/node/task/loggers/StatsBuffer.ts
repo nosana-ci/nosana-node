@@ -1,7 +1,7 @@
 import { TaskStat } from '../TaskManager.js';
 
 export class StatsBuffer {
-  private readonly buffer: TaskStat[] = [];
+  private readonly buffer: TaskStat[] = new Array((24 * 60 * 60) / 5); // 24 hours of stats at 5s intervals
 
   push(stat: TaskStat): void {
     this.buffer.push(stat);
