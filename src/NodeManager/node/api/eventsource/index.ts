@@ -26,6 +26,7 @@ export function createEventSource<T extends unknown>(
     Connection: 'keep-alive',
     'X-Accel-Buffering': 'no',
   });
+  res.write(': connected\n\n');
 
   const keepaliveInterval = setInterval(() => {
     res.write(': keep-alive\n\n');
