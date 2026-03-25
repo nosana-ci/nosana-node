@@ -1,9 +1,13 @@
 import { TaskStat } from '../TaskManager.js';
 
 export class StatsBuffer {
-  private readonly buffer: TaskStat[] = new Array((24 * 60 * 60) / 5); // 24 hours of stats at 5s intervals
+  private readonly capacity = (24 * 60 * 60) / 5; // 24 hours of stats at 5s intervals
+  private readonly buffer: TaskStat[] = [];
 
   push(stat: TaskStat): void {
+    if (this.buffer.length >= this.capacity) {
+      this.buffer.shift();
+    }
     this.buffer.push(stat);
   }
 
