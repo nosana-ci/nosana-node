@@ -9,6 +9,8 @@
   "scripts": {
     "dev:start": "./docker-run.sh start --docker /var/run/docker.sock",
     "dev:run": "./docker-run.sh run --docker /var/run/docker.sock",
+    "dev:podman:start": "./podman-run.sh start",
+    "dev:podman:run": "./podman-run.sh run",
     "build": "npm run prepare && tsc && cp .env ./dist/ && cp .env.prd ./dist/ && cp .env.dev ./dist/",
     "generate": "openapi-typescript http://dashboard.k8s.prd.nos.ci/api/swagger/json -o ./src/NodeManager/client/schema.d.ts",
     "test": "APP_ENV=development DOCKER_CERT_PATH= vitest run",

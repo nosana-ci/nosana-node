@@ -83,7 +83,7 @@ export function createPodmanRunOptions(
       NOSANA_GATEWAY: aliases ? { aliases } : {},
     },
     create_working_dir: true,
-    cgroups_mode: 'disabled',
+    cgroups_mode: 'enabled',
     work_dir,
   };
 }
