@@ -30,7 +30,8 @@ export async function validateCLIVersion() {
 
     const packageData = await fetch(`https://registry.npmjs.com/${pkg.name}`);
     const packageJSON = await packageData.json();
-    const registryLatestVersion = packageJSON['dist-tags']?.latest;
+    const distTag = pkg.version.includes('-rc') ? 'next' : 'latest';
+    const registryLatestVersion = packageJSON['dist-tags']?.[distTag];
 
     if (!registryLatestVersion || typeof registryLatestVersion !== 'string') {
       throw new Error('Could not retrieve valid package information from npm');
@@ -57,7 +58,7 @@ export async function validateCLIVersion() {
   } catch (error: any) {
     console.log(
       `${chalk.red(
-        "Failed to fetch CLI's minium required version.",
+        "Failed to fetch CLI's minimum required version.",
       )}\n${error}`,
     );
   }
