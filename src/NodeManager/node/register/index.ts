@@ -1,18 +1,10 @@
 import chalk from 'chalk';
 import { confirm, input } from '@inquirer/prompts';
-import { Client, Flow, OpState } from '@nosana/sdk';
 
-import { configs } from '../../configs/configs.js';
-
-import { specsAndNetworkJob } from '../../../static/index.js';
-import { Provider } from '../../provider/Provider.js';
-import { NodeRepository } from '../../repository/NodeRepository.js';
+import { HostManager } from '../market/hostManager.js';
 import { applyLoggingProxyToClass } from '../../monitoring/proxy/loggingProxy.js';
-import { generateRandomId } from '../utils/generateRandomId.js';
-import TaskManager from '../task/TaskManager.js';
 
 export class RegisterHandler {
-  private nodeId: string;
   private answers:
     | {
       email: string;
@@ -21,17 +13,11 @@ export class RegisterHandler {
     }
     | undefined;
 
-  constructor(
-    private sdk: Client,
-    private provider: Provider,
-    private repository: NodeRepository,
-  ) {
-    this.nodeId = this.sdk.solana.provider!.wallet.publicKey.toString();
-
+  constructor() {
     applyLoggingProxyToClass(this);
   }
 
-  private async gainConstent() {
+  private async gainConsent() {
     this.answers = {
       email: await input({
         message: 'Your Email Address',
@@ -65,71 +51,13 @@ export class RegisterHandler {
     }
   }
 
-  // TODO: convert backend to support sdk.authorization.generate()
-  private async generateHeaders() {
-    const conf = configs();
-
-    const signature = (await this.sdk.solana.signMessage(
-      conf.signMessage,
-    )) as Uint8Array;
-    const base64Signature = Buffer.from(signature).toString('base64');
-
-    return `${this.nodeId}:${base64Signature}`;
-  }
-
-  private async runSpecs(): Promise<Flow> {
-    const flowId = generateRandomId(32);
-    const task = new TaskManager(
-      this.provider,
-      this.repository,
-      flowId,
-      this.sdk.solana.wallet.publicKey.toString(),
-      specsAndNetworkJob,
-    );
-    task.bootstrap();
-    await task.start();
-
-    const result = this.repository.getFlow(flowId);
-
-    if (!result || result.state.status !== 'success') {
-      throw new Error('Registration Benchmark Failed');
-    }
-
-    return result;
-  }
-
-  private async submitOnboarding(results: OpState[]) {
+  async register() {
+    await this.gainConsent();
     try {
-      const headers = new Headers();
-      headers.append('Authorization', await this.generateHeaders());
-      headers.append('Content-Type', 'application/json');
-
-      const joinTestGridResult = await fetch(
-        `${configs().backendUrl}/nodes/join-test-grid`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            ...this.answers!,
-            nodeAddress: this.nodeId,
-            results,
-          }),
-        },
-      );
-
-      if (!joinTestGridResult.ok) {
-        console.error('Error whilst submiting onboarding request.');
-        process.exit();
-      }
+      await HostManager.register(this.answers!.email, this.answers!.discord, this.answers!.twitter);
     } catch (error) {
-      console.error('Error whilst submiting onboarding request.', error);
+      console.error('Error registering node:', error);
       process.exit();
     }
-  }
-
-  async register() {
-    await this.gainConstent();
-    const results = await this.runSpecs();
-    await this.submitOnboarding(results.state.opStates);
   }
 }

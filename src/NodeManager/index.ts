@@ -108,23 +108,6 @@ export default class NodeManager {
     await this.node.maintenance();
 
     /**
-     * specs
-     *
-     * this retrieves specs from the node to ensure it can run the jobs.
-     * It gets the GPUs, CPUs, and internet speed.
-     *
-     * if the specs fails restart the system
-     */
-    if (!(await this.node.specs())) {
-      /**
-       * start
-       *
-       * recursively start the the process again by calling the restart function
-       */
-      return await this.restart(marketArg);
-    }
-
-    /**
      * WSL check
      * - Shows warning message for all WSL hosts
      * - Throws WSLBlockedError after December 15, 2025 to prevent queue joining
@@ -132,14 +115,26 @@ export default class NodeManager {
     checkWSLStatus(this.node.getSystemEnvironment());
 
     /**
-     * grid
+     * market
      *
-     * if no market was supplied, we will register on the grid and get
-     * market and access key recommened for our PC based on specs result
+     * request a market to join from the host manager, 
+     * we can pass a requested market or let the host manager recommend us one
      */
-    let market = marketArg;
-    if (!market || !market.length) {
-      market = await this.node.recommend();
+    const market = await this.node.requestMarket(marketArg);
+
+    /**
+     * healthcheck
+     *
+     * this checks the health of the container tech,
+     * the connectivity, and every other critical system.
+     */
+    if (!(await this.node.healthcheck())) {
+      /**
+       * start
+       *
+       * recursively start the the process again by calling the restart function
+       */
+      return await this.restart(marketArg);
     }
 
     /**
@@ -149,20 +144,6 @@ export default class NodeManager {
      */
     await this.node.setup(market);
 
-    /**
-     * healthcheck
-     *
-     * this checks the health of the container tech,
-     * the connectivity, and every other critical system.
-     */
-    if (!(await this.node.healthcheck(market))) {
-      /**
-       * start
-       *
-       * recursively start the the process again by calling the restart function
-       */
-      return await this.restart(marketArg);
-    }
 
     /**
      * this variable was added to know when the node has gone past the setup/checks stages

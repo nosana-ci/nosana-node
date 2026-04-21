@@ -29,7 +29,6 @@ export function applyLoggingProxyToClass(instance: any) {
     'healthHandler',
     'stakeHandler',
     'expiryHandler',
-    'specsHandler',
     'progressBarReporter',
     'registerHandler',
   ];

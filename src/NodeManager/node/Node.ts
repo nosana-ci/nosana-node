@@ -11,7 +11,6 @@ import { applyLoggingProxyToClass } from '../monitoring/proxy/loggingProxy.js';
 import { isNodeOnboarded } from '../utils/utils.js';
 import { ApiHandler } from './api/ApiHandler.js';
 import { NodeRepository } from '../repository/NodeRepository.js';
-import { SpecsHandler } from './specs/specsHandler.js';
 import { HealthHandler } from './health/healthHandler.js';
 import { KeyHandler } from './key/keyHandler.js';
 import { ExpiryHandler } from './expiry/expiryHandler.js';
@@ -27,7 +26,7 @@ import {
 import { pollForRun } from './utils/poll.js';
 import { configs } from '../configs/configs.js';
 import { TaskManagerRegistry } from './task/TaskManagerRegistry.js';
-import TaskManager, { StopReason, StopReasons } from './task/TaskManager.js';
+import { StopReason, StopReasons } from './task/TaskManager.js';
 
 export class BasicNode {
   public isOnboarded: boolean = false;
@@ -36,7 +35,6 @@ export class BasicNode {
   private runHandler: RunHandler;
   private marketHandler: MarketHandler;
   private jobHandler: JobHandler;
-  private specsHandler: SpecsHandler;
   private keyHandler: KeyHandler;
   private healthHandler: HealthHandler;
   private expiryHandler: ExpiryHandler;
@@ -79,13 +77,9 @@ export class BasicNode {
     );
     this.balanceHandler = new BalanceHandler(this.sdk);
     this.gridHandler = new GridHandler(this.sdk, this.repository);
-    this.specsHandler = new SpecsHandler(
-      this.provider,
-      this.repository,
-      this.sdk,
-    );
+
     this.jobHandler = new JobHandler(this.sdk, this.provider, this.repository);
-    this.marketHandler = new MarketHandler(this.sdk);
+    this.marketHandler = new MarketHandler(this.sdk, this.provider, this.repository);
     this.runHandler = new RunHandler(this.sdk);
 
     this.keyHandler = new KeyHandler(this.sdk);
@@ -97,11 +91,7 @@ export class BasicNode {
       this.keyHandler,
     );
 
-    this.registerHandler = new RegisterHandler(
-      this.sdk,
-      this.provider,
-      this.repository,
-    );
+    this.registerHandler = new RegisterHandler();
 
     this.expiryHandler = new ExpiryHandler(this.sdk);
 
@@ -112,28 +102,20 @@ export class BasicNode {
     await this.registerHandler.register();
   }
 
-  async healthcheck(market: string): Promise<boolean> {
+  async healthcheck(): Promise<boolean> {
     /**
      * run health check,
      */
-    return await this.healthHandler.run(market);
+    return await this.healthHandler.run();
   }
 
-  async specs(): Promise<boolean> {
-    /**
-     * check the system using a premade job definitions
-     * run dependent on market status
-     */
-    return await this.specsHandler.check();
-  }
-
-  async recommend(): Promise<string> {
+  async requestMarket(market?: string): Promise<Market> {
     /**
      * this means even tho we have been onboarded there might be no market assigned to us
      * or we need to check if we are still in the right market,
      * so we need to get a recommended one and return it
      */
-    return await this.gridHandler.recommend();
+    return await this.marketHandler.request(market);
   }
 
   public api(): ApiHandler {
@@ -206,7 +188,7 @@ export class BasicNode {
     }
   }
 
-  async setup(market: string): Promise<void> {
+  async setup(market: Market): Promise<void> {
     await this.resourceManager.resyncResourcesDB();
     await this.resourceManager.fetchMarketRequiredResources(market);
   }

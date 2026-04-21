@@ -6,6 +6,7 @@ export type configType = {
   backendUrl: string;
   backendSolanaAddress: string;
   backendAuthorizationAddress: string;
+  hostManagerBaseUrl: string;
   explorerUrl: string;
   signMessage: string;
   frp: {
@@ -31,6 +32,7 @@ export const configs = (options?: { [key: string]: any }): configType => {
     backendAuthorizationAddress: loadConfigurationValue(
       'BACKEND_AUTHORIZATION_ADDRESS',
     ),
+    hostManagerBaseUrl: loadConfigurationValue('HOST_MANAGER_BASE_URL'),
     explorerUrl: loadConfigurationValue('EXPLORER_URL'),
     signMessage: loadConfigurationValue('SIGN_MESSAGE'),
     frp: {

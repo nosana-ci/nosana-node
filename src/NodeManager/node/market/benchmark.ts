@@ -1,0 +1,115 @@
+import chalk from 'chalk';
+import { Client, JobDefinition } from "@nosana/sdk";
+
+import { HostManager } from "./hostManager.js";
+import TaskManager from "../task/TaskManager.js";
+import { Provider } from "../../provider/Provider.js";
+import { NodeRepository } from "../../repository/NodeRepository.js";
+
+interface Metric {
+  metric: string,
+  metric_name: string,
+  thresholdValue?: string,
+  measuredValue?: number,
+  passed: boolean,
+  feedbackMessage?: string,
+  benchmarkId?: number,
+  submittedAt?: Date
+}
+
+export class Benchmark {
+  constructor(
+    private benchmarkId: string,
+    private jobDefinition: JobDefinition,
+    private sdk: Client,
+    private provider: Provider,
+    private repository: NodeRepository,
+    private hostManager: HostManager
+  ) { }
+
+  public async run(): Promise<void> {
+    await this.executeBenchmark();
+    const results = await this.submitResults();
+    await this.reportResults(results);
+  }
+
+  private async executeBenchmark(): Promise<void> {
+    const task = new TaskManager(
+      this.provider,
+      this.repository,
+      this.benchmarkId,
+      this.sdk.solana.wallet.publicKey.toString(),
+      this.jobDefinition,
+    );
+
+    try {
+      task.bootstrap();
+      await task.start();
+    } catch (error) {
+      console.error('Error executing benchmark:', error);
+    }
+  }
+
+  private async submitResults(): Promise<Metric[]> {
+    const flowResults = this.repository.getFlow(this.benchmarkId);
+    if (!flowResults) throw new Error(`Cannot find results for flow with id ${this.benchmarkId}`);
+
+    this.repository.deleteflow(this.benchmarkId);
+
+    const results = await this.hostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
+    return results;
+  }
+
+  private reportResults(metrics: Metric[]): void {
+    const passed = metrics.filter(m => m.passed);
+    const failed = metrics.filter(m => !m.passed);
+
+    console.log(
+      '\n' + chalk.bgCyan.black.bold('  BENCHMARK RESULTS  ') + '\n'
+    );
+
+    for (const metric of metrics) {
+      if (metric.passed) {
+        this.reportSuccessfulMetric(metric);
+      } else {
+        this.reportFailedMetric(metric);
+      }
+    }
+
+    console.log('');
+
+    if (failed.length > 0) {
+      console.log(
+        chalk.bgRed.white.bold(`  ${failed.length}/${metrics.length} benchmark(s) failed  `)
+      );
+      console.log(
+        chalk.red('\nNode does not meet the minimum requirements for this market. Shutting down.\n')
+      );
+      process.exit(0);
+    }
+
+    console.log(
+      chalk.bgGreen.black.bold(`  ${passed.length}/${metrics.length} benchmark(s) passed  `) + '\n'
+    );
+  }
+
+  private reportSuccessfulMetric(metric: Metric): void {
+    const threshold = metric.measuredValue !== undefined && metric.thresholdValue
+      ? chalk.gray(` (${metric.measuredValue} / ${metric.thresholdValue})`)
+      : '';
+
+    console.log(chalk.green('  ✔ ') + chalk.bold(metric.metric_name) + threshold);
+  }
+
+  private reportFailedMetric(metric: Metric): void {
+    const threshold = metric.measuredValue !== undefined && metric.thresholdValue
+      ? chalk.gray(` (${metric.measuredValue} / ${metric.thresholdValue})`)
+      : '';
+
+    console.log(chalk.red('  ✖ ') + chalk.bold(metric.metric_name) + threshold);
+
+    if (metric.feedbackMessage) {
+      console.log(chalk.yellow(`    ↳ ${metric.feedbackMessage}`));
+    }
+  }
+}

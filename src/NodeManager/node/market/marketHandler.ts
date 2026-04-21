@@ -1,168 +1,67 @@
-import { Client as SDK, Market } from '@nosana/sdk';
-import { PublicKey } from '@solana/web3.js';
+import { Client as SDK, JobDefinition, Market } from '@nosana/sdk';
+
+import { HostManager } from './hostManager.js';
+import { MarketQueue } from './marketQueue.js';
+import TaskManager from '../task/TaskManager.js';
+import { Provider } from '../../provider/Provider.js';
+import { NodeRepository } from '../../repository/NodeRepository.js';
 
 export class MarketHandler {
-  private market: Market | undefined;
-  private address: PublicKey;
-  private checkQueuedInterval?: NodeJS.Timeout; // Interval to check market queue
+  private market: Market | null = null;
 
-  private inMarket: boolean = false;
-
-  constructor(private sdk: SDK) {
-    this.address = this.sdk.solana.provider!.wallet.publicKey;
-  }
-
-  public clear(): void {
-    this.market = undefined;
-  }
+  constructor(
+    private sdk: SDK,
+    private provider: Provider,
+    private repository: NodeRepository
+  ) { }
 
   public isInMarket(): boolean {
-    return this.inMarket;
+    return !!this.market
   }
 
-  public setInMarket() {
-    this.inMarket = true;
-  }
-
-  public async check(market: string): Promise<Market> {
-    try {
-      return await this.sdk.jobs.getMarket(market);
-    } catch (error) {
-      throw new Error(`Error resolving Market: ${error}`);
-    }
-  }
-
-  public async stopMarket(): Promise<boolean> {
-    if (this.market) {
-      try {
-        await this.sdk.jobs.stop(this.market.address);
-      } catch (e: any) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  public async getJobMarket(market: string): Promise<Market> {
-    try {
-      this.market = await this.sdk.jobs.getMarket(market);
-      return this.market;
-    } catch (error) {
-      throw new Error('market does not exists');
-    }
-  }
-
-  public getMarket(): Market | undefined {
+  public getMarket(): Market | null {
     return this.market;
   }
 
-  public async setMarket(market: string): Promise<Market> {
+  public async request(requestedMarket?: string): Promise<Market> {
+    const { market, requestedBenchmark } = await HostManager.requestMarket(requestedMarket);
+
+    if (requestedBenchmark) {
+      await this.runRequestedBenchmark(requestedBenchmark);
+      return await this.request(requestedMarket);
+    }
+
+    const onchainMarket = await this.sdk.jobs.getMarket(market);
+    if (!onchainMarket) {
+      throw new Error(`Requested market ${market} not found on-chain`);
+    }
+
+    this.market = onchainMarket;
+    return onchainMarket;
+  }
+
+  public async join(market: Market): Promise<void> {
+
+  }
+
+  private async runRequestedBenchmark(requestedBenchmark: { benchmarkId: string; jobDefinition: JobDefinition }) {
+    const task = new TaskManager(
+      this.provider,
+      this.repository,
+      requestedBenchmark.benchmarkId,
+      this.sdk.solana.wallet.publicKey.toString(),
+      requestedBenchmark.jobDefinition,
+    );
+
     try {
-      this.market = await this.sdk.jobs.getMarket(market);
-      return this.market;
+      task.bootstrap();
+      await task.start();
     } catch (error) {
-      throw new Error('market does not exists');
-    }
-  }
-
-  public async checkQueuedInMarket(): Promise<Market | undefined> {
-    let markets = [];
-
-    markets = await this.sdk.jobs.allMarkets();
-
-    for (const market of markets) {
-      if (
-        market?.queue?.some(
-          (e: PublicKey) => e.toString() === this.address.toString(),
-        )
-      ) {
-        this.market = market;
-        return this.getMarket();
-      }
-    }
-
-    return undefined;
-  }
-
-  public async join(accessKey?: PublicKey): Promise<Market> {
-    if (!this.market) {
-      throw new Error('market not defined');
-    }
-    try {
-      await this.sdk.jobs.work(this.market.address, accessKey);
-      this.inMarket = true;
-    } catch (e) {
-      throw new Error(`could not join queue: ${e}`);
-    }
-
-    return this.market;
-  }
-
-  public async refresh(): Promise<Market> {
-    return this.setMarket(this.market?.address.toString() as string);
-  }
-
-  public async leave(): Promise<void> {
-    if (this.market) {
-      try {
-        await this.sdk.jobs.stop(this.market.address);
-      } catch (error) {}
-      this.inMarket = false;
-    }
-  }
-
-  public processMarketQueuePosition(market: Market, isFirst: boolean) {
-    const position =
-      market.queue.findIndex(
-        (e: any) => e.toString() === this.address.toString(),
-      ) + 1;
-    return {
-      position,
-      count: market.queue.length,
-    };
-  }
-
-  public async startMarketQueueMonitoring(
-    updateCallback: (market: Market | undefined) => void,
-  ): Promise<void> {
-    // Ensure no multiple intervals
-    this.stopMarketQueueMonitoring();
-
-    try {
-      // Perform an immediate check
-      const queuedMarketInfo = await this.checkQueuedInMarket();
-      updateCallback(queuedMarketInfo);
-    } catch (error) {
-      console.warn('\nCould not update queue status', error);
-    }
-
-    // Check market queue status every minute
-    this.checkQueuedInterval = setInterval(async () => {
-      try {
-        const queuedMarketInfo = await this.checkQueuedInMarket();
-        updateCallback(queuedMarketInfo);
-      } catch (error) {
-        console.warn('\nCould not update queue status', error);
-      }
-    }, 60000);
-  }
-
-  // Stop monitoring market queue status
-  public stopMarketQueueMonitoring(): void {
-    if (this.checkQueuedInterval) {
-      clearInterval(this.checkQueuedInterval);
-      this.checkQueuedInterval = undefined; // Clean up reference
+      console.error('Error running benchmark:', error);
     }
   }
 
   public async stop(): Promise<void> {
-    this.stopMarketQueueMonitoring();
-    await this.leave();
-    this.clear();
-  }
 
-  public async clean(): Promise<void> {
-    this.stopMarketQueueMonitoring();
-    this.clear();
   }
 }
