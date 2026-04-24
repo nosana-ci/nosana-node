@@ -68,7 +68,7 @@ export class HostManager {
   }
 
   public static async submitBenchmarkResults(benchmarkId: string, result: FlowState) {
-    const { data, error } = await hostManagerClientSelector().POST("/operations/{id}/submit-results", {
+    const { data, error } = await hostManagerClientSelector().POST("/benchmarks/{id}/submit-results", {
       params: { path: { id: benchmarkId } },
       body: result,
     });
