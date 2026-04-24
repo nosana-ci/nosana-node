@@ -39,7 +39,7 @@ export class HostManager {
 
     if (error || !data) {
       // HTTP 404 = node is not yet registered
-      if (response && response.status === 404) {
+      if ((response as any)?.status === 404 || (response as any)?.status === 'NotFound') {
         return { notRegistered: true };
       }
       throw new Error(`Error requesting market: ${error}`);

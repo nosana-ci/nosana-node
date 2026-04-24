@@ -6,6 +6,9 @@ import { startCLI } from './cli/index.js';
 
 const VERSION: string = pkg.version;
 
-startCLI(VERSION);
+startCLI(VERSION).catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 
 export * from './cli/createNosanaCli.js';
