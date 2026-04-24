@@ -1,6 +1,17 @@
-import { FlowState } from "@nosana/sdk";
+import { FlowState, JobDefinition } from "@nosana/sdk";
 
 import { hostManagerClientSelector } from "../../clients/hostManager/index.js";
+import type { operations } from "../../clients/hostManager/schema.d.ts";
+
+type RequestMarketResponse = operations["getNodesRequest-market"]["responses"][200]["content"]["application/json"];
+
+export type FeedbackReport = NonNullable<RequestMarketResponse["feedbackReport"]>;
+
+export type RequestMarketResult =
+  Pick<RequestMarketResponse, "status" | "market" | "feedbackReport"> & {
+    notRegistered?: true;
+    jobDefinition?: JobDefinition & { id: string };
+  };
 
 export class HostManager {
   public static async register(email: string, discord?: string, twitter?: string): Promise<void> {
@@ -17,8 +28,8 @@ export class HostManager {
     }
   }
 
-  public static async requestMarket(market?: string) {
-    const { data, error } = await hostManagerClientSelector().GET("/nodes/request-market", {
+  public static async requestMarket(market?: string): Promise<RequestMarketResult> {
+    const { data, error, response } = await hostManagerClientSelector().GET("/nodes/request-market", {
       params: {
         query: {
           market
@@ -27,16 +38,33 @@ export class HostManager {
     });
 
     if (error || !data) {
-      console.error("Error requesting market:", error);
-      return { market: "TO_BE_DETERMINED", requestedBenchmark: undefined };
+      // HTTP 404 = node is not yet registered
+      if (response && response.status === 404) {
+        return { notRegistered: true };
+      }
+      throw new Error(`Error requesting market: ${error}`);
     }
 
-    if ("jobDefinition" in data) {
-      data.jobDefinition
-      return { market: "TO_BE_DETERMINED", requestedBenchmark: data };
+    const result: RequestMarketResult = {
+      status: data.status,
+    };
+
+    if (data.jobDefinition) {
+      result.jobDefinition = data.jobDefinition as JobDefinition & { id: string };
     }
 
-    return { market: "TO_BE_DETERMINED", requestedBenchmark: undefined };
+    if (data.feedbackReport) {
+      result.feedbackReport = data.feedbackReport;
+    }
+
+    if (data.market?.address) {
+      result.market = {
+        address: data.market.address,
+        sftTx: data.market.sftTx ?? undefined,
+      };
+    }
+
+    return result;
   }
 
   public static async submitBenchmarkResults(benchmarkId: string, result: FlowState) {
@@ -49,6 +77,6 @@ export class HostManager {
       throw new Error(`Error submitting benchmark results: ${error}`);
     }
 
-    return data
+    return data;
   }
 }

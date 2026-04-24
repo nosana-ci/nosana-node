@@ -2,6 +2,7 @@ import { Client, Market } from '@nosana/sdk';
 
 import { getSDK } from '../sdk/index.js';
 import { MarketHandler } from './market/marketHandler.js';
+import { NodeNotRegisteredError } from '../errors/NodeNotRegisteredError.js';
 import { RunHandler } from './run/runHandler.js';
 import { JobHandler } from './job/jobHandler.js';
 import { DB } from '../db/index.js';
@@ -110,12 +111,15 @@ export class BasicNode {
   }
 
   async requestMarket(market?: string): Promise<Market> {
-    /**
-     * this means even tho we have been onboarded there might be no market assigned to us
-     * or we need to check if we are still in the right market,
-     * so we need to get a recommended one and return it
-     */
-    return await this.marketHandler.request(market);
+    try {
+      return await this.marketHandler.request(market);
+    } catch (error) {
+      if (error instanceof NodeNotRegisteredError) {
+        await this.registerHandler.register();
+        return await this.marketHandler.request(market);
+      }
+      throw error;
+    }
   }
 
   public api(): ApiHandler {

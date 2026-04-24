@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { Client, JobDefinition } from "@nosana/sdk";
 
-import { HostManager } from "./hostManager.js";
+import { HostManager } from './hostManager.js';
 import TaskManager from "../task/TaskManager.js";
 import { Provider } from "../../provider/Provider.js";
 import { NodeRepository } from "../../repository/NodeRepository.js";
@@ -24,7 +24,6 @@ export class Benchmark {
     private sdk: Client,
     private provider: Provider,
     private repository: NodeRepository,
-    private hostManager: HostManager
   ) { }
 
   public async run(): Promise<void> {
@@ -56,7 +55,7 @@ export class Benchmark {
 
     this.repository.deleteflow(this.benchmarkId);
 
-    const results = await this.hostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
+    const results = await HostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
     return results;
   }
 
@@ -83,9 +82,8 @@ export class Benchmark {
         chalk.bgRed.white.bold(`  ${failed.length}/${metrics.length} benchmark(s) failed  `)
       );
       console.log(
-        chalk.red('\nNode does not meet the minimum requirements for this market. Shutting down.\n')
+        chalk.red('\nSome benchmarks failed. The Host Manager will evaluate eligibility on the next request.\n')
       );
-      process.exit(0);
     }
 
     console.log(

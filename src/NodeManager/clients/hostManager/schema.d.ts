@@ -13,6 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Submit error log (SDK) */
         post: operations["postErrorsReport"];
         delete?: never;
         options?: never;
@@ -70,22 +71,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/markets/gpu-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getMarketsGpu-types"];
-        put?: never;
-        post: operations["postMarketsGpu-types"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/markets/docker-images": {
         parameters: {
             query?: never;
@@ -113,22 +98,6 @@ export interface paths {
         put?: never;
         post: operations["postMarketsRemote-resources"];
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/markets/gpu-types/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getMarketsGpu-typesById"];
-        put: operations["putMarketsGpu-typesById"];
-        post?: never;
-        delete: operations["deleteMarketsGpu-typesById"];
         options?: never;
         head?: never;
         patch?: never;
@@ -231,30 +200,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/operations/{id}/submit-results": {
+    "/benchmarks/node-template-performance/{nodeId}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        post: operations["postOperationsByIdSubmit-results"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/operations/node-report": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getOperationsNode-report"];
+        get: operations["getBenchmarksNode-template-performanceByNodeId"];
         put?: never;
         post?: never;
         delete?: never;
@@ -263,30 +216,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/operations/benchmark-version": {
+    "/benchmarks/benchmark-version": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["getOperationsBenchmark-version"];
+        get: operations["getBenchmarksBenchmark-version"];
         put?: never;
-        post: operations["postOperationsBenchmark-version"];
+        post: operations["postBenchmarksBenchmark-version"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/operations/thresholds": {
+    "/benchmarks/metric-processors": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["getOperationsThresholds"];
+        get: operations["getBenchmarksMetric-processors"];
         put?: never;
         post?: never;
         delete?: never;
@@ -295,62 +248,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/operations/thresholds/create": {
+    "/benchmarks/operations": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        post: operations["postOperationsThresholdsCreate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/operations/thresholds/{id}/update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["postOperationsThresholdsByIdUpdate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/operations/thresholds/{id}/delete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["deleteOperationsThresholdsByIdDelete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/operations/definitions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getOperationsDefinitions"];
+        get: operations["getBenchmarksOperations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -359,7 +264,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/operations/definitions/create": {
+    "/benchmarks/thresholds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getBenchmarksThresholds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/thresholds/create": {
         parameters: {
             query?: never;
             header?: never;
@@ -368,14 +289,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["postOperationsDefinitionsCreate"];
+        post: operations["postBenchmarksThresholdsCreate"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/operations/definitions/{id}/update": {
+    "/benchmarks/thresholds/{id}/update": {
         parameters: {
             query?: never;
             header?: never;
@@ -384,14 +305,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["postOperationsDefinitionsByIdUpdate"];
+        post: operations["postBenchmarksThresholdsByIdUpdate"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/operations/definitions/{id}/delete": {
+    "/benchmarks/thresholds/{id}/delete": {
         parameters: {
             query?: never;
             header?: never;
@@ -401,7 +322,183 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["deleteOperationsDefinitionsByIdDelete"];
+        delete: operations["deleteBenchmarksThresholdsByIdDelete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getBenchmarksMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/metrics/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postBenchmarksMetricsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/metrics/{key}/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postBenchmarksMetricsByKeyUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/metrics/{key}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteBenchmarksMetricsByKeyDelete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/market-thresholds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getBenchmarksMarket-thresholds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/market-thresholds/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postBenchmarksMarket-thresholdsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/market-thresholds/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postBenchmarksMarket-thresholdsUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/market-thresholds/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteBenchmarksMarket-thresholdsDelete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/operations/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postBenchmarksOperationsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/operations/{id}/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postBenchmarksOperationsByIdUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/operations/{id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteBenchmarksOperationsByIdDelete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -415,22 +512,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getRpc"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/metrics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getNodesMetrics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -463,22 +544,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getNodesAvailable-gpus"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getNodesStats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -567,66 +632,16 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/nodes/{id}/specs": {
+    "/nodes/{id}/metrics": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["getNodesByIdSpecs"];
+        get: operations["getNodesByIdMetrics"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/filtering/options": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get filter options for GPUs with system specs. You can filter by market_type (premium, community, or all). */
-        get: operations["getNodesFilteringOptions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/filtering": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Get available nodes matching filter criteria. Use group=all to get nodes from all markets. */
-        get: operations["getNodesFiltering"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/change-market": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["postNodesChange-market"];
         delete?: never;
         options?: never;
         head?: never;
@@ -697,23 +712,23 @@ export interface paths {
         patch: operations["patchNodesByIdAddress"];
         trace?: never;
     };
-    "/nodes/onboard": {
+    "/nodes/rewards": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["getNodesRewards"];
         put?: never;
-        post: operations["postNodesOnboard"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/nodes/upgrade": {
+    "/nodes/promote": {
         parameters: {
             query?: never;
             header?: never;
@@ -722,7 +737,39 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["postNodesUpgrade"];
+        post: operations["postNodesPromote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nodes/demote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postNodesDemote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nodes/move-market": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postNodesMove-market"];
         delete?: never;
         options?: never;
         head?: never;
@@ -761,7 +808,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/nodes/revoke": {
+    "/nodes/ban": {
         parameters: {
             query?: never;
             header?: never;
@@ -770,7 +817,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["postNodesRevoke"];
+        post: operations["postNodesBan"];
         delete?: never;
         options?: never;
         head?: never;
@@ -921,55 +968,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/templates/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getTemplates"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/templates/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getTemplatesById"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/templates/admin-refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Manually trigger template refresh from GitHub */
-        post: operations["postTemplatesAdmin-refresh"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/health": {
         parameters: {
             query?: never;
@@ -1037,7 +1035,33 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        success: boolean;
+                    };
+                    "multipart/form-data": {
+                        success: boolean;
+                    };
+                    "text/plain": {
+                        success: boolean;
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                    };
+                    "multipart/form-data": {
+                        message: string;
+                    };
+                    "text/plain": {
+                        message: string;
+                    };
+                };
             };
         };
     };
@@ -1108,57 +1132,6 @@ export interface operations {
             };
         };
     };
-    "getMarketsGpu-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "postMarketsGpu-types": {
-        parameters: {
-            query?: never;
-            header: {
-                authorization: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    name: string;
-                    vram?: number;
-                };
-                "multipart/form-data": {
-                    name: string;
-                    vram?: number;
-                };
-                "text/plain": {
-                    name: string;
-                    vram?: number;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     "getMarketsDocker-images": {
         parameters: {
             query?: never;
@@ -1210,7 +1183,9 @@ export interface operations {
     "getMarketsRemote-resources": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                authorization: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1258,82 +1233,6 @@ export interface operations {
                 };
             };
         };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "getMarketsGpu-typesById": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "putMarketsGpu-typesById": {
-        parameters: {
-            query?: never;
-            header: {
-                authorization: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    name: string;
-                    vram?: number;
-                };
-                "multipart/form-data": {
-                    name: string;
-                    vram?: number;
-                };
-                "text/plain": {
-                    name: string;
-                    vram?: number;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "deleteMarketsGpu-typesById": {
-        parameters: {
-            query?: never;
-            header: {
-                authorization: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -1419,7 +1318,9 @@ export interface operations {
     "getMarketsRemote-resourcesById": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                authorization: string;
+            };
             path: {
                 id: string;
             };
@@ -1507,6 +1408,7 @@ export interface operations {
                 filterKey?: string;
                 filterValue?: string;
                 limit?: string;
+                type?: "PREMIUM" | "COMMUNITY";
             };
             header?: never;
             path?: never;
@@ -1562,14 +1464,12 @@ export interface operations {
                     type?: string;
                     sft?: (string | null) | null;
                     usd_reward_per_hour?: number;
+                    nos_reward_per_second?: number;
                     job_price?: number;
                     job_timeout?: number;
                     job_expiration?: number;
                     node_access_key?: string;
                     minimum_stake?: number;
-                    gpu_types?: {
-                        id: number;
-                    }[];
                     required_images?: {
                         id: number;
                     }[];
@@ -1577,7 +1477,6 @@ export interface operations {
                         id: number;
                     }[];
                     client?: boolean;
-                    auto_kick_enabled?: boolean;
                 };
                 "multipart/form-data": {
                     slug?: string;
@@ -1585,14 +1484,12 @@ export interface operations {
                     type?: string;
                     sft?: (string | null) | null;
                     usd_reward_per_hour?: number;
+                    nos_reward_per_second?: number;
                     job_price?: number;
                     job_timeout?: number;
                     job_expiration?: number;
                     node_access_key?: string;
                     minimum_stake?: number;
-                    gpu_types?: {
-                        id: number;
-                    }[];
                     required_images?: {
                         id: number;
                     }[];
@@ -1600,7 +1497,6 @@ export interface operations {
                         id: number;
                     }[];
                     client?: boolean;
-                    auto_kick_enabled?: boolean;
                 };
                 "text/plain": {
                     slug?: string;
@@ -1608,14 +1504,12 @@ export interface operations {
                     type?: string;
                     sft?: (string | null) | null;
                     usd_reward_per_hour?: number;
+                    nos_reward_per_second?: number;
                     job_price?: number;
                     job_timeout?: number;
                     job_expiration?: number;
                     node_access_key?: string;
                     minimum_stake?: number;
-                    gpu_types?: {
-                        id: number;
-                    }[];
                     required_images?: {
                         id: number;
                     }[];
@@ -1623,7 +1517,6 @@ export interface operations {
                         id: number;
                     }[];
                     client?: boolean;
-                    auto_kick_enabled?: boolean;
                 };
             };
         };
@@ -1737,150 +1630,17 @@ export interface operations {
             };
         };
     };
-    "postOperationsByIdSubmit-results": {
-        parameters: {
-            query?: never;
-            header: {
-                authorization: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    status: string;
-                    startTime: number;
-                    endTime: (number | null) | null;
-                    errors?: unknown[];
-                    opStates: {
-                        providerId: (string | null) | null;
-                        operationId: (string | null) | null;
-                        group: (string | null) | null;
-                        status: (string | null) | null;
-                        startTime: (number | null) | null;
-                        endTime: (number | null) | null;
-                        exitCode: (number | null) | null;
-                        logs: {
-                            type: "stdin" | "stdout" | "stderr" | "nodeerr";
-                            log?: string;
-                            timestamp: string;
-                        }[];
-                        results?: Record<string, string | string[]>;
-                        error?: {
-                            event: string;
-                            message: string;
-                            code?: number;
-                        };
-                        diagnostics: {
-                            reason: {
-                                hostShutDown: boolean;
-                                jobStopped: boolean;
-                                jobExpired: boolean;
-                                reason?: string;
-                            };
-                            state?: unknown;
-                        };
-                        env?: Record<string, string>;
-                    }[];
-                    secrets?: Record<string, unknown>;
-                };
-                "multipart/form-data": {
-                    status: string;
-                    startTime: number;
-                    endTime: (number | null) | null;
-                    errors?: unknown[];
-                    opStates: {
-                        providerId: (string | null) | null;
-                        operationId: (string | null) | null;
-                        group: (string | null) | null;
-                        status: (string | null) | null;
-                        startTime: (number | null) | null;
-                        endTime: (number | null) | null;
-                        exitCode: (number | null) | null;
-                        logs: {
-                            type: "stdin" | "stdout" | "stderr" | "nodeerr";
-                            log?: string;
-                            timestamp: string;
-                        }[];
-                        results?: Record<string, string | string[]>;
-                        error?: {
-                            event: string;
-                            message: string;
-                            code?: number;
-                        };
-                        diagnostics: {
-                            reason: {
-                                hostShutDown: boolean;
-                                jobStopped: boolean;
-                                jobExpired: boolean;
-                                reason?: string;
-                            };
-                            state?: unknown;
-                        };
-                        env?: Record<string, string>;
-                    }[];
-                    secrets?: Record<string, unknown>;
-                };
-                "text/plain": {
-                    status: string;
-                    startTime: number;
-                    endTime: (number | null) | null;
-                    errors?: unknown[];
-                    opStates: {
-                        providerId: (string | null) | null;
-                        operationId: (string | null) | null;
-                        group: (string | null) | null;
-                        status: (string | null) | null;
-                        startTime: (number | null) | null;
-                        endTime: (number | null) | null;
-                        exitCode: (number | null) | null;
-                        logs: {
-                            type: "stdin" | "stdout" | "stderr" | "nodeerr";
-                            log?: string;
-                            timestamp: string;
-                        }[];
-                        results?: Record<string, string | string[]>;
-                        error?: {
-                            event: string;
-                            message: string;
-                            code?: number;
-                        };
-                        diagnostics: {
-                            reason: {
-                                hostShutDown: boolean;
-                                jobStopped: boolean;
-                                jobExpired: boolean;
-                                reason?: string;
-                            };
-                            state?: unknown;
-                        };
-                        env?: Record<string, string>;
-                    }[];
-                    secrets?: Record<string, unknown>;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "getOperationsNode-report": {
+    "getBenchmarksNode-template-performanceByNodeId": {
         parameters: {
             query?: {
-                market?: string;
-                node?: string;
-                status?: string;
+                metrics?: string | string[];
             };
-            header?: never;
-            path?: never;
+            header?: {
+                authorization?: string;
+            };
+            path: {
+                nodeId: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -1891,61 +1651,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        node: string;
-                        status: string;
-                        current_market: (string | null) | null;
-                        reports: {
-                            marketAddress: (string | null) | null;
-                            metrics: Record<string, never>;
+                        nodeId: string;
+                        currentMarket: (string | null) | null;
+                        templates: {
+                            templateId: string;
+                            templateName: string;
+                            node: Record<string, never>;
+                            market: Record<string, never>;
                         }[];
-                    } | {
-                        node: string;
-                        status: string;
-                        current_market: (string | null) | null;
-                        reports: {
-                            marketAddress: (string | null) | null;
-                            metrics: Record<string, never>;
-                        }[];
-                    }[];
+                    };
                     "multipart/form-data": {
-                        node: string;
-                        status: string;
-                        current_market: (string | null) | null;
-                        reports: {
-                            marketAddress: (string | null) | null;
-                            metrics: Record<string, never>;
+                        nodeId: string;
+                        currentMarket: (string | null) | null;
+                        templates: {
+                            templateId: string;
+                            templateName: string;
+                            node: Record<string, never>;
+                            market: Record<string, never>;
                         }[];
-                    } | {
-                        node: string;
-                        status: string;
-                        current_market: (string | null) | null;
-                        reports: {
-                            marketAddress: (string | null) | null;
-                            metrics: Record<string, never>;
-                        }[];
-                    }[];
+                    };
                     "text/plain": {
-                        node: string;
-                        status: string;
-                        current_market: (string | null) | null;
-                        reports: {
-                            marketAddress: (string | null) | null;
-                            metrics: Record<string, never>;
+                        nodeId: string;
+                        currentMarket: (string | null) | null;
+                        templates: {
+                            templateId: string;
+                            templateName: string;
+                            node: Record<string, never>;
+                            market: Record<string, never>;
                         }[];
-                    } | {
-                        node: string;
-                        status: string;
-                        current_market: (string | null) | null;
-                        reports: {
-                            marketAddress: (string | null) | null;
-                            metrics: Record<string, never>;
-                        }[];
-                    }[];
+                    };
                 };
             };
         };
     };
-    "getOperationsBenchmark-version": {
+    "getBenchmarksBenchmark-version": {
         parameters: {
             query?: never;
             header?: never;
@@ -1962,7 +1701,7 @@ export interface operations {
             };
         };
     };
-    "postOperationsBenchmark-version": {
+    "postBenchmarksBenchmark-version": {
         parameters: {
             query?: never;
             header: {
@@ -1993,13 +1732,49 @@ export interface operations {
             };
         };
     };
-    getOperationsThresholds: {
+    "getBenchmarksMetric-processors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getBenchmarksOperations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getBenchmarksThresholds: {
         parameters: {
             query?: {
                 metric?: string;
                 marketAddress?: string;
             };
-            header?: never;
+            header: {
+                authorization: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2013,35 +1788,40 @@ export interface operations {
             };
         };
     };
-    postOperationsThresholdsCreate: {
+    postBenchmarksThresholdsCreate: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                authorization: string;
+            };
             path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
                 "application/json": {
-                    metric: string;
-                    measurementDescription: string;
-                    thresholdValue?: string;
-                    feedbackMessage?: string;
-                    marketAddresses?: string[];
+                    name: string;
+                    description?: string;
+                    metric?: (string | null) | null;
+                    group?: (string | null) | null;
+                    isGating?: boolean;
+                    failureMessage?: string;
                 };
                 "multipart/form-data": {
-                    metric: string;
-                    measurementDescription: string;
-                    thresholdValue?: string;
-                    feedbackMessage?: string;
-                    marketAddresses?: string[];
+                    name: string;
+                    description?: string;
+                    metric?: (string | null) | null;
+                    group?: (string | null) | null;
+                    isGating?: boolean;
+                    failureMessage?: string;
                 };
                 "text/plain": {
-                    metric: string;
-                    measurementDescription: string;
-                    thresholdValue?: string;
-                    feedbackMessage?: string;
-                    marketAddresses?: string[];
+                    name: string;
+                    description?: string;
+                    metric?: (string | null) | null;
+                    group?: (string | null) | null;
+                    isGating?: boolean;
+                    failureMessage?: string;
                 };
             };
         };
@@ -2054,10 +1834,12 @@ export interface operations {
             };
         };
     };
-    postOperationsThresholdsByIdUpdate: {
+    postBenchmarksThresholdsByIdUpdate: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                authorization: string;
+            };
             path: {
                 id: string;
             };
@@ -2066,25 +1848,28 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    metric: string;
-                    measurementDescription: string;
-                    thresholdValue?: string;
-                    feedbackMessage?: string;
-                    marketAddresses?: string[];
+                    name: string;
+                    description?: string;
+                    metric?: (string | null) | null;
+                    group?: (string | null) | null;
+                    isGating?: boolean;
+                    failureMessage?: string;
                 };
                 "multipart/form-data": {
-                    metric: string;
-                    measurementDescription: string;
-                    thresholdValue?: string;
-                    feedbackMessage?: string;
-                    marketAddresses?: string[];
+                    name: string;
+                    description?: string;
+                    metric?: (string | null) | null;
+                    group?: (string | null) | null;
+                    isGating?: boolean;
+                    failureMessage?: string;
                 };
                 "text/plain": {
-                    metric: string;
-                    measurementDescription: string;
-                    thresholdValue?: string;
-                    feedbackMessage?: string;
-                    marketAddresses?: string[];
+                    name: string;
+                    description?: string;
+                    metric?: (string | null) | null;
+                    group?: (string | null) | null;
+                    isGating?: boolean;
+                    failureMessage?: string;
                 };
             };
         };
@@ -2097,10 +1882,12 @@ export interface operations {
             };
         };
     };
-    deleteOperationsThresholdsByIdDelete: {
+    deleteBenchmarksThresholdsByIdDelete: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                authorization: string;
+            };
             path: {
                 id: string;
             };
@@ -2116,10 +1903,14 @@ export interface operations {
             };
         };
     };
-    getOperationsDefinitions: {
+    getBenchmarksMetrics: {
         parameters: {
-            query?: never;
-            header?: never;
+            query?: {
+                operationId?: string | number;
+            };
+            header: {
+                authorization: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2133,35 +1924,52 @@ export interface operations {
             };
         };
     };
-    postOperationsDefinitionsCreate: {
+    postBenchmarksMetricsCreate: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                authorization: string;
+            };
             path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
                 "application/json": {
+                    key: string;
+                    input?: string;
                     type?: string;
-                    name: string;
-                    description?: string;
-                    operation: unknown;
-                    expiryMinutes?: number;
+                    expiry?: string;
+                    internal?: boolean;
+                    processor?: string;
+                    operationId?: number;
+                    group?: (string | null) | null;
+                    multiValue?: boolean;
+                    instanceKey?: (string | null) | null;
                 };
                 "multipart/form-data": {
+                    key: string;
+                    input?: string;
                     type?: string;
-                    name: string;
-                    description?: string;
-                    operation: unknown;
-                    expiryMinutes?: number;
+                    expiry?: string;
+                    internal?: boolean;
+                    processor?: string;
+                    operationId?: number;
+                    group?: (string | null) | null;
+                    multiValue?: boolean;
+                    instanceKey?: (string | null) | null;
                 };
                 "text/plain": {
+                    key: string;
+                    input?: string;
                     type?: string;
-                    name: string;
-                    description?: string;
-                    operation: unknown;
-                    expiryMinutes?: number;
+                    expiry?: string;
+                    internal?: boolean;
+                    processor?: string;
+                    operationId?: number;
+                    group?: (string | null) | null;
+                    multiValue?: boolean;
+                    instanceKey?: (string | null) | null;
                 };
             };
         };
@@ -2174,10 +1982,305 @@ export interface operations {
             };
         };
     };
-    postOperationsDefinitionsByIdUpdate: {
+    postBenchmarksMetricsByKeyUpdate: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                authorization: string;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    key: string;
+                    input?: string;
+                    type?: string;
+                    expiry?: string;
+                    internal?: boolean;
+                    processor?: string;
+                    operationId?: number;
+                    group?: (string | null) | null;
+                    multiValue?: boolean;
+                    instanceKey?: (string | null) | null;
+                };
+                "multipart/form-data": {
+                    key: string;
+                    input?: string;
+                    type?: string;
+                    expiry?: string;
+                    internal?: boolean;
+                    processor?: string;
+                    operationId?: number;
+                    group?: (string | null) | null;
+                    multiValue?: boolean;
+                    instanceKey?: (string | null) | null;
+                };
+                "text/plain": {
+                    key: string;
+                    input?: string;
+                    type?: string;
+                    expiry?: string;
+                    internal?: boolean;
+                    processor?: string;
+                    operationId?: number;
+                    group?: (string | null) | null;
+                    multiValue?: boolean;
+                    instanceKey?: (string | null) | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteBenchmarksMetricsByKeyDelete: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "getBenchmarksMarket-thresholds": {
+        parameters: {
+            query?: {
+                thresholdId?: string | number;
+                marketAddress?: string;
+            };
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "postBenchmarksMarket-thresholdsCreate": {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    thresholdId: number;
+                    marketAddresses: (string | null)[];
+                    jsonLogic: Record<string, never>;
+                    interval?: string;
+                };
+                "multipart/form-data": {
+                    thresholdId: number;
+                    marketAddresses: (string | null)[];
+                    jsonLogic: Record<string, never>;
+                    interval?: string;
+                };
+                "text/plain": {
+                    thresholdId: number;
+                    marketAddresses: (string | null)[];
+                    jsonLogic: Record<string, never>;
+                    interval?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "postBenchmarksMarket-thresholdsUpdate": {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    thresholdId: number;
+                    marketAddresses: (string | null)[];
+                    jsonLogic: Record<string, never>;
+                    interval?: string;
+                };
+                "multipart/form-data": {
+                    thresholdId: number;
+                    marketAddresses: (string | null)[];
+                    jsonLogic: Record<string, never>;
+                    interval?: string;
+                };
+                "text/plain": {
+                    thresholdId: number;
+                    marketAddresses: (string | null)[];
+                    jsonLogic: Record<string, never>;
+                    interval?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "deleteBenchmarksMarket-thresholdsDelete": {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    thresholdId: number;
+                    marketAddress: string | null;
+                };
+                "multipart/form-data": {
+                    thresholdId: number;
+                    marketAddress: string | null;
+                };
+                "text/plain": {
+                    thresholdId: number;
+                    marketAddress: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postBenchmarksOperationsCreate: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    description?: string;
+                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    source?: string;
+                    metrics?: {
+                        key: string;
+                        input?: string;
+                        type?: string;
+                        expiry?: string;
+                        internal?: boolean;
+                        processor?: string;
+                        operationId?: number;
+                        group?: (string | null) | null;
+                        multiValue?: boolean;
+                        instanceKey?: (string | null) | null;
+                    }[];
+                };
+                "multipart/form-data": {
+                    name: string;
+                    description?: string;
+                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    source?: string;
+                    metrics?: {
+                        key: string;
+                        input?: string;
+                        type?: string;
+                        expiry?: string;
+                        internal?: boolean;
+                        processor?: string;
+                        operationId?: number;
+                        group?: (string | null) | null;
+                        multiValue?: boolean;
+                        instanceKey?: (string | null) | null;
+                    }[];
+                };
+                "text/plain": {
+                    name: string;
+                    description?: string;
+                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    source?: string;
+                    metrics?: {
+                        key: string;
+                        input?: string;
+                        type?: string;
+                        expiry?: string;
+                        internal?: boolean;
+                        processor?: string;
+                        operationId?: number;
+                        group?: (string | null) | null;
+                        multiValue?: boolean;
+                        instanceKey?: (string | null) | null;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postBenchmarksOperationsByIdUpdate: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
             path: {
                 id: string;
             };
@@ -2186,25 +2289,58 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    type?: string;
                     name: string;
                     description?: string;
-                    operation: unknown;
-                    expiryMinutes?: number;
+                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    source?: string;
+                    metrics?: {
+                        key: string;
+                        input?: string;
+                        type?: string;
+                        expiry?: string;
+                        internal?: boolean;
+                        processor?: string;
+                        operationId?: number;
+                        group?: (string | null) | null;
+                        multiValue?: boolean;
+                        instanceKey?: (string | null) | null;
+                    }[];
                 };
                 "multipart/form-data": {
-                    type?: string;
                     name: string;
                     description?: string;
-                    operation: unknown;
-                    expiryMinutes?: number;
+                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    source?: string;
+                    metrics?: {
+                        key: string;
+                        input?: string;
+                        type?: string;
+                        expiry?: string;
+                        internal?: boolean;
+                        processor?: string;
+                        operationId?: number;
+                        group?: (string | null) | null;
+                        multiValue?: boolean;
+                        instanceKey?: (string | null) | null;
+                    }[];
                 };
                 "text/plain": {
-                    type?: string;
                     name: string;
                     description?: string;
-                    operation: unknown;
-                    expiryMinutes?: number;
+                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    source?: string;
+                    metrics?: {
+                        key: string;
+                        input?: string;
+                        type?: string;
+                        expiry?: string;
+                        internal?: boolean;
+                        processor?: string;
+                        operationId?: number;
+                        group?: (string | null) | null;
+                        multiValue?: boolean;
+                        instanceKey?: (string | null) | null;
+                    }[];
                 };
             };
         };
@@ -2217,10 +2353,12 @@ export interface operations {
             };
         };
     };
-    deleteOperationsDefinitionsByIdDelete: {
+    deleteBenchmarksOperationsByIdDelete: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                authorization: string;
+            };
             path: {
                 id: string;
             };
@@ -2263,34 +2401,32 @@ export interface operations {
             };
         };
     };
-    getNodesMetrics: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     getNodes: {
         parameters: {
             query?: {
+                state?: ("REJECTED" | "ONBOARDED" | "PREMIUM") | ("REJECTED" | "ONBOARDED" | "PREMIUM")[];
+                state_neq?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_notIn?: ("REJECTED" | "ONBOARDED" | "PREMIUM")[];
+                state_gt?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_lt?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_gte?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_lte?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_like?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_ilike?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                market?: string | string[];
+                market_neq?: string;
+                market_notIn?: string[];
+                market_gt?: string;
+                market_lt?: string;
+                market_gte?: string;
+                market_lte?: string;
+                market_like?: string;
+                market_ilike?: string;
+                orderBy?: "nodeAddress" | "status" | "marketAddress" | "createdAt";
+                order?: "asc" | "desc";
                 limit?: string | number;
                 offset?: string | number;
-                state?: string | string[];
-                market?: string;
-                gpus?: string;
-                search?: string | string[];
-                orderBy?: string;
-                order?: "asc" | "desc";
+                search?: string;
                 csv_export?: boolean | string;
             };
             header?: never;
@@ -2310,26 +2446,6 @@ export interface operations {
     "getNodesAvailable-gpus": {
         parameters: {
             query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    getNodesStats: {
-        parameters: {
-            query?: {
-                gpus?: string;
-                market?: string;
-            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2457,7 +2573,9 @@ export interface operations {
     "postNodesSync-node": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                authorization: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2483,10 +2601,14 @@ export interface operations {
             };
         };
     };
-    getNodesByIdSpecs: {
+    getNodesByIdMetrics: {
         parameters: {
-            query?: never;
-            header?: never;
+            query?: {
+                metrics?: string | string[];
+            };
+            header?: {
+                authorization?: string;
+            };
             path: {
                 id: string;
             };
@@ -2498,190 +2620,71 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
-            };
-        };
-    };
-    getNodesFilteringOptions: {
-        parameters: {
-            query?: {
-                market_type?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
                 content: {
                     "application/json": {
-                        groups: {
-                            value: string;
-                            label: string;
-                            order: number;
+                        nodeAddress: string;
+                        status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                        accessKeyMint: (string | null) | null;
+                        marketAddress: (string | null) | null;
+                        assignedMarket: (string | null) | null;
+                        destinedMarket: (string | null) | null;
+                        recommendedMarket: (string | null) | null;
+                        createdAt: (Record<string, never> | string | number) | string | null;
+                        outOfSync: (Record<string, never> | string | number) | string | null;
+                        gpus?: {
+                            nodeAddress: string;
+                            gpu: string;
+                            uuid: (string | null) | null;
+                            deviceId: (number | null) | null;
+                            vramMb: (number | null) | null;
+                            majorArchitecture: (number | null) | null;
+                            minorArchitecture: (number | null) | null;
                         }[];
-                        "filter-options": {
-                            value: string;
-                            filters: Record<string, never>;
-                        }[];
+                        metrics: Record<string, never>;
                     };
                     "multipart/form-data": {
-                        groups: {
-                            value: string;
-                            label: string;
-                            order: number;
+                        nodeAddress: string;
+                        status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                        accessKeyMint: (string | null) | null;
+                        marketAddress: (string | null) | null;
+                        assignedMarket: (string | null) | null;
+                        destinedMarket: (string | null) | null;
+                        recommendedMarket: (string | null) | null;
+                        createdAt: (Record<string, never> | string | number) | string | null;
+                        outOfSync: (Record<string, never> | string | number) | string | null;
+                        gpus?: {
+                            nodeAddress: string;
+                            gpu: string;
+                            uuid: (string | null) | null;
+                            deviceId: (number | null) | null;
+                            vramMb: (number | null) | null;
+                            majorArchitecture: (number | null) | null;
+                            minorArchitecture: (number | null) | null;
                         }[];
-                        "filter-options": {
-                            value: string;
-                            filters: Record<string, never>;
-                        }[];
+                        metrics: Record<string, never>;
                     };
                     "text/plain": {
-                        groups: {
-                            value: string;
-                            label: string;
-                            order: number;
+                        nodeAddress: string;
+                        status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                        accessKeyMint: (string | null) | null;
+                        marketAddress: (string | null) | null;
+                        assignedMarket: (string | null) | null;
+                        destinedMarket: (string | null) | null;
+                        recommendedMarket: (string | null) | null;
+                        createdAt: (Record<string, never> | string | number) | string | null;
+                        outOfSync: (Record<string, never> | string | number) | string | null;
+                        gpus?: {
+                            nodeAddress: string;
+                            gpu: string;
+                            uuid: (string | null) | null;
+                            deviceId: (number | null) | null;
+                            vramMb: (number | null) | null;
+                            majorArchitecture: (number | null) | null;
+                            minorArchitecture: (number | null) | null;
                         }[];
-                        "filter-options": {
-                            value: string;
-                            filters: Record<string, never>;
-                        }[];
+                        metrics: Record<string, never>;
                     };
                 };
-            };
-        };
-    };
-    getNodesFiltering: {
-        parameters: {
-            query?: {
-                group?: string;
-                market_type?: string;
-                platform_os?: string;
-                cuda_drivers?: string;
-                cpu_cores?: string | number;
-                ram_mb?: string | number;
-                disk_space_gb?: string | number;
-                download_speed_mb?: string | number;
-                upload_speed_mb?: string | number;
-                region?: string;
-                country?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        hosts: {
-                            label: string;
-                            host_address: string;
-                            market_address: string;
-                            market_type: "premium" | "community";
-                            USD_per_hour: number;
-                            country: string;
-                            region: string;
-                            specs: {
-                                PLATFORM_OS: string;
-                                CUDA_DRIVER: string;
-                                CPU_CORES: number;
-                                MEMORY_GB: number;
-                                DISK_SPACE_GB: number;
-                                DOWNLOAD_SPEED_MB: number;
-                                UPLOAD_SPEED_MB: number;
-                                DEVICES: {
-                                    device_name: string;
-                                    device_id: string;
-                                    vram_mb: number | "unknown";
-                                    major_architecture: number | "unknown";
-                                    minor_architecture: number | "unknown";
-                                }[];
-                            };
-                        }[];
-                    };
-                    "multipart/form-data": {
-                        hosts: {
-                            label: string;
-                            host_address: string;
-                            market_address: string;
-                            market_type: "premium" | "community";
-                            USD_per_hour: number;
-                            country: string;
-                            region: string;
-                            specs: {
-                                PLATFORM_OS: string;
-                                CUDA_DRIVER: string;
-                                CPU_CORES: number;
-                                MEMORY_GB: number;
-                                DISK_SPACE_GB: number;
-                                DOWNLOAD_SPEED_MB: number;
-                                UPLOAD_SPEED_MB: number;
-                                DEVICES: {
-                                    device_name: string;
-                                    device_id: string;
-                                    vram_mb: number | "unknown";
-                                    major_architecture: number | "unknown";
-                                    minor_architecture: number | "unknown";
-                                }[];
-                            };
-                        }[];
-                    };
-                    "text/plain": {
-                        hosts: {
-                            label: string;
-                            host_address: string;
-                            market_address: string;
-                            market_type: "premium" | "community";
-                            USD_per_hour: number;
-                            country: string;
-                            region: string;
-                            specs: {
-                                PLATFORM_OS: string;
-                                CUDA_DRIVER: string;
-                                CPU_CORES: number;
-                                MEMORY_GB: number;
-                                DISK_SPACE_GB: number;
-                                DOWNLOAD_SPEED_MB: number;
-                                UPLOAD_SPEED_MB: number;
-                                DEVICES: {
-                                    device_name: string;
-                                    device_id: string;
-                                    vram_mb: number | "unknown";
-                                    major_architecture: number | "unknown";
-                                    minor_architecture: number | "unknown";
-                                }[];
-                            };
-                        }[];
-                    };
-                };
-            };
-        };
-    };
-    "postNodesChange-market": {
-        parameters: {
-            query?: never;
-            header: {
-                authorization: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -2751,14 +2754,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Node is eligible for market access; response includes market details. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        jobDefinition: {
+                        jobDefinition?: {
                             /** @enum {string} */
                             version: "0.1";
                             /** @enum {string} */
@@ -2970,23 +2972,485 @@ export interface operations {
                                     group?: string;
                                 };
                             }[];
-                        } & {
-                            id: string;
                         };
-                    } | {
-                        feedbackReport: {
+                        market?: {
+                            address: string;
+                            sftTx?: string;
+                        };
+                        feedbackReport?: {
                             marketAddress: string;
                             passed: boolean;
                             metrics: {
-                                metric: string;
-                                thresholdValue?: string;
-                                measuredValue?: number;
+                                metricKey: string;
+                                value: unknown;
+                                measuredValue?: number | string | boolean;
                                 passed: boolean;
-                                feedbackMessage?: string;
-                                operationDefinitionId?: number;
-                                submittedAt?: string;
+                                failureMessage?: string;
                             }[];
                         };
+                        status?: string;
+                    };
+                    "multipart/form-data": {
+                        jobDefinition?: {
+                            /** @enum {string} */
+                            version: "0.1";
+                            /** @enum {string} */
+                            type: "container";
+                            logistics?: {
+                                send: {
+                                    /**
+                                     * @description api        - we receive and send via an endpoint endpoint
+                                     *     api-listen - we create an endpoint to listen for incoming requests
+                                     * @enum {string}
+                                     */
+                                    type: "api" | "api-listen";
+                                    /** @description Make all properties in T optional */
+                                    args: {
+                                        endpoint?: string;
+                                    };
+                                };
+                                receive: {
+                                    /**
+                                     * @description api        - we receive and send via an endpoint endpoint
+                                     *     api-listen - we create an endpoint to listen for incoming requests
+                                     * @enum {string}
+                                     */
+                                    type: "api" | "api-listen";
+                                    /** @description Make all properties in T optional */
+                                    args: {
+                                        endpoint?: string;
+                                    };
+                                };
+                            };
+                            deployment_id?: string;
+                            meta?: {
+                                trigger?: string;
+                                /** @description Construct a type with a set of properties K of type T */
+                                system_resources?: {
+                                    [key: string]: (string | number) | undefined;
+                                };
+                                [key: string]: (string | number | (string | number)[] | {
+                                    [key: string]: (string | number | (string | number)[]) | undefined;
+                                }) | undefined;
+                            };
+                            global?: {
+                                image?: string;
+                                gpu?: boolean;
+                                entrypoint?: string | string[];
+                                env?: {
+                                    [key: string]: string | undefined;
+                                };
+                                work_dir?: string;
+                                variables?: {
+                                    [key: string]: string | undefined;
+                                };
+                            };
+                            ops: {
+                                /** @enum {string} */
+                                type: "container/run" | "container/create-volume";
+                                id: string;
+                                args: {
+                                    image: string;
+                                    aliases?: string | string[];
+                                    cmd?: string | string[];
+                                    volumes?: {
+                                        name: string;
+                                        dest: string;
+                                    }[];
+                                    expose?: number | string | {
+                                        __spread__: string;
+                                        chunked?: boolean;
+                                    } | {
+                                        port: number;
+                                        /** @enum {string} */
+                                        type?: "api" | "web" | "websocket" | "webapi" | "none";
+                                        health_checks?: ({
+                                            /** @enum {string} */
+                                            type: "http";
+                                            path: string;
+                                            /** @enum {string} */
+                                            method: "GET" | "POST" | "PUT" | "DELETE";
+                                            expected_status: number;
+                                            /** @description Construct a type with a set of properties K of type T */
+                                            headers?: {
+                                                [key: string]: string | undefined;
+                                            };
+                                            body?: unknown;
+                                            continuous: boolean;
+                                        } | {
+                                            /** @enum {string} */
+                                            type: "websocket";
+                                            expected_response: string;
+                                            continuous: boolean;
+                                        })[];
+                                    } | (number | string | {
+                                        __spread__: string;
+                                        chunked?: boolean;
+                                    } | {
+                                        port: number;
+                                        /** @enum {string} */
+                                        type?: "api" | "web" | "websocket" | "webapi" | "none";
+                                        health_checks?: ({
+                                            /** @enum {string} */
+                                            type: "http";
+                                            path: string;
+                                            /** @enum {string} */
+                                            method: "GET" | "POST" | "PUT" | "DELETE";
+                                            expected_status: number;
+                                            /** @description Construct a type with a set of properties K of type T */
+                                            headers?: {
+                                                [key: string]: string | undefined;
+                                            };
+                                            body?: unknown;
+                                            continuous: boolean;
+                                        } | {
+                                            /** @enum {string} */
+                                            type: "websocket";
+                                            expected_response: string;
+                                            continuous: boolean;
+                                        })[];
+                                    })[];
+                                    gpu?: boolean;
+                                    work_dir?: string;
+                                    entrypoint?: string | string[];
+                                    env?: {
+                                        [key: string]: string | undefined;
+                                    };
+                                    restart_policy?: {
+                                        /** @enum {string} */
+                                        policy: "on-failure";
+                                        restart_tries?: number;
+                                    } | ("on-failure" | "no" | "always" | "unless-stopped");
+                                    private?: boolean;
+                                    resources?: ({
+                                        __spread__: string;
+                                        chunked?: boolean;
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "S3";
+                                        target: string;
+                                        url?: string;
+                                        allowWrite?: boolean;
+                                        files?: string[];
+                                        IAM?: {
+                                            REGION: string;
+                                            ACCESS_KEY_ID: string;
+                                            SECRET_ACCESS_KEY: string;
+                                        };
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "S3";
+                                        target: string;
+                                        bucket: string;
+                                        url?: string;
+                                        allowWrite?: boolean;
+                                        IAM?: {
+                                            REGION: string;
+                                            ACCESS_KEY_ID: string;
+                                            SECRET_ACCESS_KEY: string;
+                                        };
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "S3";
+                                        target: string;
+                                        buckets: {
+                                            url: string;
+                                            files?: string[];
+                                        }[];
+                                        url?: string;
+                                        allowWrite?: boolean;
+                                        IAM?: {
+                                            REGION: string;
+                                            ACCESS_KEY_ID: string;
+                                            SECRET_ACCESS_KEY: string;
+                                        };
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "HF";
+                                        target: string;
+                                        repo: string;
+                                        revision?: string;
+                                        files?: string[];
+                                        accessToken?: string;
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "Ollama";
+                                        model: string;
+                                        target?: string;
+                                    } | "__remove-if-empty__")[];
+                                    authentication?: {
+                                        docker?: {
+                                            username?: string;
+                                            password?: string;
+                                            email?: string;
+                                            server?: string;
+                                        };
+                                    };
+                                } | {
+                                    name: string;
+                                };
+                                results?: {
+                                    [key: string]: (string | {
+                                        regex: string;
+                                        logType: ("stdin" | "stdout" | "stderr" | "nodeerr")[];
+                                    }) | undefined;
+                                };
+                                execution?: {
+                                    group?: string;
+                                    depends_on: string[];
+                                    stop_if_dependent_stops?: boolean;
+                                } | {
+                                    group?: string;
+                                };
+                            }[];
+                        };
+                        market?: {
+                            address: string;
+                            sftTx?: string;
+                        };
+                        feedbackReport?: {
+                            marketAddress: string;
+                            passed: boolean;
+                            metrics: {
+                                metricKey: string;
+                                value: unknown;
+                                measuredValue?: number | string | boolean;
+                                passed: boolean;
+                                failureMessage?: string;
+                            }[];
+                        };
+                        status?: string;
+                    };
+                    "text/plain": {
+                        jobDefinition?: {
+                            /** @enum {string} */
+                            version: "0.1";
+                            /** @enum {string} */
+                            type: "container";
+                            logistics?: {
+                                send: {
+                                    /**
+                                     * @description api        - we receive and send via an endpoint endpoint
+                                     *     api-listen - we create an endpoint to listen for incoming requests
+                                     * @enum {string}
+                                     */
+                                    type: "api" | "api-listen";
+                                    /** @description Make all properties in T optional */
+                                    args: {
+                                        endpoint?: string;
+                                    };
+                                };
+                                receive: {
+                                    /**
+                                     * @description api        - we receive and send via an endpoint endpoint
+                                     *     api-listen - we create an endpoint to listen for incoming requests
+                                     * @enum {string}
+                                     */
+                                    type: "api" | "api-listen";
+                                    /** @description Make all properties in T optional */
+                                    args: {
+                                        endpoint?: string;
+                                    };
+                                };
+                            };
+                            deployment_id?: string;
+                            meta?: {
+                                trigger?: string;
+                                /** @description Construct a type with a set of properties K of type T */
+                                system_resources?: {
+                                    [key: string]: (string | number) | undefined;
+                                };
+                                [key: string]: (string | number | (string | number)[] | {
+                                    [key: string]: (string | number | (string | number)[]) | undefined;
+                                }) | undefined;
+                            };
+                            global?: {
+                                image?: string;
+                                gpu?: boolean;
+                                entrypoint?: string | string[];
+                                env?: {
+                                    [key: string]: string | undefined;
+                                };
+                                work_dir?: string;
+                                variables?: {
+                                    [key: string]: string | undefined;
+                                };
+                            };
+                            ops: {
+                                /** @enum {string} */
+                                type: "container/run" | "container/create-volume";
+                                id: string;
+                                args: {
+                                    image: string;
+                                    aliases?: string | string[];
+                                    cmd?: string | string[];
+                                    volumes?: {
+                                        name: string;
+                                        dest: string;
+                                    }[];
+                                    expose?: number | string | {
+                                        __spread__: string;
+                                        chunked?: boolean;
+                                    } | {
+                                        port: number;
+                                        /** @enum {string} */
+                                        type?: "api" | "web" | "websocket" | "webapi" | "none";
+                                        health_checks?: ({
+                                            /** @enum {string} */
+                                            type: "http";
+                                            path: string;
+                                            /** @enum {string} */
+                                            method: "GET" | "POST" | "PUT" | "DELETE";
+                                            expected_status: number;
+                                            /** @description Construct a type with a set of properties K of type T */
+                                            headers?: {
+                                                [key: string]: string | undefined;
+                                            };
+                                            body?: unknown;
+                                            continuous: boolean;
+                                        } | {
+                                            /** @enum {string} */
+                                            type: "websocket";
+                                            expected_response: string;
+                                            continuous: boolean;
+                                        })[];
+                                    } | (number | string | {
+                                        __spread__: string;
+                                        chunked?: boolean;
+                                    } | {
+                                        port: number;
+                                        /** @enum {string} */
+                                        type?: "api" | "web" | "websocket" | "webapi" | "none";
+                                        health_checks?: ({
+                                            /** @enum {string} */
+                                            type: "http";
+                                            path: string;
+                                            /** @enum {string} */
+                                            method: "GET" | "POST" | "PUT" | "DELETE";
+                                            expected_status: number;
+                                            /** @description Construct a type with a set of properties K of type T */
+                                            headers?: {
+                                                [key: string]: string | undefined;
+                                            };
+                                            body?: unknown;
+                                            continuous: boolean;
+                                        } | {
+                                            /** @enum {string} */
+                                            type: "websocket";
+                                            expected_response: string;
+                                            continuous: boolean;
+                                        })[];
+                                    })[];
+                                    gpu?: boolean;
+                                    work_dir?: string;
+                                    entrypoint?: string | string[];
+                                    env?: {
+                                        [key: string]: string | undefined;
+                                    };
+                                    restart_policy?: {
+                                        /** @enum {string} */
+                                        policy: "on-failure";
+                                        restart_tries?: number;
+                                    } | ("on-failure" | "no" | "always" | "unless-stopped");
+                                    private?: boolean;
+                                    resources?: ({
+                                        __spread__: string;
+                                        chunked?: boolean;
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "S3";
+                                        target: string;
+                                        url?: string;
+                                        allowWrite?: boolean;
+                                        files?: string[];
+                                        IAM?: {
+                                            REGION: string;
+                                            ACCESS_KEY_ID: string;
+                                            SECRET_ACCESS_KEY: string;
+                                        };
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "S3";
+                                        target: string;
+                                        bucket: string;
+                                        url?: string;
+                                        allowWrite?: boolean;
+                                        IAM?: {
+                                            REGION: string;
+                                            ACCESS_KEY_ID: string;
+                                            SECRET_ACCESS_KEY: string;
+                                        };
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "S3";
+                                        target: string;
+                                        buckets: {
+                                            url: string;
+                                            files?: string[];
+                                        }[];
+                                        url?: string;
+                                        allowWrite?: boolean;
+                                        IAM?: {
+                                            REGION: string;
+                                            ACCESS_KEY_ID: string;
+                                            SECRET_ACCESS_KEY: string;
+                                        };
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "HF";
+                                        target: string;
+                                        repo: string;
+                                        revision?: string;
+                                        files?: string[];
+                                        accessToken?: string;
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "Ollama";
+                                        model: string;
+                                        target?: string;
+                                    } | "__remove-if-empty__")[];
+                                    authentication?: {
+                                        docker?: {
+                                            username?: string;
+                                            password?: string;
+                                            email?: string;
+                                            server?: string;
+                                        };
+                                    };
+                                } | {
+                                    name: string;
+                                };
+                                results?: {
+                                    [key: string]: (string | {
+                                        regex: string;
+                                        logType: ("stdin" | "stdout" | "stderr" | "nodeerr")[];
+                                    }) | undefined;
+                                };
+                                execution?: {
+                                    group?: string;
+                                    depends_on: string[];
+                                    stop_if_dependent_stops?: boolean;
+                                } | {
+                                    group?: string;
+                                };
+                            }[];
+                        };
+                        market?: {
+                            address: string;
+                            sftTx?: string;
+                        };
+                        feedbackReport?: {
+                            marketAddress: string;
+                            passed: boolean;
+                            metrics: {
+                                metricKey: string;
+                                value: unknown;
+                                measuredValue?: number | string | boolean;
+                                passed: boolean;
+                                failureMessage?: string;
+                            }[];
+                        };
+                        status?: string;
                     };
                 };
             };
@@ -3046,7 +3510,45 @@ export interface operations {
             };
         };
     };
-    postNodesOnboard: {
+    getNodesRewards: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        claimableUptimeNosRewards: number;
+                        claimableUptimeUsdRewards: number;
+                        totalClaimedUptimeNosRewards: number;
+                        totalClaimedUptimeUsdRewards: number;
+                    };
+                    "multipart/form-data": {
+                        claimableUptimeNosRewards: number;
+                        claimableUptimeUsdRewards: number;
+                        totalClaimedUptimeNosRewards: number;
+                        totalClaimedUptimeUsdRewards: number;
+                    };
+                    "text/plain": {
+                        claimableUptimeNosRewards: number;
+                        claimableUptimeUsdRewards: number;
+                        totalClaimedUptimeNosRewards: number;
+                        totalClaimedUptimeUsdRewards: number;
+                    };
+                };
+            };
+        };
+    };
+    postNodesPromote: {
         parameters: {
             query?: never;
             header: {
@@ -3077,7 +3579,38 @@ export interface operations {
             };
         };
     };
-    postNodesUpgrade: {
+    postNodesDemote: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    address: string;
+                };
+                "multipart/form-data": {
+                    address: string;
+                };
+                "text/plain": {
+                    address: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "postNodesMove-market": {
         parameters: {
             query?: never;
             header: {
@@ -3173,7 +3706,7 @@ export interface operations {
             };
         };
     };
-    postNodesRevoke: {
+    postNodesBan: {
         parameters: {
             query?: never;
             header: {
@@ -3185,16 +3718,13 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    address: string;
-                    forceBan?: boolean;
+                    address: string | string[];
                 };
                 "multipart/form-data": {
-                    address: string;
-                    forceBan?: boolean;
+                    address: string | string[];
                 };
                 "text/plain": {
-                    address: string;
-                    forceBan?: boolean;
+                    address: string | string[];
                 };
             };
         };
@@ -3791,61 +4321,6 @@ export interface operations {
                         message: string;
                     };
                 };
-            };
-        };
-    };
-    getTemplates: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    getTemplatesById: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "postTemplatesAdmin-refresh": {
-        parameters: {
-            query?: never;
-            header: {
-                authorization: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
