@@ -15,6 +15,7 @@ export class MarketHandler {
   private market: Market | undefined;
   private address: PublicKey;
   private checkQueuedInterval?: NodeJS.Timeout; // Interval to check market queue
+  private marketAccessHandler: MarketAccessHandler;
 
   private inMarket = false;
 
@@ -22,7 +23,6 @@ export class MarketHandler {
     private sdk: SDK,
     private provider: Provider,
     private repository: NodeRepository,
-    private marketAccessHandler: MarketAccessHandler,
   ) {
     this.address = this.sdk.solana.provider!.wallet.publicKey;
     this.marketAccessHandler = new MarketAccessHandler(this.sdk);
