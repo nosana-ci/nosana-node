@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { Client, JobDefinition } from "@nosana/sdk";
 
-import { HostManager } from './hostManager.js';
+import { HostManager, serializeFlowState } from './hostManager.js';
 import TaskManager from "../task/TaskManager.js";
 import { Provider } from "../../provider/Provider.js";
 import { NodeRepository } from "../../repository/NodeRepository.js";
@@ -29,6 +29,7 @@ export class Benchmark {
   public async run(): Promise<void> {
     await this.executeBenchmark();
     const results = await this.submitResults();
+    console.log(chalk.blue(`Benchmark metrics: ${JSON.stringify(results)}`));
     await this.reportResults(results);
   }
 
@@ -55,8 +56,18 @@ export class Benchmark {
 
     this.repository.deleteflow(this.benchmarkId);
 
-    const results = await HostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
-    return results;
+    console.log(chalk.blue(`Submitting benchmark results for benchmark ID ${this.benchmarkId} with flow state: ${JSON.stringify(flowResults)}`));
+
+    const response = await HostManager.submitBenchmarkResults(this.benchmarkId, serializeFlowState(flowResults.state));
+    console.log(chalk.blue(`Benchmark submission response: ${JSON.stringify(response)}`));
+    return (response.report?.metrics ?? []).map(m => ({
+      metric: m.metricKey,
+      metric_name: m.metricKey,
+      thresholdValue: typeof m.value === 'string' || typeof m.value === 'number' ? String(m.value) : undefined,
+      measuredValue: typeof m.measuredValue === 'number' ? m.measuredValue : undefined,
+      passed: m.passed,
+      feedbackMessage: m.failureMessage,
+    }));
   }
 
   private reportResults(metrics: Metric[]): void {

@@ -59,13 +59,12 @@ export class MarketHandler {
     // Host manager wants us to run a benchmark first
     if (result.jobDefinition) {
       const benchmark = new Benchmark(
-        result.jobDefinition.id,
+        result.benchmarkId ?? result.jobDefinition.id,
         result.jobDefinition,
         this.sdk,
         this.provider,
         this.repository,
       );
-      // TODO: pass benchmark id to submit-results
       await benchmark.run();
       return await this.request(requestedMarket);
     }
