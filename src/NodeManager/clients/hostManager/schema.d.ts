@@ -200,22 +200,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/benchmarks/{id}/submit-results": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["postBenchmarksByIdSubmit-results"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/benchmarks/node-template-performance/{nodeId}": {
         parameters: {
             query?: never;
@@ -515,6 +499,54 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["deleteBenchmarksOperationsByIdDelete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/{id}/submit-results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postBenchmarksByIdSubmit-results"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/{id}/seed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postBenchmarksByIdSeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/benchmarks/{id}/prediction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postBenchmarksByIdPrediction"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1646,184 +1678,6 @@ export interface operations {
             };
         };
     };
-    "postBenchmarksByIdSubmit-results": {
-        parameters: {
-            query?: never;
-            header: {
-                authorization: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    status?: string;
-                    startTime?: number;
-                    endTime?: (number | null) | null;
-                    errors?: unknown[];
-                    opStates: {
-                        providerId?: (string | null) | null;
-                        operationId?: (string | null) | null;
-                        group?: (string | null) | null;
-                        status?: (string | null) | null;
-                        startTime?: (number | null) | null;
-                        endTime?: (number | null) | null;
-                        exitCode: (number | null) | null;
-                        logs?: {
-                            type: "stdin" | "stdout" | "stderr" | "nodeerr";
-                            log?: string;
-                            timestamp?: string;
-                        }[];
-                        results?: Record<string, string | string[]>;
-                        error?: {
-                            event: string;
-                            message: string;
-                            code?: number;
-                        };
-                        diagnostics?: {
-                            reason: {
-                                hostShutDown: boolean;
-                                jobStopped: boolean;
-                                jobExpired: boolean;
-                                reason?: string;
-                            };
-                            state?: unknown;
-                        };
-                        env?: Record<string, string>;
-                    }[];
-                    secrets?: Record<string, unknown>;
-                };
-                "multipart/form-data": {
-                    status?: string;
-                    startTime?: number;
-                    endTime?: (number | null) | null;
-                    errors?: unknown[];
-                    opStates: {
-                        providerId?: (string | null) | null;
-                        operationId?: (string | null) | null;
-                        group?: (string | null) | null;
-                        status?: (string | null) | null;
-                        startTime?: (number | null) | null;
-                        endTime?: (number | null) | null;
-                        exitCode: (number | null) | null;
-                        logs?: {
-                            type: "stdin" | "stdout" | "stderr" | "nodeerr";
-                            log?: string;
-                            timestamp?: string;
-                        }[];
-                        results?: Record<string, string | string[]>;
-                        error?: {
-                            event: string;
-                            message: string;
-                            code?: number;
-                        };
-                        diagnostics?: {
-                            reason: {
-                                hostShutDown: boolean;
-                                jobStopped: boolean;
-                                jobExpired: boolean;
-                                reason?: string;
-                            };
-                            state?: unknown;
-                        };
-                        env?: Record<string, string>;
-                    }[];
-                    secrets?: Record<string, unknown>;
-                };
-                "text/plain": {
-                    status?: string;
-                    startTime?: number;
-                    endTime?: (number | null) | null;
-                    errors?: unknown[];
-                    opStates: {
-                        providerId?: (string | null) | null;
-                        operationId?: (string | null) | null;
-                        group?: (string | null) | null;
-                        status?: (string | null) | null;
-                        startTime?: (number | null) | null;
-                        endTime?: (number | null) | null;
-                        exitCode: (number | null) | null;
-                        logs?: {
-                            type: "stdin" | "stdout" | "stderr" | "nodeerr";
-                            log?: string;
-                            timestamp?: string;
-                        }[];
-                        results?: Record<string, string | string[]>;
-                        error?: {
-                            event: string;
-                            message: string;
-                            code?: number;
-                        };
-                        diagnostics?: {
-                            reason: {
-                                hostShutDown: boolean;
-                                jobStopped: boolean;
-                                jobExpired: boolean;
-                                reason?: string;
-                            };
-                            state?: unknown;
-                        };
-                        env?: Record<string, string>;
-                    }[];
-                    secrets?: Record<string, unknown>;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        status: "success" | "failed";
-                        report?: {
-                            marketAddress: string;
-                            passed: boolean;
-                            metrics: {
-                                metricKey: string;
-                                value: ((number | string | boolean) | null) | null;
-                                measuredValue?: number | string | boolean;
-                                passed: boolean;
-                                failureMessage?: string;
-                            }[];
-                        };
-                    };
-                    "multipart/form-data": {
-                        status: "success" | "failed";
-                        report?: {
-                            marketAddress: string;
-                            passed: boolean;
-                            metrics: {
-                                metricKey: string;
-                                value: ((number | string | boolean) | null) | null;
-                                measuredValue?: number | string | boolean;
-                                passed: boolean;
-                                failureMessage?: string;
-                            }[];
-                        };
-                    };
-                    "text/plain": {
-                        status: "success" | "failed";
-                        report?: {
-                            marketAddress: string;
-                            passed: boolean;
-                            metrics: {
-                                metricKey: string;
-                                value: ((number | string | boolean) | null) | null;
-                                measuredValue?: number | string | boolean;
-                                passed: boolean;
-                                failureMessage?: string;
-                            }[];
-                        };
-                    };
-                };
-            };
-        };
-    };
     "getBenchmarksNode-template-performanceByNodeId": {
         parameters: {
             query?: {
@@ -2407,7 +2261,7 @@ export interface operations {
                 "application/json": {
                     name: string;
                     description?: string;
-                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    ops: Record<string, never> | (string | number | boolean | null | (string | number | boolean | null | unknown[] | Record<string, never>)[] | Record<string, never>)[];
                     source?: string;
                     metrics?: {
                         key: string;
@@ -2425,7 +2279,7 @@ export interface operations {
                 "multipart/form-data": {
                     name: string;
                     description?: string;
-                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    ops: Record<string, never> | (string | number | boolean | null | (string | number | boolean | null | unknown[] | Record<string, never>)[] | Record<string, never>)[];
                     source?: string;
                     metrics?: {
                         key: string;
@@ -2443,7 +2297,7 @@ export interface operations {
                 "text/plain": {
                     name: string;
                     description?: string;
-                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    ops: Record<string, never> | (string | number | boolean | null | (string | number | boolean | null | unknown[] | Record<string, never>)[] | Record<string, never>)[];
                     source?: string;
                     metrics?: {
                         key: string;
@@ -2485,7 +2339,7 @@ export interface operations {
                 "application/json": {
                     name: string;
                     description?: string;
-                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    ops: Record<string, never> | (string | number | boolean | null | (string | number | boolean | null | unknown[] | Record<string, never>)[] | Record<string, never>)[];
                     source?: string;
                     metrics?: {
                         key: string;
@@ -2503,7 +2357,7 @@ export interface operations {
                 "multipart/form-data": {
                     name: string;
                     description?: string;
-                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    ops: Record<string, never> | (string | number | boolean | null | (string | number | boolean | null | unknown[] | Record<string, never>)[] | Record<string, never>)[];
                     source?: string;
                     metrics?: {
                         key: string;
@@ -2521,7 +2375,7 @@ export interface operations {
                 "text/plain": {
                     name: string;
                     description?: string;
-                    ops: Record<string, never> | (string | number | boolean | null | unknown[] | Record<string, never>)[];
+                    ops: Record<string, never> | (string | number | boolean | null | (string | number | boolean | null | unknown[] | Record<string, never>)[] | Record<string, never>)[];
                     source?: string;
                     metrics?: {
                         key: string;
@@ -2559,6 +2413,266 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "postBenchmarksByIdSubmit-results": {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    status?: string;
+                    startTime?: number;
+                    endTime?: (number | null) | null;
+                    errors?: unknown[];
+                    opStates: {
+                        providerId?: (string | null) | null;
+                        operationId?: (string | null) | null;
+                        group?: (string | null) | null;
+                        status?: (string | null) | null;
+                        startTime?: (number | null) | null;
+                        endTime?: (number | null) | null;
+                        exitCode: (number | null) | null;
+                        logs?: {
+                            type: "stdin" | "stdout" | "stderr" | "nodeerr";
+                            log?: string;
+                            timestamp?: string;
+                        }[];
+                        results?: Record<string, never>;
+                        error?: {
+                            event: string;
+                            message: string;
+                            code?: number;
+                        };
+                        diagnostics?: {
+                            reason: {
+                                hostShutDown: boolean;
+                                jobStopped: boolean;
+                                jobExpired: boolean;
+                                reason?: string;
+                            };
+                            state?: string;
+                        };
+                        env?: Record<string, never>;
+                    }[];
+                    secrets?: Record<string, never>;
+                };
+                "multipart/form-data": {
+                    status?: string;
+                    startTime?: number;
+                    endTime?: (number | null) | null;
+                    errors?: unknown[];
+                    opStates: {
+                        providerId?: (string | null) | null;
+                        operationId?: (string | null) | null;
+                        group?: (string | null) | null;
+                        status?: (string | null) | null;
+                        startTime?: (number | null) | null;
+                        endTime?: (number | null) | null;
+                        exitCode: (number | null) | null;
+                        logs?: {
+                            type: "stdin" | "stdout" | "stderr" | "nodeerr";
+                            log?: string;
+                            timestamp?: string;
+                        }[];
+                        results?: Record<string, never>;
+                        error?: {
+                            event: string;
+                            message: string;
+                            code?: number;
+                        };
+                        diagnostics?: {
+                            reason: {
+                                hostShutDown: boolean;
+                                jobStopped: boolean;
+                                jobExpired: boolean;
+                                reason?: string;
+                            };
+                            state?: string;
+                        };
+                        env?: Record<string, never>;
+                    }[];
+                    secrets?: Record<string, never>;
+                };
+                "text/plain": {
+                    status?: string;
+                    startTime?: number;
+                    endTime?: (number | null) | null;
+                    errors?: unknown[];
+                    opStates: {
+                        providerId?: (string | null) | null;
+                        operationId?: (string | null) | null;
+                        group?: (string | null) | null;
+                        status?: (string | null) | null;
+                        startTime?: (number | null) | null;
+                        endTime?: (number | null) | null;
+                        exitCode: (number | null) | null;
+                        logs?: {
+                            type: "stdin" | "stdout" | "stderr" | "nodeerr";
+                            log?: string;
+                            timestamp?: string;
+                        }[];
+                        results?: Record<string, never>;
+                        error?: {
+                            event: string;
+                            message: string;
+                            code?: number;
+                        };
+                        diagnostics?: {
+                            reason: {
+                                hostShutDown: boolean;
+                                jobStopped: boolean;
+                                jobExpired: boolean;
+                                reason?: string;
+                            };
+                            state?: string;
+                        };
+                        env?: Record<string, never>;
+                    }[];
+                    secrets?: Record<string, never>;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status: "success" | "failed";
+                        report?: {
+                            marketAddress: string;
+                            passed: boolean;
+                            metrics: {
+                                metricKey: string;
+                                value: ((number | string | boolean) | null) | null;
+                                measuredValue?: number | string | boolean;
+                                passed: boolean;
+                                failureMessage?: string;
+                            }[];
+                        };
+                    };
+                    "multipart/form-data": {
+                        status: "success" | "failed";
+                        report?: {
+                            marketAddress: string;
+                            passed: boolean;
+                            metrics: {
+                                metricKey: string;
+                                value: ((number | string | boolean) | null) | null;
+                                measuredValue?: number | string | boolean;
+                                passed: boolean;
+                                failureMessage?: string;
+                            }[];
+                        };
+                    };
+                    "text/plain": {
+                        status: "success" | "failed";
+                        report?: {
+                            marketAddress: string;
+                            passed: boolean;
+                            metrics: {
+                                metricKey: string;
+                                value: ((number | string | boolean) | null) | null;
+                                measuredValue?: number | string | boolean;
+                                passed: boolean;
+                                failureMessage?: string;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+    };
+    postBenchmarksByIdSeed: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    uuid: string;
+                    type: string;
+                }[];
+                "multipart/form-data": {
+                    uuid: string;
+                    type: string;
+                }[];
+                "text/plain": {
+                    uuid: string;
+                    type: string;
+                }[];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        seeds: Record<string, never>;
+                    };
+                    "multipart/form-data": {
+                        seeds: Record<string, never>;
+                    };
+                    "text/plain": {
+                        seeds: Record<string, never>;
+                    };
+                };
+            };
+        };
+    };
+    postBenchmarksByIdPrediction: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    uuid: string;
+                    prediction: number;
+                };
+                "multipart/form-data": {
+                    uuid: string;
+                    prediction: number;
+                };
+                "text/plain": {
+                    uuid: string;
+                    prediction: number;
+                };
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -2954,6 +3068,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        benchmarkId?: string;
                         jobDefinition?: {
                             /** @enum {string} */
                             version: "0.1";
@@ -3185,6 +3300,7 @@ export interface operations {
                         status?: string;
                     };
                     "multipart/form-data": {
+                        benchmarkId?: string;
                         jobDefinition?: {
                             /** @enum {string} */
                             version: "0.1";
@@ -3416,6 +3532,7 @@ export interface operations {
                         status?: string;
                     };
                     "text/plain": {
+                        benchmarkId?: string;
                         jobDefinition?: {
                             /** @enum {string} */
                             version: "0.1";
@@ -3754,13 +3871,13 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    address: string;
+                    address: string | string[];
                 };
                 "multipart/form-data": {
-                    address: string;
+                    address: string | string[];
                 };
                 "text/plain": {
-                    address: string;
+                    address: string | string[];
                 };
             };
         };
@@ -3785,13 +3902,13 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    address: string;
+                    address: string | string[];
                 };
                 "multipart/form-data": {
-                    address: string;
+                    address: string | string[];
                 };
                 "text/plain": {
-                    address: string;
+                    address: string | string[];
                 };
             };
         };

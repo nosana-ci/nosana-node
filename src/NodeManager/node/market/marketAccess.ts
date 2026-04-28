@@ -19,6 +19,9 @@ export class MarketAccessHandler {
       try {
         const txnSignature = await this.signAndSendTransaction(sftTxBase64);
         await this.confirmTransaction(txnSignature);
+        if (!txnSignature) {
+          throw new Error("Transaction signature is undefined");
+        }
         return txnSignature as string;
       } catch (error: any) {
         if (
@@ -29,6 +32,7 @@ export class MarketAccessHandler {
         }
       }
     }
+    throw new Error("Failed to mint access key after 3 retries");
   }
 
   private async signAndSendTransaction(
