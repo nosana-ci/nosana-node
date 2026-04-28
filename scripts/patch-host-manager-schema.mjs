@@ -5,7 +5,7 @@
  * JSON Schema `patternProperties`, and uses `string` for the DiagnosticsState
  * object in the `diagnostics.state` field.
  *
- * This script patches only the `postOperationsByIdSubmit-results` operation
+ * This script patches only the `postBenchmarksByIdSubmit-results` operation
  * block so that `FlowState` from @nosana/sdk is directly assignable to the
  * request body without casts.
  */
@@ -22,8 +22,8 @@ const schemaPath = join(
 
 const content = readFileSync(schemaPath, "utf8");
 
-const START_MARKER = '"postOperationsByIdSubmit-results":';
-const END_MARKER = "getOperationsThresholds:";
+const START_MARKER = '"postBenchmarksByIdSubmit-results":';
+const END_MARKER = "postBenchmarksByIdSeed:";
 
 const startIdx = content.indexOf(START_MARKER);
 if (startIdx === -1) {

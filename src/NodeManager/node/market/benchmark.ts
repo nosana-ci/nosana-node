@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { Client, JobDefinition } from "@nosana/sdk";
 
-import { HostManager, serializeFlowState } from './hostManager.js';
+import { HostManager } from './hostManager.js';
 import TaskManager from "../task/TaskManager.js";
 import { Provider } from "../../provider/Provider.js";
 import { NodeRepository } from "../../repository/NodeRepository.js";
@@ -58,7 +58,7 @@ export class Benchmark {
 
     console.log(chalk.blue(`Submitting benchmark results for benchmark ID ${this.benchmarkId} with flow state: ${JSON.stringify(flowResults)}`));
 
-    const response = await HostManager.submitBenchmarkResults(this.benchmarkId, serializeFlowState(flowResults.state));
+    const response = await HostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
     console.log(chalk.blue(`Benchmark submission response: ${JSON.stringify(response)}`));
     return (response.report?.metrics ?? []).map(m => ({
       metric: m.metricKey,

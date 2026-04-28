@@ -1,37 +1,10 @@
-import { FlowState, JobDefinition } from "@nosana/sdk";
+import { JobDefinition } from "@nosana/sdk";
 
 import { hostManagerClientSelector } from "../../clients/hostManager/index.js";
 import type { operations } from "../../clients/hostManager/schema.d.ts";
 
 type RequestMarketResponse = operations["getNodesRequest-market"]["responses"][200]["content"]["application/json"];
 export type SubmitBenchmarkBody = operations["postBenchmarksByIdSubmit-results"]["requestBody"]["content"]["application/json"];
-
-export function serializeFlowState(result: FlowState): SubmitBenchmarkBody {
-  return {
-    status: result.status,
-    startTime: result.startTime,
-    endTime: result.endTime,
-    errors: result.errors,
-    opStates: (result.opStates ?? []).map((op) => ({
-      providerId: op.providerId,
-      operationId: op.operationId,
-      group: op.group,
-      status: op.status,
-      startTime: op.startTime,
-      endTime: op.endTime,
-      exitCode: op.exitCode ?? null,
-      logs: op.logs,
-      diagnostics: op.diagnostics
-        ? {
-            reason: op.diagnostics.reason,
-            state: typeof op.diagnostics.state === "object"
-              ? JSON.stringify(op.diagnostics.state)
-              : op.diagnostics.state,
-          }
-        : undefined,
-    })),
-  };
-}
 
 export type FeedbackReport = NonNullable<RequestMarketResponse["feedbackReport"]>;
 

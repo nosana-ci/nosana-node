@@ -12,7 +12,7 @@
     "dev:podman:start": "./podman-run.sh start",
     "dev:podman:run": "./podman-run.sh run",
     "build": "npm run prepare && tsc && cp .env ./dist/ && cp .env.prd ./dist/ && cp .env.dev ./dist/",
-    "generate": "npm run generate:dashboard:client",
+    "generate": "npm run generate:dashboard:client && npm run generate:host-manager",
     "generate:dashboard:client": "openapi-typescript http://dashboard.k8s.prd.nos.ci/api/swagger/json -o ./src/NodeManager/clients/schema.d.ts",
     "generate:host-manager": "openapi-typescript http://localhost:3004/swagger/json -o ./src/NodeManager/clients/hostManager/schema.d.ts && node ./scripts/patch-host-manager-schema.mjs",
     "test": "APP_ENV=development DOCKER_CERT_PATH= vitest run",
