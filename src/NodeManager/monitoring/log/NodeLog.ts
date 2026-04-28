@@ -85,7 +85,18 @@ class NodeLog {
   }
 
   private process(data: LogEntry) {
-    if (data.class === 'TaskManager') {
+    if (data.class === 'BenchmarkTaskManager' && data.method === 'progress') {
+      this.addLog({
+        method: `${data.class}.${data.method}`,
+        job: this.job,
+        log: '',
+        timestamp: Date.now(),
+        type: 'update',
+        payload: data.payload,
+      });
+    }
+
+    if (data.class === 'TaskManager' || data.class === 'BenchmarkTaskManager') {
       if (data.method === 'start') {
         if (data.type === 'call') {
           this.addLog({
