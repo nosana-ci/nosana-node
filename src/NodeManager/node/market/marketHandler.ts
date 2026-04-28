@@ -10,6 +10,7 @@ import { NodeNotQualifiedError } from "../../errors/NodeNotQualifiedError.js";
 import { Provider } from "../../provider/Provider.js";
 import { NodeRepository } from "../../repository/NodeRepository.js";
 import { MarketAccessHandler } from "./marketAccess.js";
+import { sleep } from "../../utils/utils.js";
 
 export class MarketHandler {
   private market: Market | undefined;
@@ -28,7 +29,6 @@ export class MarketHandler {
     this.marketAccessHandler = new MarketAccessHandler(this.sdk);
   }
 
-  
   public clear(): void {
     this.market = undefined;
   }
@@ -105,6 +105,8 @@ export class MarketHandler {
     // Sign and send SFT mint transaction if provided
     if (result.market.sftTx) {
       await this.marketAccessHandler.mintAccessKey(result.market.sftTx);
+      await sleep(30);
+      await HostManager.syncNodeAfterMint(this.address.toString());
     }
 
     const onchainMarket = await this.sdk.jobs.getMarket(result.market.address);

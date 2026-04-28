@@ -40,7 +40,7 @@ export class MarketAccessHandler {
   ): Promise<string | undefined> {
     const feePayer = (this.sdk.solana.provider?.wallet as KeyWallet).payer;
     const recoveredTransaction = await getRawTransaction(
-      Uint8Array.from(Object.values(txData)),
+      Buffer.from(txData, 'base64'),
     );
 
     if (recoveredTransaction instanceof VersionedTransaction) {

@@ -30,7 +30,6 @@ import { TaskManagerRegistry } from './task/TaskManagerRegistry.js';
 import { StopReason, StopReasons } from './task/TaskManager.js';
 
 export class BasicNode {
-  public isOnboarded: boolean = false;
   private apiHandler: ApiHandler;
   private balanceHandler: BalanceHandler;
   private runHandler: RunHandler;
@@ -164,14 +163,6 @@ export class BasicNode {
   }
 
   async start(): Promise<void> {
-    /**
-     * we query the grid to find out if the node has already been onboarded
-     * if it has been onboarded it might have been assigned/recommended a market
-     * if it has not been onboarded quit the process
-     */
-    const nodeData = await this.gridHandler.getNodeStatus();
-
-    this.isOnboarded = isNodeOnboarded(nodeData.status);
     if (await this.balanceHandler.balance()) {
       await this.balanceHandler.check(true);
     }

@@ -85,4 +85,15 @@ export class HostManager {
 
     return data;
   }
+
+  public static async syncNodeAfterMint(address: string): Promise<void> {
+    const { error } = await hostManagerClientSelector().POST("/nodes/sync-node", {
+      body: { address },
+    });
+
+    if (error) {
+      throw new Error(`Error syncing node after mint: ${error}`);
+    }
+  }
+
 }
