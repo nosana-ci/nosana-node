@@ -4,6 +4,7 @@ WORKDIR /nosana
 
 COPY package.json .
 COPY npm-shrinkwrap.json .
+COPY scripts ./scripts
 
 RUN npm ci --include=dev
 
