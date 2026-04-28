@@ -2,8 +2,7 @@
  * Post-generation patch for the host-manager OpenAPI schema.
  *
  * openapi-typescript@7 incorrectly generates `Record<string, never>` for
- * JSON Schema `patternProperties`, and uses `string` for the DiagnosticsState
- * object in the `diagnostics.state` field.
+ * JSON Schema `patternProperties`.
  *
  * This script patches only the `postBenchmarksByIdSubmit-results` operation
  * block so that `FlowState` from @nosana/sdk is directly assignable to the
@@ -59,10 +58,6 @@ section = section.replaceAll(
   "secrets?: Record<string, never>;",
   "secrets?: Record<string, unknown>;",
 );
-
-// diagnostics.state is a Docker container state object (DiagnosticsState),
-// not a plain string — the swagger spec is imprecise here
-section = section.replaceAll("state?: string;", "state?: unknown;");
 
 const patched = content.slice(0, startIdx) + section + content.slice(endIdx);
 writeFileSync(schemaPath, patched, "utf8");
