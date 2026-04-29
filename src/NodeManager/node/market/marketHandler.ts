@@ -43,7 +43,6 @@ export class MarketHandler {
 
   public async request(requestedMarket?: string): Promise<Market> {
     const result = await HostManager.requestMarket(requestedMarket);
-
     // Not registered - caller will handle registration and retry
     if (result.notRegistered) {
       throw new NodeNotRegisteredError();
@@ -72,6 +71,13 @@ export class MarketHandler {
       this.logFeedbackReport(result.feedbackReport);
     }
 
+    // Sign and send SFT mint/burn transaction if provided
+    if (result.market?.sftTx) {
+      await this.marketAccessHandler.mintAccessKey(result.market.sftTx);
+      await sleep(30);
+      await HostManager.syncNodeAfterMint(this.address.toString());
+    }
+
     // feedbackReport failed with no market -> node doesn't qualify for any market
     if (
       result.feedbackReport &&
@@ -95,16 +101,7 @@ export class MarketHandler {
     }
 
     if (!result.market?.address) {
-      throw new Error(
-        "No market address received from request-market response.",
-      );
-    }
-
-    // Sign and send SFT mint transaction if provided
-    if (result.market.sftTx) {
-      await this.marketAccessHandler.mintAccessKey(result.market.sftTx);
-      await sleep(30);
-      await HostManager.syncNodeAfterMint(this.address.toString());
+      throw new NodeNotQualifiedError();
     }
 
     const onchainMarket = await this.sdk.jobs.getMarket(result.market.address);
@@ -241,7 +238,7 @@ export class MarketHandler {
     if (this.market) {
       try {
         await this.sdk.jobs.stop(this.market.address);
-      } catch (error) { }
+      } catch (error) {}
       this.inMarket = false;
     }
   }
