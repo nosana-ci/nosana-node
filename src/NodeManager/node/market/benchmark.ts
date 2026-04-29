@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { Client, JobDefinition } from "@nosana/sdk";
+import { Client, ContainerRunArgs, JobDefinition } from "@nosana/sdk";
 
 import { HostManager } from './hostManager.js';
 import TaskManager, { OperationProgressStatuses } from "../task/TaskManager.js";
@@ -34,6 +34,15 @@ export class Benchmark {
   }
 
   private async executeBenchmark(): Promise<void> {
+    this.jobDefinition.ops.forEach(async (op: any) => {
+      if (op.type === "container/run") {
+        (op.args as ContainerRunArgs).env = {
+          ...((op.args as ContainerRunArgs).env || {}),
+          AUTHORIZATION: await this.sdk.authorization.generate(this.sdk.solana.provider!.wallet.publicKey.toString())
+        }
+      }
+    });
+
     const task = createLoggingProxy(
       new TaskManager(
         this.provider,
