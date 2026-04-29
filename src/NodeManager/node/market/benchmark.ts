@@ -34,14 +34,16 @@ export class Benchmark {
   }
 
   private async executeBenchmark(): Promise<void> {
-    this.jobDefinition.ops.forEach(async (op: any) => {
+    for (const op of this.jobDefinition.ops) {
       if (op.type === "container/run") {
         (op.args as ContainerRunArgs).env = {
           ...((op.args as ContainerRunArgs).env || {}),
-          AUTHORIZATION: await this.sdk.authorization.generate(this.sdk.solana.provider!.wallet.publicKey.toString())
-        }
+          authorization: await this.sdk.authorization.generate(
+            this.sdk.solana.provider!.wallet.publicKey.toString()
+          ),
+        };
       }
-    });
+    }
 
     const task = createLoggingProxy(
       new TaskManager(
