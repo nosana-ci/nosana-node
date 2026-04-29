@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { Client, JobDefinition } from "@nosana/sdk";
+import { Client, ContainerRunArgs, JobDefinition } from "@nosana/sdk";
 
 import { HostManager } from './hostManager.js';
 import TaskManager, { OperationProgressStatuses } from "../task/TaskManager.js";
@@ -34,6 +34,17 @@ export class Benchmark {
   }
 
   private async executeBenchmark(): Promise<void> {
+    for (const op of this.jobDefinition.ops) {
+      if (op.type === "container/run") {
+        (op.args as ContainerRunArgs).env = {
+          ...((op.args as ContainerRunArgs).env || {}),
+          authorization: await this.sdk.authorization.generate(
+            this.sdk.solana.provider!.wallet.publicKey.toString()
+          ),
+        };
+      }
+    }
+
     const task = createLoggingProxy(
       new TaskManager(
         this.provider,
@@ -85,7 +96,11 @@ export class Benchmark {
 
     this.repository.deleteflow(this.benchmarkId);
 
+    console.log(chalk.blue(`Submitting benchmark results for benchmark ID ${this.benchmarkId} with flow state: ${JSON.stringify(flowResults.state)}`));
+
     const response = await HostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
+
+    console.log(chalk.blue(`Benchmark submission response: ${JSON.stringify(response)}`));
 
     return (response.report?.metrics ?? []).map(m => ({
       metric: m.metricKey,
