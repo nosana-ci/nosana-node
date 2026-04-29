@@ -44,6 +44,8 @@ export class MarketHandler {
   public async request(requestedMarket?: string): Promise<Market> {
     const result = await HostManager.requestMarket(requestedMarket);
 
+    console.log(chalk.blue(`Market request result: ${JSON.stringify(result)}`));
+
     // Not registered - caller will handle registration and retry
     if (result.notRegistered) {
       throw new NodeNotRegisteredError();
