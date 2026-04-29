@@ -2,9 +2,10 @@ import chalk from 'chalk';
 import { Client, JobDefinition } from "@nosana/sdk";
 
 import { HostManager } from './hostManager.js';
-import TaskManager from "../task/TaskManager.js";
+import TaskManager, { OperationProgressStatuses } from "../task/TaskManager.js";
 import { Provider } from "../../provider/Provider.js";
 import { NodeRepository } from "../../repository/NodeRepository.js";
+import { createLoggingProxy, logEmitter } from '../../monitoring/proxy/loggingProxy.js';
 
 interface Metric {
   metric: string,
@@ -34,19 +35,48 @@ export class Benchmark {
   }
 
   private async executeBenchmark(): Promise<void> {
-    const task = new TaskManager(
-      this.provider,
-      this.repository,
-      this.benchmarkId,
-      this.sdk.solana.wallet.publicKey.toString(),
-      this.jobDefinition,
+    const task = createLoggingProxy(
+      new TaskManager(
+        this.provider,
+        this.repository,
+        this.benchmarkId,
+        this.sdk.solana.wallet.publicKey.toString(),
+        this.jobDefinition,
+      ),
+      'BenchmarkTaskManager',
     );
+
+    const total = this.jobDefinition.ops.length;
+    const events = task.getEventsEmitter();
+
+    const onUpdate = () => {
+      // Defer so we read status after the FINISHED setter (which runs
+      // after the relay listener that fires this event).
+      queueMicrotask(() => {
+        const statuses = task.getOperationsStatus();
+        const completed = Object.values(statuses).filter(
+          (s) => s === OperationProgressStatuses.FINISHED,
+        ).length;
+        logEmitter.emit('log', {
+          class: 'BenchmarkTaskManager',
+          method: 'progress',
+          arguments: [],
+          timestamp: new Date().toISOString(),
+          type: 'call',
+          payload: { completed, total },
+        });
+      });
+    };
+
+    events.on('flow:updated', onUpdate);
 
     try {
       task.bootstrap();
       await task.start();
     } catch (error) {
       console.error('Error executing benchmark:', error);
+    } finally {
+      events.off('flow:updated', onUpdate);
     }
   }
 

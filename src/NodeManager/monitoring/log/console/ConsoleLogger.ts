@@ -27,6 +27,9 @@ export class ConsoleLogger implements LogObserver {
   private kill: boolean = false;
   private benchmarking: boolean = false;
   private taskManagerActive: boolean = false;
+  private taskManagerLabel: string = '  RUNNING JOB  ';
+  private taskManagerStartMethod: string = 'TaskManager.start';
+  private benchmarkProgress: { completed: number; total: number } = { completed: 0, total: 0 };
   private running: boolean = false;
 
   private expiry: number | undefined;
@@ -45,7 +48,7 @@ export class ConsoleLogger implements LogObserver {
   }
 
   public update(log: NodeLogEntry, isNode: boolean = true) {
-    const renderBase = `${chalk.bgGreenBright.black.bold('  RUNNING JOB  ')} ${chalk.reset('')}`;
+    const renderBase = `${chalk.bgGreenBright.black.bold(this.taskManagerLabel)} ${chalk.reset('')}`;
 
     if (!this.kill && log.type == 'kill-process') {
       if (this.pending) {
@@ -91,18 +94,33 @@ export class ConsoleLogger implements LogObserver {
         this.expiry = log.payload?.expiry;
       }
       // --- TaskManager quiet window ---
-      if (log.method === 'TaskManager.start' && log.type === 'process') {
+      if (
+        (log.method === 'TaskManager.start' ||
+          log.method === 'BenchmarkTaskManager.start') &&
+        log.type === 'process'
+      ) {
         // Stop anything currently animating
         if (this.pending) this.spinner.stop();
         if (this.progressBar) this.progressBar.stop();
         if (this.multiProgressBar) this.multiProgressBar.stop();
+
+        this.taskManagerStartMethod = log.method;
+        this.taskManagerLabel =
+          log.method === 'BenchmarkTaskManager.start'
+            ? '  COLLECTING METRICS  '
+            : '  RUNNING JOB  ';
+        const activeRenderBase = `${chalk.bgGreenBright.black.bold(this.taskManagerLabel)} ${chalk.reset('')}`;
 
         this.taskManagerActive = true;
         this.pending = true;
         this.expiry = log.payload?.expiry;
         const startTime = Date.now();
 
-        const renderBar = (duration = 0) => `${renderBase} ${chalk.bgYellow.black.bold(`  ⏱ Duration: ${formatTime(duration)}  `)} ${chalk.reset('')} ${chalk.bgBlue.black.bold(`  ⚡ Max Duration: ${formatTime(this.expiry ?? 0)}  `)}`;
+        const isBenchmark = log.method === 'BenchmarkTaskManager.start';
+        if (isBenchmark) this.benchmarkProgress = { completed: 0, total: 0 };
+        const renderBar = (duration = 0) => isBenchmark
+          ? `${activeRenderBase} ${chalk.bgYellow.black.bold(`  Ops: ${this.benchmarkProgress.completed}/${this.benchmarkProgress.total}  `)} ${chalk.reset('')}`
+          : `${activeRenderBase} ${chalk.bgYellow.black.bold(`  ⏱ Duration: ${formatTime(duration)}  `)} ${chalk.reset('')} ${chalk.bgBlue.black.bold(`  ⚡ Max Duration: ${formatTime(this.expiry ?? 0)}  `)}`;
 
         this.spinner = ora(
           renderBar(0)
@@ -123,12 +141,25 @@ export class ConsoleLogger implements LogObserver {
 
       // While TaskManager is active, swallow all logs except the stop signal
       if (this.taskManagerActive) {
-        if (log.method === 'TaskManager.start') {
-          this.spinner.succeed(
-            renderBase + ` Ending ${log.job}...`
-          );
+        if (log.method === this.taskManagerStartMethod) {
+          const endingSuffix = this.taskManagerStartMethod === 'BenchmarkTaskManager.start'
+            ? ' Completed'
+            : ` Ending ${log.job}...`;
+          this.spinner.succeed(renderBase + endingSuffix);
           this.taskManagerActive = false;
           this.pending = false;
+          return;
+        }
+
+        if (
+          log.method === 'BenchmarkTaskManager.progress' &&
+          this.taskManagerStartMethod === 'BenchmarkTaskManager.start'
+        ) {
+          const { completed, total } = log.payload ?? {};
+          if (typeof completed === 'number' && typeof total === 'number') {
+            this.benchmarkProgress = { completed, total };
+            this.spinner.text = `${renderBase} ${chalk.bgYellow.black.bold(`  Ops: ${completed}/${total}  `)} ${chalk.reset('')}`;
+          }
           return;
         }
 

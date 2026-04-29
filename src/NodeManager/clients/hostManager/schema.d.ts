@@ -3408,7 +3408,30 @@ export interface operations {
                                 jobExpired: boolean;
                                 reason?: string;
                             };
-                            state?: unknown;
+                            state?: {
+                                Status: string;
+                                Running: boolean;
+                                Paused: boolean;
+                                Restarting: boolean;
+                                OOMKilled: boolean;
+                                Dead: boolean;
+                                Pid: number;
+                                ExitCode: number;
+                                Error: string;
+                                StartedAt: string;
+                                FinishedAt: string;
+                                RestartCount: number;
+                                Health?: {
+                                    Status: string;
+                                    FailingStreak: number;
+                                    Log: {
+                                        Start: string;
+                                        End: string;
+                                        ExitCode: number;
+                                        Output: string;
+                                    }[];
+                                };
+                            };
                         };
                         env?: Record<string, string>;
                     }[];
@@ -3445,7 +3468,30 @@ export interface operations {
                                 jobExpired: boolean;
                                 reason?: string;
                             };
-                            state?: unknown;
+                            state?: {
+                                Status: string;
+                                Running: boolean;
+                                Paused: boolean;
+                                Restarting: boolean;
+                                OOMKilled: boolean;
+                                Dead: boolean;
+                                Pid: number;
+                                ExitCode: number;
+                                Error: string;
+                                StartedAt: string;
+                                FinishedAt: string;
+                                RestartCount: number;
+                                Health?: {
+                                    Status: string;
+                                    FailingStreak: number;
+                                    Log: {
+                                        Start: string;
+                                        End: string;
+                                        ExitCode: number;
+                                        Output: string;
+                                    }[];
+                                };
+                            };
                         };
                         env?: Record<string, string>;
                     }[];
@@ -3482,7 +3528,30 @@ export interface operations {
                                 jobExpired: boolean;
                                 reason?: string;
                             };
-                            state?: unknown;
+                            state?: {
+                                Status: string;
+                                Running: boolean;
+                                Paused: boolean;
+                                Restarting: boolean;
+                                OOMKilled: boolean;
+                                Dead: boolean;
+                                Pid: number;
+                                ExitCode: number;
+                                Error: string;
+                                StartedAt: string;
+                                FinishedAt: string;
+                                RestartCount: number;
+                                Health?: {
+                                    Status: string;
+                                    FailingStreak: number;
+                                    Log: {
+                                        Start: string;
+                                        End: string;
+                                        ExitCode: number;
+                                        Output: string;
+                                    }[];
+                                };
+                            };
                         };
                         env?: Record<string, string>;
                     }[];
