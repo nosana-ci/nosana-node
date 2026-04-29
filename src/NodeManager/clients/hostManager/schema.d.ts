@@ -4294,7 +4294,7 @@ export interface operations {
                             }[];
                         };
                         market?: {
-                            address: string;
+                            address: string | null;
                             sftTx?: string;
                         };
                         feedbackReport?: {
@@ -4526,7 +4526,7 @@ export interface operations {
                             }[];
                         };
                         market?: {
-                            address: string;
+                            address: string | null;
                             sftTx?: string;
                         };
                         feedbackReport?: {
@@ -4758,7 +4758,7 @@ export interface operations {
                             }[];
                         };
                         market?: {
-                            address: string;
+                            address: string | null;
                             sftTx?: string;
                         };
                         feedbackReport?: {

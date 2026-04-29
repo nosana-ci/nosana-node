@@ -89,7 +89,7 @@ export function checkWSLStatus(systemEnvironment: string): void {
 
   if (isWSLBlockActive()) {
     displayWSLBlockMessage();
-    throw new WSLBlockedError();
+    // throw new WSLBlockedError();
   }
 
   displayWSLWarning();
