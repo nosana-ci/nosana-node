@@ -30,7 +30,6 @@ export class Benchmark {
   public async run(): Promise<void> {
     await this.executeBenchmark();
     const results = await this.submitResults();
-    console.log(chalk.blue(`Benchmark metrics: ${JSON.stringify(results)}`));
     await this.reportResults(results);
   }
 
