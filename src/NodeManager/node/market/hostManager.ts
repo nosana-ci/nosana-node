@@ -63,7 +63,7 @@ export class HostManager {
       result.feedbackReport = data.feedbackReport;
     }
 
-    if (data.market?.address) {
+    if (data.market) {
       result.market = {
         address: data.market.address,
         sftTx: data.market.sftTx ?? undefined,
