@@ -85,7 +85,7 @@ export class MarketHandler {
     if (
       result.feedbackReport &&
       !result.feedbackReport.passed &&
-      !result.market
+      !result.market?.address
     ) {
       throw new NodeNotQualifiedError();
     }
@@ -94,7 +94,7 @@ export class MarketHandler {
     if (
       result.feedbackReport &&
       !result.feedbackReport.passed &&
-      result.market
+      result.market?.address
     ) {
       console.log(
         chalk.yellow(
