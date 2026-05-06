@@ -10,9 +10,7 @@ docker network create --driver bridge --subnet 192.168.101.0/24 --gateway 192.16
 docker run -it --rm \
   --name nosana-node \
   --network NOSANA_GATEWAY \
-  --add-host=host.docker.internal:host-gateway \
   --env APP_ENV=development \
-  --env HOST_MANAGER_BASE_URL=http://host.docker.internal:3004 \
   -v ~/.nosana/:/root/.nosana/ \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$(pwd)"/src:/nosana/src \

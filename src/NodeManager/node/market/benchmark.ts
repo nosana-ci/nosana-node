@@ -96,11 +96,7 @@ export class Benchmark {
 
     this.repository.deleteflow(this.benchmarkId);
 
-    console.log(chalk.blue(`Submitting benchmark results for benchmark ID ${this.benchmarkId} with flow state: ${JSON.stringify(flowResults.state)}`));
-
     const response = await HostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
-
-    console.log(chalk.blue(`Benchmark submission response: ${JSON.stringify(response)}`));
 
     return (response.report?.metrics ?? []).map(m => ({
       metric: m.metricKey,
@@ -113,54 +109,51 @@ export class Benchmark {
   }
 
   private reportResults(metrics: Metric[]): void {
-    const passed = metrics.filter(m => m.passed);
-    const failed = metrics.filter(m => !m.passed);
+    const passed = metrics.filter(m => m.passed).length;
+    const failed = metrics.length - passed;
+    const nameWidth = metrics.length > 0
+      ? Math.max(20, ...metrics.map(m => m.metric_name.length))
+      : 20;
+    const width = nameWidth + 20;
 
-    console.log(
-      '\n' + chalk.bgCyan.black.bold('  BENCHMARK RESULTS  ') + '\n'
-    );
+    console.log();
+    console.log('  ' + chalk.cyan('━'.repeat(width)));
+    console.log('  ' + chalk.bold.cyan('BENCHMARK RESULTS'));
+    console.log('  ' + chalk.cyan('━'.repeat(width)));
+    console.log();
 
     for (const metric of metrics) {
-      if (metric.passed) {
-        this.reportSuccessfulMetric(metric);
-      } else {
-        this.reportFailedMetric(metric);
-      }
+      this.reportMetric(metric, nameWidth);
     }
 
-    console.log('');
+    console.log();
+    console.log('  ' + chalk.gray('─'.repeat(width)));
 
-    if (failed.length > 0) {
-      console.log(
-        chalk.bgRed.white.bold(`  ${failed.length}/${metrics.length} benchmark(s) failed  `)
-      );
-      console.log(
-        chalk.red('\nSome benchmarks failed. The Host Manager will evaluate eligibility on the next request.\n')
-      );
+    const parts = [chalk.green(`✔ ${passed} passed`)];
+    if (failed > 0) parts.push(chalk.red(`✖ ${failed} failed`));
+    parts.push(chalk.gray(`${metrics.length} total`));
+    console.log('  ' + parts.join(chalk.gray('  •  ')));
+
+    console.log('  ' + chalk.gray('─'.repeat(width)));
+    console.log();
+
+    if (failed > 0) {
+      console.log(chalk.yellow('  ⚠ Some benchmarks failed. The Host Manager will evaluate eligibility on the next request.'));
+      console.log();
     }
-
-    console.log(
-      chalk.bgGreen.black.bold(`  ${passed.length}/${metrics.length} benchmark(s) passed  `) + '\n'
-    );
   }
 
-  private reportSuccessfulMetric(metric: Metric): void {
-    const threshold = metric.measuredValue !== undefined && metric.thresholdValue
-      ? chalk.gray(` (${metric.measuredValue} / ${metric.thresholdValue})`)
+  private reportMetric(metric: Metric, nameWidth: number): void {
+    const icon = metric.passed ? chalk.green('✔') : chalk.red('✖');
+    const name = chalk.bold(metric.metric_name.padEnd(nameWidth));
+    const value = metric.measuredValue !== undefined && metric.thresholdValue
+      ? chalk.gray(`${metric.measuredValue} / ${metric.thresholdValue}`)
       : '';
 
-    console.log(chalk.green('  ✔ ') + chalk.bold(metric.metric_name) + threshold);
-  }
+    console.log(`  ${icon}  ${name}  ${value}`);
 
-  private reportFailedMetric(metric: Metric): void {
-    const threshold = metric.measuredValue !== undefined && metric.thresholdValue
-      ? chalk.gray(` (${metric.measuredValue} / ${metric.thresholdValue})`)
-      : '';
-
-    console.log(chalk.red('  ✖ ') + chalk.bold(metric.metric_name) + threshold);
-
-    if (metric.feedbackMessage) {
-      console.log(chalk.yellow(`    ↳ ${metric.feedbackMessage}`));
+    if (!metric.passed && metric.feedbackMessage) {
+      console.log(chalk.yellow(`     ↳ ${metric.feedbackMessage}`));
     }
   }
 }
