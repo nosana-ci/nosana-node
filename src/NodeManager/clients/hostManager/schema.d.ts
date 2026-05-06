@@ -1613,7 +1613,53 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        required_images: string[];
+                        required_remote_resources: ({
+                            /** @constant */
+                            type: "Ollama";
+                            model: string;
+                        } | {
+                            type: "S3" | "HF";
+                            url: string;
+                            IAM?: {
+                                access_key_id: string;
+                                secret_access_key: string;
+                            };
+                        })[];
+                    };
+                    "multipart/form-data": {
+                        required_images: string[];
+                        required_remote_resources: ({
+                            /** @constant */
+                            type: "Ollama";
+                            model: string;
+                        } | {
+                            type: "S3" | "HF";
+                            url: string;
+                            IAM?: {
+                                access_key_id: string;
+                                secret_access_key: string;
+                            };
+                        })[];
+                    };
+                    "text/plain": {
+                        required_images: string[];
+                        required_remote_resources: ({
+                            /** @constant */
+                            type: "Ollama";
+                            model: string;
+                        } | {
+                            type: "S3" | "HF";
+                            url: string;
+                            IAM?: {
+                                access_key_id: string;
+                                secret_access_key: string;
+                            };
+                        })[];
+                    };
+                };
             };
         };
     };
@@ -1985,6 +2031,7 @@ export interface operations {
             content: {
                 "application/json": {
                     key: string;
+                    invalidatedByMetricKey?: (string | null) | null;
                     input?: string;
                     type?: string;
                     expiry?: string;
@@ -1997,6 +2044,7 @@ export interface operations {
                 };
                 "multipart/form-data": {
                     key: string;
+                    invalidatedByMetricKey?: (string | null) | null;
                     input?: string;
                     type?: string;
                     expiry?: string;
@@ -2009,6 +2057,7 @@ export interface operations {
                 };
                 "text/plain": {
                     key: string;
+                    invalidatedByMetricKey?: (string | null) | null;
                     input?: string;
                     type?: string;
                     expiry?: string;
@@ -2045,6 +2094,7 @@ export interface operations {
             content: {
                 "application/json": {
                     key: string;
+                    invalidatedByMetricKey?: (string | null) | null;
                     input?: string;
                     type?: string;
                     expiry?: string;
@@ -2057,6 +2107,7 @@ export interface operations {
                 };
                 "multipart/form-data": {
                     key: string;
+                    invalidatedByMetricKey?: (string | null) | null;
                     input?: string;
                     type?: string;
                     expiry?: string;
@@ -2069,6 +2120,7 @@ export interface operations {
                 };
                 "text/plain": {
                     key: string;
+                    invalidatedByMetricKey?: (string | null) | null;
                     input?: string;
                     type?: string;
                     expiry?: string;
@@ -2422,6 +2474,7 @@ export interface operations {
                     source?: string;
                     metrics?: {
                         key: string;
+                        invalidatedByMetricKey?: (string | null) | null;
                         input?: string;
                         type?: string;
                         expiry?: string;
@@ -2597,6 +2650,7 @@ export interface operations {
                     source?: string;
                     metrics?: {
                         key: string;
+                        invalidatedByMetricKey?: (string | null) | null;
                         input?: string;
                         type?: string;
                         expiry?: string;
@@ -2772,6 +2826,7 @@ export interface operations {
                     source?: string;
                     metrics?: {
                         key: string;
+                        invalidatedByMetricKey?: (string | null) | null;
                         input?: string;
                         type?: string;
                         expiry?: string;
@@ -2971,6 +3026,7 @@ export interface operations {
                     source?: string;
                     metrics?: {
                         key: string;
+                        invalidatedByMetricKey?: (string | null) | null;
                         input?: string;
                         type?: string;
                         expiry?: string;
@@ -3146,6 +3202,7 @@ export interface operations {
                     source?: string;
                     metrics?: {
                         key: string;
+                        invalidatedByMetricKey?: (string | null) | null;
                         input?: string;
                         type?: string;
                         expiry?: string;
@@ -3321,6 +3378,7 @@ export interface operations {
                     source?: string;
                     metrics?: {
                         key: string;
+                        invalidatedByMetricKey?: (string | null) | null;
                         input?: string;
                         type?: string;
                         expiry?: string;
@@ -3395,7 +3453,9 @@ export interface operations {
                             log?: string;
                             timestamp?: string;
                         }[];
-                        results?: Record<string, string | string[]>;
+                        results?: {
+                            [key: string]: (string | string[]) | undefined;
+                        };
                         error?: {
                             event: string;
                             message: string;
@@ -3433,9 +3493,13 @@ export interface operations {
                                 };
                             };
                         };
-                        env?: Record<string, string>;
+                        env?: {
+                            [key: string]: string | undefined;
+                        };
                     }[];
-                    secrets?: Record<string, unknown>;
+                    secrets?: {
+                        [key: string]: unknown;
+                    };
                 };
                 "multipart/form-data": {
                     status?: string;
@@ -3455,7 +3519,9 @@ export interface operations {
                             log?: string;
                             timestamp?: string;
                         }[];
-                        results?: Record<string, string | string[]>;
+                        results?: {
+                            [key: string]: (string | string[]) | undefined;
+                        };
                         error?: {
                             event: string;
                             message: string;
@@ -3493,9 +3559,13 @@ export interface operations {
                                 };
                             };
                         };
-                        env?: Record<string, string>;
+                        env?: {
+                            [key: string]: string | undefined;
+                        };
                     }[];
-                    secrets?: Record<string, unknown>;
+                    secrets?: {
+                        [key: string]: unknown;
+                    };
                 };
                 "text/plain": {
                     status?: string;
@@ -3515,7 +3585,9 @@ export interface operations {
                             log?: string;
                             timestamp?: string;
                         }[];
-                        results?: Record<string, string | string[]>;
+                        results?: {
+                            [key: string]: (string | string[]) | undefined;
+                        };
                         error?: {
                             event: string;
                             message: string;
@@ -3553,9 +3625,13 @@ export interface operations {
                                 };
                             };
                         };
-                        env?: Record<string, string>;
+                        env?: {
+                            [key: string]: string | undefined;
+                        };
                     }[];
-                    secrets?: Record<string, unknown>;
+                    secrets?: {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -3758,7 +3834,71 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        nodes: {
+                            nodeAddress: string;
+                            status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                            marketAddress: (string | null) | null;
+                            recommendedMarket: (string | null) | null;
+                            feedbackReport: ({
+                                marketAddress: string;
+                                passed: boolean;
+                                metrics: {
+                                    metricKey: string;
+                                    value: unknown;
+                                    measuredValue?: number | string | boolean;
+                                    ruleDescription?: string;
+                                    passed: boolean;
+                                    failureMessage?: string;
+                                }[];
+                            } | null) | null;
+                        }[];
+                        total: number;
+                    } | string;
+                    "multipart/form-data": {
+                        nodes: {
+                            nodeAddress: string;
+                            status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                            marketAddress: (string | null) | null;
+                            recommendedMarket: (string | null) | null;
+                            feedbackReport: ({
+                                marketAddress: string;
+                                passed: boolean;
+                                metrics: {
+                                    metricKey: string;
+                                    value: unknown;
+                                    measuredValue?: number | string | boolean;
+                                    ruleDescription?: string;
+                                    passed: boolean;
+                                    failureMessage?: string;
+                                }[];
+                            } | null) | null;
+                        }[];
+                        total: number;
+                    } | string;
+                    "text/plain": {
+                        nodes: {
+                            nodeAddress: string;
+                            status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                            marketAddress: (string | null) | null;
+                            recommendedMarket: (string | null) | null;
+                            feedbackReport: ({
+                                marketAddress: string;
+                                passed: boolean;
+                                metrics: {
+                                    metricKey: string;
+                                    value: unknown;
+                                    measuredValue?: number | string | boolean;
+                                    ruleDescription?: string;
+                                    passed: boolean;
+                                    failureMessage?: string;
+                                }[];
+                            } | null) | null;
+                        }[];
+                        total: number;
+                    } | string;
+                };
             };
         };
     };
@@ -3943,13 +4083,7 @@ export interface operations {
                     "application/json": {
                         nodeAddress: string;
                         status: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                        accessKeyMint: (string | null) | null;
                         marketAddress: (string | null) | null;
-                        assignedMarket: (string | null) | null;
-                        destinedMarket: (string | null) | null;
-                        recommendedMarket: (string | null) | null;
-                        createdAt: (Record<string, never> | string | number) | string | null;
-                        outOfSync: (Record<string, never> | string | number) | string | null;
                         gpus?: {
                             nodeAddress: string;
                             gpu: string;
@@ -3964,13 +4098,7 @@ export interface operations {
                     "multipart/form-data": {
                         nodeAddress: string;
                         status: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                        accessKeyMint: (string | null) | null;
                         marketAddress: (string | null) | null;
-                        assignedMarket: (string | null) | null;
-                        destinedMarket: (string | null) | null;
-                        recommendedMarket: (string | null) | null;
-                        createdAt: (Record<string, never> | string | number) | string | null;
-                        outOfSync: (Record<string, never> | string | number) | string | null;
                         gpus?: {
                             nodeAddress: string;
                             gpu: string;
@@ -3985,13 +4113,7 @@ export interface operations {
                     "text/plain": {
                         nodeAddress: string;
                         status: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                        accessKeyMint: (string | null) | null;
                         marketAddress: (string | null) | null;
-                        assignedMarket: (string | null) | null;
-                        destinedMarket: (string | null) | null;
-                        recommendedMarket: (string | null) | null;
-                        createdAt: (Record<string, never> | string | number) | string | null;
-                        outOfSync: (Record<string, never> | string | number) | string | null;
                         gpus?: {
                             nodeAddress: string;
                             gpu: string;
@@ -4304,6 +4426,7 @@ export interface operations {
                                 metricKey: string;
                                 value: unknown;
                                 measuredValue?: number | string | boolean;
+                                ruleDescription?: string;
                                 passed: boolean;
                                 failureMessage?: string;
                             }[];
@@ -4536,6 +4659,7 @@ export interface operations {
                                 metricKey: string;
                                 value: unknown;
                                 measuredValue?: number | string | boolean;
+                                ruleDescription?: string;
                                 passed: boolean;
                                 failureMessage?: string;
                             }[];
@@ -4768,6 +4892,7 @@ export interface operations {
                                 metricKey: string;
                                 value: unknown;
                                 measuredValue?: number | string | boolean;
+                                ruleDescription?: string;
                                 passed: boolean;
                                 failureMessage?: string;
                             }[];
@@ -4795,7 +4920,23 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        nodeAddress: string;
+                        status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                        marketAddress: (string | null) | null;
+                    };
+                    "multipart/form-data": {
+                        nodeAddress: string;
+                        status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                        marketAddress: (string | null) | null;
+                    };
+                    "text/plain": {
+                        nodeAddress: string;
+                        status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                        marketAddress: (string | null) | null;
+                    };
+                };
             };
         };
     };

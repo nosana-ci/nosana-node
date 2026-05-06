@@ -5,6 +5,11 @@ import type { operations } from "../../clients/hostManager/schema.d.ts";
 
 type RequestMarketResponse = operations["getNodesRequest-market"]["responses"][200]["content"]["application/json"];
 export type SubmitBenchmarkBody = operations["postBenchmarksByIdSubmit-results"]["requestBody"]["content"]["application/json"];
+type GetNodeResponse = operations["getNodesById"]["responses"][200]["content"]["application/json"];
+type RequiredResourcesResponse = operations["getMarketsByIdRequired-resources"]["responses"][200]["content"]["application/json"];
+type HeartbeatResponse = operations["postNodesHeartbeat"]["responses"][200]["content"]["application/json"];
+type RpcResponse = operations["getRpc"]["responses"][200]["content"]["application/json"];
+type ErrorReportBody = operations["postErrorsReport"]["requestBody"]["content"]["application/json"];
 
 export type FeedbackReport = NonNullable<RequestMarketResponse["feedbackReport"]>;
 
@@ -94,6 +99,70 @@ export class HostManager {
     if (error) {
       throw new Error(`Error syncing node after mint: ${error}`);
     }
+  }
+
+  public static async getNode(address: string): Promise<GetNodeResponse | null> {
+    const { data, error, response } = await hostManagerClientSelector().GET("/nodes/{id}", {
+      params: { path: { id: address } },
+    });
+
+    if (error || !data) {
+      if ((response as any)?.status === 404 || (response as any)?.status === 'NotFound') {
+        return null;
+      }
+      throw new Error(`Error getting node: ${JSON.stringify(error)}`);
+    }
+
+    return data;
+  }
+
+  public static async getMarketRequiredResources(
+    marketId: string,
+  ): Promise<RequiredResourcesResponse | null> {
+    const { data, error } = await hostManagerClientSelector().GET(
+      "/markets/{id}/required-resources",
+      {
+        params: { path: { id: marketId } },
+      },
+    );
+
+    if (error || !data) {
+      return null;
+    }
+
+    return data;
+  }
+
+  public static async sendHeartbeat(): Promise<HeartbeatResponse> {
+    const { data, error } = await hostManagerClientSelector().POST("/nodes/heartbeat", {});
+
+    if (error || !data) {
+      throw new Error(`Error sending heartbeat: ${JSON.stringify(error)}`);
+    }
+
+    return data;
+  }
+
+  public static async getRpcUrl(): Promise<string | undefined> {
+    const { data, error } = await hostManagerClientSelector().GET("/rpc", {});
+
+    if (error || !data) {
+      throw new Error(`Error fetching host-manager RPC URL: ${JSON.stringify(error)}`);
+    }
+
+    return typeof data.url === "string" ? data.url : undefined;
+  }
+
+  public static async reportError(body: ErrorReportBody) {
+    const { data, error } = await hostManagerClientSelector().POST("/errors/report", {
+      body,
+    });
+
+    if (error || !data) {
+      throw new Error(`Error reporting node error: ${JSON.stringify(error)}`);
+    }
+
+    return data;
   }
 
 }
