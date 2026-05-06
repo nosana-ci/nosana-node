@@ -1,7 +1,7 @@
 import { Market } from '@nosana/sdk';
 import { Resource } from '@nosana/sdk/dist/types/resources.js';
 
-import { clientSelector } from '../../clients/index.js';
+import { HostManager } from '../market/hostManager.js';
 import { ContainerOrchestrationInterface } from '../../provider/containerOrchestration/interface.js';
 import { NodeRepository } from '../../repository/NodeRepository.js';
 import { createResourceName } from './helpers/createResourceName.js';
@@ -35,12 +35,9 @@ export class ResourceManager {
     this.required_market = typeof market === 'string' ? market : market.address.toString();
 
     try {
-      const { data, error } = await clientSelector().GET(
-        '/api/markets/{id}/required-resources',
-        { params: { path: { id: this.required_market } } },
-      );
+      const data = await HostManager.getMarketRequiredResources(this.required_market);
 
-      if (error) {
+      if (!data) {
         return;
       }
 

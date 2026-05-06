@@ -17,9 +17,9 @@ const envProd = dotenv.parse(
 );
 
 // Test constants for env variable names
-const ENV_VAR_BACKEND_SOLANA_ADDRESS = 'BACKEND_SOLANA_ADDRESS';
-const ENV_VAR_BACKEND_URL = 'BACKEND_URL';
+const ENV_VAR_HOST_MANAGER_BASE_URL = 'HOST_MANAGER_BASE_URL';
 const ENV_VAR_MIN_DISK_SPACE = 'MIN_DISK_SPACE';
+const ENV_VAR_SIGN_MESSAGE = 'SIGN_MESSAGE';
 const DEVNET = 'devnet';
 const MAINNET = 'mainnet';
 
@@ -33,9 +33,7 @@ describe('NodeConfigs', () => {
     // Clear all relevant env vars to ensure clean state
     delete process.env.APP_ENV;
     delete process.env.NODE_ENV;
-    delete process.env.BACKEND_URL;
-    delete process.env.BACKEND_SOLANA_ADDRESS;
-    delete process.env.BACKEND_AUTHORIZATION_ADDRESS;
+    delete process.env.HOST_MANAGER_BASE_URL;
     delete process.env.EXPLORER_URL;
     delete process.env.SIGN_MESSAGE;
     delete process.env.FRP_SERVER_ADDRESS;
@@ -57,8 +55,8 @@ describe('NodeConfigs', () => {
       const nodeConfigs = new NodeConfigs({ network: MAINNET });
       nodeConfigs.loadVariablesToEnv();
 
-      expect(process.env[ENV_VAR_BACKEND_SOLANA_ADDRESS]).toBe(
-        envBase[ENV_VAR_BACKEND_SOLANA_ADDRESS],
+      expect(process.env[ENV_VAR_SIGN_MESSAGE]).toBe(
+        envBase[ENV_VAR_SIGN_MESSAGE],
       );
     });
 
@@ -68,8 +66,8 @@ describe('NodeConfigs', () => {
       const nodeConfigs = new NodeConfigs({ network: DEVNET });
       nodeConfigs.loadVariablesToEnv();
 
-      expect(process.env[ENV_VAR_BACKEND_URL]).toBe(
-        envDev[ENV_VAR_BACKEND_URL],
+      expect(process.env[ENV_VAR_HOST_MANAGER_BASE_URL]).toBe(
+        envDev[ENV_VAR_HOST_MANAGER_BASE_URL],
       );
     });
 
@@ -107,8 +105,8 @@ describe('NodeConfigs', () => {
       const nodeConfigs = new NodeConfigs({ network: MAINNET });
       nodeConfigs.loadVariablesToEnv();
 
-      expect(process.env[ENV_VAR_BACKEND_URL]).toBe(
-        envProd[ENV_VAR_BACKEND_URL],
+      expect(process.env[ENV_VAR_HOST_MANAGER_BASE_URL]).toBe(
+        envProd[ENV_VAR_HOST_MANAGER_BASE_URL],
       );
     });
 
@@ -118,8 +116,8 @@ describe('NodeConfigs', () => {
       const nodeConfigs = new NodeConfigs({ network: DEVNET });
       nodeConfigs.loadVariablesToEnv();
 
-      expect(process.env[ENV_VAR_BACKEND_URL]).toBe(
-        envDev[ENV_VAR_BACKEND_URL],
+      expect(process.env[ENV_VAR_HOST_MANAGER_BASE_URL]).toBe(
+        envDev[ENV_VAR_HOST_MANAGER_BASE_URL],
       );
     });
 
@@ -129,8 +127,8 @@ describe('NodeConfigs', () => {
       const nodeConfigs = new NodeConfigs({ network: 'testnet' });
       nodeConfigs.loadVariablesToEnv();
 
-      expect(process.env[ENV_VAR_BACKEND_URL]).toBe(
-        envDev[ENV_VAR_BACKEND_URL],
+      expect(process.env[ENV_VAR_HOST_MANAGER_BASE_URL]).toBe(
+        envDev[ENV_VAR_HOST_MANAGER_BASE_URL],
       );
     });
 
@@ -140,8 +138,8 @@ describe('NodeConfigs', () => {
       const nodeConfigs = new NodeConfigs({});
       nodeConfigs.loadVariablesToEnv();
 
-      expect(process.env[ENV_VAR_BACKEND_URL]).toBe(
-        envProd[ENV_VAR_BACKEND_URL],
+      expect(process.env[ENV_VAR_HOST_MANAGER_BASE_URL]).toBe(
+        envProd[ENV_VAR_HOST_MANAGER_BASE_URL],
       );
     });
   });
@@ -171,8 +169,8 @@ describe('NodeConfigs', () => {
       NodeConfigsSingleton.getInstance({ network: MAINNET });
 
       // Should still have dev environment values from first call
-      expect(process.env[ENV_VAR_BACKEND_URL]).toBe(
-        envDev[ENV_VAR_BACKEND_URL],
+      expect(process.env[ENV_VAR_HOST_MANAGER_BASE_URL]).toBe(
+        envDev[ENV_VAR_HOST_MANAGER_BASE_URL],
       );
     });
   });
@@ -182,9 +180,7 @@ describe('NodeConfigs', () => {
       // Clear all config-related environment variables to test defaults
       delete process.env.APP_ENV;
       delete process.env.NODE_ENV;
-      delete process.env.BACKEND_URL;
-      delete process.env.BACKEND_SOLANA_ADDRESS;
-      delete process.env.BACKEND_AUTHORIZATION_ADDRESS;
+      delete process.env.HOST_MANAGER_BASE_URL;
       delete process.env.EXPLORER_URL;
       delete process.env.SIGN_MESSAGE;
       delete process.env.FRP_SERVER_ADDRESS;
@@ -207,9 +203,7 @@ describe('NodeConfigs', () => {
       // Clear all config-related environment variables to test defaults
       delete process.env.APP_ENV;
       delete process.env.NODE_ENV;
-      delete process.env.BACKEND_URL;
-      delete process.env.BACKEND_SOLANA_ADDRESS;
-      delete process.env.BACKEND_AUTHORIZATION_ADDRESS;
+      delete process.env.HOST_MANAGER_BASE_URL;
       delete process.env.EXPLORER_URL;
       delete process.env.SIGN_MESSAGE;
       delete process.env.FRP_SERVER_ADDRESS;

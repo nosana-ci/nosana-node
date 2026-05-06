@@ -18,6 +18,7 @@ import { OptionValues } from 'commander';
 import { OUTPUT_EVENTS } from '../../output-formatter/outputEvents.js';
 import { outputFormatSelector } from '../../output-formatter/outputFormatSelector.js';
 import { configs } from '../configs/configs.js';
+import { HostManager } from '../node/market/hostManager.js';
 
 let nosana: Client;
 let nosBalance: TokenAmount | undefined, solBalance: number;
@@ -86,22 +87,9 @@ export async function setSDK(
   }
   nosana = new Client(network, wallet, config);
   if (!rpc && network === 'mainnet' && wallet) {
-    // sign message for authentication
-    const signature = (await nosana.solana.signMessage(
-      envConfig.signMessage,
-    )) as Uint8Array;
-    const base64Signature = Buffer.from(signature).toString('base64');
-    const node = nosana.solana.wallet.publicKey.toString();
     try {
-      const response = await fetch(`${envConfig.backendUrl}/rpc`, {
-        method: 'GET',
-        headers: {
-          Authorization: `${node}:${base64Signature}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const rpcFromBackend = await response.json();
-      if (response.status !== 200) {
+      const rpcFromHostManager = await HostManager.getRpcUrl();
+      if (typeof rpcFromHostManager !== 'string') {
         console.log(
           chalk.yellow(
             'Using default solana RPC. Some commands might not work, please provide your own with the --rpc option',
@@ -109,7 +97,7 @@ export async function setSDK(
         );
         // throw new Error(rpcFromBackend.message);
       }
-      config.solana!.network = rpcFromBackend.url;
+      config.solana!.network = rpcFromHostManager;
       nosana = new Client(network, wallet, config);
     } catch (e) {
       console.log(

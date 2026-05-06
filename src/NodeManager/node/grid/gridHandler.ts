@@ -7,8 +7,8 @@ import {
   VersionedTransaction,
 } from '@solana/web3.js';
 import { getRawTransaction } from '../../sdk/index.js';
+import { HostManager } from '../market/hostManager.js';
 import { sleep } from '../../utils/utils.js';
-import { configs } from '../../configs/configs.js';
 
 export interface NodeData {
   market?: string;
@@ -23,33 +23,15 @@ export class GridHandler {
     applyLoggingProxyToClass(this);
   }
 
-  private async getAuthSignature(): Promise<string> {
-    const signature = (await this.sdk.solana.signMessage(
-      configs().signMessage,
-    )) as Uint8Array;
-    return Buffer.from(signature).toString('base64');
-  }
-
   public async getNodeStatus(): Promise<NodeData> {
     try {
-      const response = await fetch(
-        `${configs().backendUrl}/nodes/${this.address}`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `${this.address}:${await this.getAuthSignature()}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-      const data = await response.json();
+      const data = await HostManager.getNode(this.address.toString());
 
-      if (!data || (data.name === 'Error' && data.message))
-        throw new Error(data.message);
+      if (!data) throw new Error('Node not found');
 
       return {
         status: data.status,
-        market: data.marketAddress,
+        market: data.marketAddress ?? undefined,
       };
     } catch (error: unknown) {
       if (

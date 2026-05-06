@@ -14,6 +14,7 @@ import { getSDK } from './sdk/index.js';
 import { ping } from './monitoring/ping/PingHandler.js';
 import { LogMonitoringRegistry } from './monitoring/LogMonitoringRegistry.js';
 import { checkWSLStatus } from './utils/wslCheck.js';
+import { HostManager } from './node/market/hostManager.js';
 
 export default class NodeManager {
   private node: BasicNode;
@@ -328,22 +329,8 @@ const reportError = async (data: {
   error_stack: string;
 }) => {
   const nosana = getSDK();
-  const response = await fetch(`${configs().backendUrl}/errors/report`, {
-    method: 'POST',
-    headers: {
-      Authorization: await nosana.authorization.generate(
-        configs().signMessage,
-        {
-          includeTime: true,
-        },
-      ),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      address: nosana.solana.provider!.wallet.publicKey.toString(),
-      ...data,
-    }),
+  return HostManager.reportError({
+    address: nosana.solana.provider!.wallet.publicKey.toString(),
+    ...data,
   });
-  const responseBody = await response.json();
-  return responseBody;
 };

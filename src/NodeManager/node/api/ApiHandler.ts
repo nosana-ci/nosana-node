@@ -15,7 +15,6 @@ import { Provider } from '../../provider/Provider.js';
 import { NodeRepository } from '../../repository/NodeRepository.js';
 
 import {
-  verifyBackendSignatureMiddleware,
   verifyJobOwnerSignatureMiddleware,
   verifyWSJobOwnerSignatureMiddleware,
   verifyWSMiddleware,
@@ -28,7 +27,6 @@ import {
   getServiceUrlRoute,
   postJobDefinitionRoute,
   postServiceStopRoute,
-  postNodeValidation,
   wssLogRoute,
   wssStatusRoute,
   getCurrentGroupStatusHandler,
@@ -238,12 +236,6 @@ export class ApiHandler {
     this.api.get('/job/:jobId/stats/stream', getJobStatsStreamRoute);
 
     // POST Routes
-    this.api.post(
-      '/node/validate',
-      verifyBackendSignatureMiddleware,
-      postNodeValidation,
-    );
-
     this.api.post('/job/:jobId/job-definition', postJobDefinitionRoute);
     this.api.post('/job/:jobId/group/:group/move', moveGroupOperationHandler);
     this.api.post(
