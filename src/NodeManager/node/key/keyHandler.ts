@@ -1,8 +1,8 @@
-import { Market, Client as SDK } from '@nosana/sdk';
-import { PublicKey } from '@solana/web3.js';
-import { EMPTY_ADDRESS } from '../../jobs/index.js';
-import { configs } from '../../configs/configs.js';
-import { isNodeOnboarded } from '../../utils/utils.js';
+import { Market, Client as SDK } from "@nosana/sdk";
+import { PublicKey } from "@solana/web3.js";
+import { EMPTY_ADDRESS } from "../../jobs/index.js";
+import { isNodeOnboarded } from "../../utils/utils.js";
+import { clientSelector } from "../../client/index.js";
 
 export class KeyHandler {
   private address: PublicKey;
@@ -41,11 +41,11 @@ export class KeyHandler {
     try {
       this.key = await this.sdk.solana.getNftFromCollection(
         this.address,
-        market!.nodeAccessKey.toString(),
+        market!.nodeAccessKey.toString()
       );
 
       if (!this.key) {
-        throw new Error('Could not find access key');
+        throw new Error("Could not find access key");
       }
 
       return this.key;
@@ -55,44 +55,37 @@ export class KeyHandler {
   }
 
   async join(): Promise<void> {
-    const signature = (await this.sdk.solana.signMessage(
-      configs().signMessage,
-    )) as Uint8Array;
-    const base64Signature = Buffer.from(signature).toString('base64');
     // If we don't specify a market, try to get the correct market from the backend
     try {
       // Check if node is onboarded and has received access key
       // if not call onboard endpoint to create access key tx
-      const response = await fetch(
-        `${configs().backendUrl}/nodes/${this.address}`,
+      const { data, error } = await clientSelector({ withAuth: true }).GET(
+        // @ts-expect-error: route not yet in OpenAPI schema
+        "/api/nodes/{address}",
         {
-          method: 'GET',
-          headers: {
-            Authorization: `${this.address}:${base64Signature}`,
-            'Content-Type': 'application/json',
-          },
-        },
+          params: { path: { address: this.address.toString() } },
+        }
       );
 
-      const result = await response.json();
+      const result: any = data ?? error;
 
-      if (!result || (result && result.name === 'Error')) {
-        throw new Error(result.message);
+      if (!result || (result && result.name === "Error")) {
+        throw new Error(result?.message);
       }
       if (!isNodeOnboarded(result.status)) {
-        throw new Error('Node not onboarded yet');
+        throw new Error("Node not onboarded yet");
       }
 
       this.key = new PublicKey(result.accessKeyMint);
       this.market = new PublicKey(result.marketAddress);
     } catch (e: unknown) {
-      if (e instanceof Error && e.message.includes('Node not onboarded yet')) {
+      if (e instanceof Error && e.message.includes("Node not onboarded yet")) {
         throw new Error(
-          'Node is still on the waitlist, wait until you are accepted.',
+          "Node is still on the waitlist, wait until you are accepted."
         );
-      } else if (e instanceof Error && e.message.includes('Node not found')) {
+      } else if (e instanceof Error && e.message.includes("Node not found")) {
         throw new Error(
-          'Node is not registred yet. To register run the `node join` command.',
+          "Node is not registred yet. To register run the `node join` command."
         );
       }
       throw e;

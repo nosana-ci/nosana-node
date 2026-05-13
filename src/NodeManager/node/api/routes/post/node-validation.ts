@@ -1,16 +1,16 @@
-import typia from 'typia';
-import { Response } from 'express';
-import { JobDefinition } from '@nosana/sdk';
+import typia from "typia";
+import { Response } from "express";
+import { JobDefinition } from "@nosana/sdk";
 
-import { getSDK } from '../../../../sdk/index.js';
-import { NodeAPIRequest } from '../../types/index.js';
-import { generateRandomId } from '../../../utils/generateRandomId.js';
-import TaskManager from '../../../task/TaskManager.js';
-import { configs } from '../../../../configs/configs.js';
+import { getSDK } from "../../../../sdk/index.js";
+import { NodeAPIRequest } from "../../types/index.js";
+import { generateRandomId } from "../../../utils/generateRandomId.js";
+import TaskManager from "../../../task/TaskManager.js";
+import { clientSelector } from "../../../../client/index.js";
 
 export async function postNodeValidation(
   req: NodeAPIRequest<{}, JobDefinition>,
-  res: Response,
+  res: Response
 ) {
   const sdk = getSDK();
   const provider = req.provider!;
@@ -18,7 +18,7 @@ export async function postNodeValidation(
   const validator = typia.createValidateEquals<JobDefinition>();
 
   if (!req.body) {
-    return res.status(400).send('Missing job definition.');
+    return res.status(400).send("Missing job definition.");
   }
 
   const isValid = validator(req.body);
@@ -26,15 +26,15 @@ export async function postNodeValidation(
   if (!isValid.success) {
     res.status(400).send(
       JSON.stringify({
-        error: 'Failed to validate job defintion.',
+        error: "Failed to validate job defintion.",
         message: isValid.errors,
-      }),
+      })
     );
   }
 
-  const sessionId = res.locals['session_id']!;
+  const sessionId = res.locals["session_id"]!;
 
-  if (sessionId !== 'ADMIN') {
+  if (sessionId !== "ADMIN") {
     res.status(200).send();
   }
 
@@ -47,21 +47,23 @@ export async function postNodeValidation(
 
     const result = repository.getFlow(id);
 
-    if (sessionId === 'ADMIN') {
-      res.status(200).send(result.state.opStates[0].results!['prediction'][0]);
+    if (sessionId === "ADMIN") {
+      res.status(200).send(result.state.opStates[0].results!["prediction"][0]);
       return;
     }
 
-    await fetch(`${configs().backendUrl}/benchmarks/submit`, {
-      method: 'POST',
-      headers: {
-        Authorization: await sdk.authorization.generate(sessionId, {
-          includeTime: true,
-        }),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(result.state),
-    });
+    await clientSelector().POST(
+      // @ts-expect-error: route not yet in OpenAPI schema
+      "/api/benchmarks/submit",
+      {
+        body: result.state,
+        headers: {
+          Authorization: await sdk.authorization.generate(sessionId, {
+            includeTime: true,
+          }),
+        },
+      }
+    );
   } catch (error) {
     throw error;
   }

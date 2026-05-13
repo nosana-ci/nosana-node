@@ -1,14 +1,14 @@
-import { KeyWallet, Market, Run, Client as SDK } from '@nosana/sdk';
-import { applyLoggingProxyToClass } from '../../monitoring/proxy/loggingProxy.js';
-import { NodeRepository } from '../../repository/NodeRepository.js';
+import { KeyWallet, Market, Run, Client as SDK } from "@nosana/sdk";
+import { applyLoggingProxyToClass } from "../../monitoring/proxy/loggingProxy.js";
+import { NodeRepository } from "../../repository/NodeRepository.js";
 import {
   BlockheightBasedTransactionConfirmationStrategy,
   PublicKey,
   VersionedTransaction,
-} from '@solana/web3.js';
-import { getRawTransaction } from '../../sdk/index.js';
-import { sleep } from '../../utils/utils.js';
-import { configs } from '../../configs/configs.js';
+} from "@solana/web3.js";
+import { getRawTransaction } from "../../sdk/index.js";
+import { sleep } from "../../utils/utils.js";
+import { clientSelector } from "../../client/index.js";
 
 export interface NodeData {
   market?: string;
@@ -23,51 +23,49 @@ export class GridHandler {
     applyLoggingProxyToClass(this);
   }
 
-  private async getAuthSignature(): Promise<string> {
-    const signature = (await this.sdk.solana.signMessage(
-      configs().signMessage,
-    )) as Uint8Array;
-    return Buffer.from(signature).toString('base64');
-  }
-
   public async getNodeStatus(): Promise<NodeData> {
     try {
-      const response = await fetch(
-        `${configs().backendUrl}/nodes/${this.address}`,
+      const { data, error } = await clientSelector({ withAuth: true }).GET(
+        // @ts-expect-error: route not yet in OpenAPI schema
+        "/api/nodes/{address}",
         {
-          method: 'GET',
-          headers: {
-            Authorization: `${this.address}:${await this.getAuthSignature()}`,
-            'Content-Type': 'application/json',
-          },
-        },
+          params: { path: { address: this.address.toString() } },
+        }
       );
-      const data = await response.json();
 
-      if (!data || (data.name === 'Error' && data.message))
-        throw new Error(data.message);
+      const body = (data ?? error) as
+        | {
+            name?: string;
+            message?: string;
+            status: string;
+            marketAddress?: string;
+          }
+        | undefined;
+
+      if (!body || (body.name === "Error" && body.message))
+        throw new Error(body?.message);
 
       return {
-        status: data.status,
-        market: data.marketAddress,
+        status: body.status,
+        market: body.marketAddress,
       };
     } catch (error: unknown) {
       if (
         error instanceof Error &&
-        error.message.includes('Node not onboarded yet')
+        error.message.includes("Node not onboarded yet")
       ) {
         throw new Error(
-          'Node is still on the waitlist, wait until you are accepted.',
+          "Node is still on the waitlist, wait until you are accepted."
         );
       } else if (
         error instanceof Error &&
-        !error.message.includes('Node not found')
+        !error.message.includes("Node not found")
       ) {
         throw error;
       }
 
       return {
-        status: 'not-found',
+        status: "not-found",
         market: undefined,
       };
     }
@@ -75,26 +73,24 @@ export class GridHandler {
 
   async recommend(): Promise<any> {
     const gpus = this.repository.getNodeInfo().gpus;
-    const signature = await this.getAuthSignature();
 
     try {
-      const response = await fetch(
-        `${configs().backendUrl}/nodes/${this.address}/check-market`,
+      const { data: success, error: failure } = await clientSelector({
+        withAuth: true,
+      }).POST(
+        // @ts-expect-error: route not yet in OpenAPI schema
+        "/api/nodes/{address}/check-market",
         {
-          method: 'POST',
-          headers: {
-            Authorization: `${this.address}:${signature}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ gpus: JSON.stringify(gpus) }),
-        },
+          params: { path: { address: this.address.toString() } },
+          body: { gpus: JSON.stringify(gpus) },
+        }
       );
 
-      let data: any = await response.json();
+      let data: any = success ?? failure;
 
       if (!data) {
         throw new Error(
-          'Something went wrong with recommending the market, please try again.',
+          "Something went wrong with recommending the market, please try again."
         );
       }
 
@@ -117,20 +113,18 @@ export class GridHandler {
 
   private async changeMarket(): Promise<any> {
     try {
-      const response = await fetch(
-        `${configs().backendUrl}/nodes/change-market`,
+      const { data: success, error: failure } = await clientSelector({
+        withAuth: true,
+      }).POST(
+        // @ts-expect-error: route not yet in OpenAPI schema
+        "/api/nodes/change-market",
         {
-          method: 'POST',
-          headers: {
-            Authorization: `${this.address}:${await this.getAuthSignature()}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ address: this.address }),
-        },
+          body: { address: this.address.toString() },
+        }
       );
 
-      const data = await response.json();
-      if (!data || data.name === 'Error') throw new Error(data.message);
+      const data: any = success ?? failure;
+      if (!data || data.name === "Error") throw new Error(data.message);
 
       // Incase of blockheight exceeded error, retry 3 times
       for (let i = 0; i < 3; i++) {
@@ -142,7 +136,7 @@ export class GridHandler {
           if (
             i === 2 ||
             !error?.message.includes(
-              'TransactionExpiredBlockheightExceededError',
+              "TransactionExpiredBlockheightExceededError"
             )
           ) {
             throw error;
@@ -167,18 +161,18 @@ export class GridHandler {
       return data;
     } catch (error: unknown) {
       throw new Error(
-        'Something went wrong with minting your access key, please try again. ' +
-        error,
+        "Something went wrong with minting your access key, please try again. " +
+          error
       );
     }
   }
 
   private async signAndSendTransaction(
-    txData: any,
+    txData: any
   ): Promise<string | undefined> {
     const feePayer = (this.sdk.solana.provider?.wallet as KeyWallet).payer;
     const recoveredTransaction = await getRawTransaction(
-      Uint8Array.from(Object.values(txData)),
+      Uint8Array.from(Object.values(txData))
     );
 
     if (recoveredTransaction instanceof VersionedTransaction) {
@@ -188,14 +182,14 @@ export class GridHandler {
     }
 
     const txnSignature = await this.sdk.solana.connection?.sendRawTransaction(
-      recoveredTransaction.serialize(),
+      recoveredTransaction.serialize()
     );
 
     return txnSignature;
   }
 
   private async confirmTransaction(
-    txnSignature: string | undefined,
+    txnSignature: string | undefined
   ): Promise<void> {
     const latestBlockHash =
       await this.sdk.solana.connection?.getLatestBlockhash();
@@ -207,21 +201,20 @@ export class GridHandler {
       };
       await this.sdk.solana.connection?.confirmTransaction(confirmStrategy);
     } else {
-      throw new Error('Could not confirm minting transaction');
+      throw new Error("Could not confirm minting transaction");
     }
   }
 
   private async syncNodeAfterMint(): Promise<any> {
     try {
-      const response = await fetch(`${configs().backendUrl}/nodes/sync-node`, {
-        method: 'POST',
-        headers: {
-          Authorization: `${this.address}:${await this.getAuthSignature()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ address: this.address }),
-      });
-      return response.json();
+      const { data, error } = await clientSelector({ withAuth: true }).POST(
+        // @ts-expect-error: route not yet in OpenAPI schema
+        "/api/nodes/sync-node",
+        {
+          body: { address: this.address.toString() },
+        }
+      );
+      return data ?? error;
     } catch (error) {
       throw error;
     }

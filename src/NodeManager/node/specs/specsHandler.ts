@@ -1,26 +1,27 @@
-import { Client } from '@nosana/sdk';
+import { Client } from "@nosana/sdk";
 
-import { configs } from '../../configs/configs.js';
-import { Provider } from '../../provider/Provider.js';
-import { specsAndNetworkJob } from '../../../static/index.js';
-import { NodeRepository } from '../../repository/NodeRepository.js';
-import { applyLoggingProxyToClass } from '../../monitoring/proxy/loggingProxy.js';
+import { configs } from "../../configs/configs.js";
+import { Provider } from "../../provider/Provider.js";
+import { specsAndNetworkJob } from "../../../static/index.js";
+import { NodeRepository } from "../../repository/NodeRepository.js";
+import { applyLoggingProxyToClass } from "../../monitoring/proxy/loggingProxy.js";
+import { clientSelector } from "../../client/index.js";
 
 import {
   CudaCheckErrorResponse,
   CudaCheckResponse,
   CudaCheckSuccessResponse,
-} from '../../types/index.js';
-import { NetworkInfoResults, SystemInfoResults } from './type.js';
-import { OpState } from '@nosana/sdk';
-import TaskManager from '../task/TaskManager.js';
-import { generateRandomId } from '../utils/generateRandomId.js';
+} from "../../types/index.js";
+import { NetworkInfoResults, SystemInfoResults } from "./type.js";
+import { OpState } from "@nosana/sdk";
+import TaskManager from "../task/TaskManager.js";
+import { generateRandomId } from "../utils/generateRandomId.js";
 
 export class SpecsHandler {
   constructor(
     private provider: Provider,
     private repository: NodeRepository,
-    private sdk: Client,
+    private sdk: Client
   ) {
     applyLoggingProxyToClass(this);
   }
@@ -33,7 +34,7 @@ export class SpecsHandler {
       this.repository,
       id,
       this.sdk.solana.wallet.publicKey.toString(),
-      specsAndNetworkJob,
+      specsAndNetworkJob
     );
 
     try {
@@ -48,7 +49,7 @@ export class SpecsHandler {
     if (result) {
       this.repository.deleteflow(result.id);
 
-      if (result && result.state.status === 'success') {
+      if (result && result.state.status === "success") {
         await this.processSuccess(result.state.opStates);
 
         this.repository.updateNodeInfo({
@@ -56,10 +57,10 @@ export class SpecsHandler {
         });
 
         await this.submitSystemSpecs();
-      } else if (result && result.state.status === 'failed') {
+      } else if (result && result.state.status === "failed") {
         this.processFailure(result.state.opStates);
       } else {
-        throw new Error('Cannot find results');
+        throw new Error("Cannot find results");
       }
 
       return true;
@@ -71,53 +72,51 @@ export class SpecsHandler {
   private async submitSystemSpecs(): Promise<void> {
     const nodeInfo = this.repository.getNodeInfo();
 
-    const headers = new Headers();
-    headers.append(
-      'Authorization',
-      await this.sdk.authorization.generate(configs().signMessage),
-    );
-    headers.append('Content-Type', 'application/json');
-
-    await fetch(
-      `${configs().backendUrl
-      }/nodes/${this.sdk.solana.provider!.wallet.publicKey.toString()}/submit-system-specs`,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(nodeInfo),
-      },
-    ).catch((error) => {
+    try {
+      await clientSelector({ withAuth: true }).POST(
+        // @ts-expect-error: route not yet in OpenAPI schema
+        "/api/nodes/{address}/submit-system-specs",
+        {
+          params: {
+            path: {
+              address: this.sdk.solana.provider!.wallet.publicKey.toString(),
+            },
+          },
+          body: nodeInfo,
+        }
+      );
+    } catch (error) {
       console.error(error);
-    });
+    }
   }
 
   private processSuccess(opStates: OpState[]): void {
     if (!opStates) {
-      throw new Error('Missing operation states in result');
+      throw new Error("Missing operation states in result");
     }
 
     for (const { operationId, logs } of opStates) {
       switch (operationId) {
-        case 'system-info':
+        case "system-info":
           this.processSystemInfoBenchmark(logs);
           break;
-        case 'network-info':
+        case "network-info":
           this.processNetworkInfoBenchmark(logs);
           break;
-        case 'gpu-info':
+        case "gpu-info":
           this.processGPUInfoBenchmark(logs);
           break;
       }
     }
   }
 
-  private parseLogsIntoJSON<T extends unknown>(logs: OpState['logs']): T {
+  private parseLogsIntoJSON<T extends unknown>(logs: OpState["logs"]): T {
     return JSON.parse(
       logs.reduce(
         (result: string, { log, type }) =>
-          type === 'stdout' ? result + log : result,
-        '',
-      ),
+          type === "stdout" ? result + log : result,
+        ""
+      )
     ) as T;
   }
 
@@ -127,30 +126,30 @@ export class SpecsHandler {
     if (opStates[0]) {
       try {
         const cudaCheckResults = JSON.parse(
-          opStates[0].logs[0].log!,
+          opStates[0].logs[0].log!
         ) as CudaCheckResponse;
 
         if ((cudaCheckResults as CudaCheckErrorResponse).error) {
           errors.push(
-            'GPU benchmark failed. Ensure NVidia Cuda runtime drivers and NVidia Container Toolkit are correctly configured.',
+            "GPU benchmark failed. Ensure NVidia Cuda runtime drivers and NVidia Container Toolkit are correctly configured."
           );
         }
       } catch (error) {
-        errors.push('GPU benchmark returned with no devices.');
+        errors.push("GPU benchmark returned with no devices.");
       }
     }
 
     if (opStates[1]) {
-      errors.push('Disk space check failed.');
+      errors.push("Disk space check failed.");
     }
 
     if (errors.length > 0) {
-      throw new Error(errors.join(' '));
+      throw new Error(errors.join(" "));
     }
   }
 
-  private processSystemInfoBenchmark(logs: OpState['logs']): void {
-    if (!logs[0]) throw new Error('Could not find system info logs');
+  private processSystemInfoBenchmark(logs: OpState["logs"]): void {
+    if (!logs[0]) throw new Error("Could not find system info logs");
 
     const {
       system_environment,
@@ -163,8 +162,9 @@ export class SpecsHandler {
 
     if (configs().minDiskSpace > disk_gb) {
       throw new Error(
-        `Node does not have enough disk space. Required: ${configs().minDiskSpace
-        }GB, Available: ${disk_gb}GB`,
+        `Node does not have enough disk space. Required: ${
+          configs().minDiskSpace
+        }GB, Available: ${disk_gb}GB`
       );
     }
 
@@ -180,8 +180,8 @@ export class SpecsHandler {
     });
   }
 
-  private processNetworkInfoBenchmark(logs: OpState['logs']): void {
-    if (!logs[0]) throw new Error('Could not find network info logs');
+  private processNetworkInfoBenchmark(logs: OpState["logs"]): void {
+    if (!logs[0]) throw new Error("Could not find network info logs");
 
     const { country, ip, ping_ms, download_mbps, upload_mbps } =
       this.parseLogsIntoJSON<NetworkInfoResults>(logs);
@@ -197,8 +197,8 @@ export class SpecsHandler {
     });
   }
 
-  private processGPUInfoBenchmark(logs: OpState['logs']): void {
-    if (!logs[0]) throw new Error('Could not find GPU info logs');
+  private processGPUInfoBenchmark(logs: OpState["logs"]): void {
+    if (!logs[0]) throw new Error("Could not find GPU info logs");
 
     const results = this.parseLogsIntoJSON<CudaCheckSuccessResponse>(logs);
     this.repository.updateNodeInfo({ gpus: results });

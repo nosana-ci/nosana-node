@@ -1,7 +1,4 @@
-import { Client as SDK } from '@nosana/sdk';
-import { getSDK } from '../../sdk/index.js';
-import { configs } from '../../configs/configs.js';
-import { PublicKey } from '@solana/web3.js';
+import { clientSelector } from "../../client/index.js";
 
 export const ping = (() => {
   let instance: PingHandler | null = null;
@@ -18,14 +15,6 @@ export const ping = (() => {
 export class PingHandler {
   private timeoutId: NodeJS.Timeout | null = null;
   private intervalSeconds = 30;
-
-  private sdk: SDK;
-  private address: PublicKey;
-
-  constructor() {
-    this.sdk = getSDK();
-    this.address = this.sdk.solana.provider!.wallet.publicKey;
-  }
 
   async start() {
     if (this.timeoutId) return;
@@ -47,21 +36,20 @@ export class PingHandler {
 
   private async ping() {
     try {
-      const response = await fetch(`${configs().backendUrl}/nodes/heartbeat`, {
-        method: 'POST',
-        headers: {
-          Authorization: `${this.address}:${await this.getAuthSignature()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ping: 'pong' }),
-      });
+      const { data, response } = await clientSelector({ withAuth: true }).POST(
+        // @ts-expect-error: route not yet in OpenAPI schema
+        "/api/nodes/heartbeat",
+        {
+          body: { ping: "pong" },
+        }
+      );
 
-      if (response.ok) {
-        const json = await response.json();
+      if (response.ok && data) {
+        const json = data as { maxHeartbeatsPerDay?: number };
 
         if (json.maxHeartbeatsPerDay) {
           const newInterval = Math.floor(
-            (24 * 60 * 60) / json.maxHeartbeatsPerDay,
+            (24 * 60 * 60) / json.maxHeartbeatsPerDay
           );
 
           if (newInterval !== this.intervalSeconds) {
@@ -70,15 +58,8 @@ export class PingHandler {
         }
       }
     } catch (err) {
-      console.error('Ping failed:', err);
+      console.error("Ping failed:", err);
     }
-  }
-
-  private async getAuthSignature(): Promise<string> {
-    const signature = (await this.sdk.solana.signMessage(
-      configs().signMessage,
-    )) as Uint8Array;
-    return Buffer.from(signature).toString('base64');
   }
 
   stop() {
