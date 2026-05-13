@@ -1,17 +1,18 @@
-import { Job, Client as SDK, JobDefinition, validateJobDefinition, FlowState } from '@nosana/sdk';
+import { Job, JobDefinition, validateJobDefinition, FlowState } from '@nosana/sdk';
 import { NodeRepository } from '../../repository/NodeRepository.js';
+import { IpfsClientSingleton } from '../../../ipfs/IpfsClient.js';
 import { JobDefinitionStrategySelector } from './defination/JobDefinitionStrategy.js';
 import { ResultReturnStrategySelector } from './result/ResultReturnStrategy.js';
 import { createInitialFlow } from '../task/helpers/createInitialFlow.js';
 
 export class JobExternalUtil {
-  constructor(private sdk: SDK, private repository: NodeRepository) { }
+  constructor(private repository: NodeRepository) { }
 
   public async resolveJobDefinition(
     id: string,
     job: Job,
   ): Promise<JobDefinition | null> {
-    let jobDefinition: JobDefinition | null = await this.sdk.ipfs.retrieve(
+    let jobDefinition: JobDefinition | null = await IpfsClientSingleton.retrieve(
       job.ipfsJob,
     );
 
@@ -53,7 +54,7 @@ export class JobExternalUtil {
   public async resolveResult(id: string, job: Job): Promise<FlowState> {
     let result = this.repository.getFlowState(id);
 
-    let jobDefinition: JobDefinition = await this.sdk.ipfs.retrieve(
+    let jobDefinition: JobDefinition = await IpfsClientSingleton.retrieve(
       job.ipfsJob,
     );
 

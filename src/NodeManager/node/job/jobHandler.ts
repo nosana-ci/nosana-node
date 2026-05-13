@@ -1,7 +1,9 @@
 import EventEmitter from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { Job, Run, Client as SDK, JobDefinition, validateJobDefinition, OperationArgsMap } from '@nosana/sdk';
+import { ipfsHashToSolBytesArray } from '@nosana/ipfs';
 import { Provider } from '../../provider/Provider.js';
+import { IpfsClientSingleton } from '../../../ipfs/IpfsClient.js';
 import {
   applyLoggingProxyToClass,
   createLoggingProxy,
@@ -34,7 +36,7 @@ export class JobHandler {
     private provider: Provider,
     private repository: NodeRepository,
   ) {
-    this.jobExternalUtil = new JobExternalUtil(sdk, this.repository);
+    this.jobExternalUtil = new JobExternalUtil(this.repository);
 
     applyLoggingProxyToClass(this);
 
@@ -281,8 +283,8 @@ export class JobHandler {
         this.get() as Job,
       );
 
-      const ipfsResult = await this.sdk.ipfs.pin(result as object);
-      const bytesArray = this.sdk.ipfs.IpfsHashToByteArray(ipfsResult);
+      const ipfsResult = await IpfsClientSingleton.pin(result as object);
+      const bytesArray = ipfsHashToSolBytesArray(ipfsResult);
 
       if (reason == StopReasons.STOPPED) {
         await this.sdk.jobs.complete(bytesArray, jobId);
