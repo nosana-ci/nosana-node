@@ -9,6 +9,7 @@ import { log } from './monitoring/log/NodeLog.js';
 import { logStreaming } from './monitoring/streaming/LogStreamer.js';
 import { consoleLogging } from './monitoring/log/console/ConsoleLogger.js';
 import { validateCLIVersion } from '../version/index.js';
+import { checkForMaintenance } from './checkForMaintenance.js';
 import { configs } from './configs/configs.js';
 import { getSDK } from './sdk/index.js';
 import { ping } from './monitoring/ping/PingHandler.js';
@@ -96,7 +97,7 @@ export default class NodeManager {
     this.exiting = false;
 
     if (this.inJobLoop) {
-      await validateCLIVersion();
+      await Promise.all([validateCLIVersion(), checkForMaintenance()]);
     }
 
     /**

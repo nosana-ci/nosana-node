@@ -6,6 +6,7 @@ import { outputFormatSelector } from '../output-formatter/outputFormatSelector.j
 import { setSDK } from '../NodeManager/sdk/index.js';
 import { configs } from '../NodeManager/configs/configs.js';
 import { NodeConfigsSingleton } from '../NodeManager/configs/NodeConfigs.js';
+import { IpfsClientSingleton } from '../ipfs/IpfsClient.js';
 
 import { runNodeCommand } from './commands/run/command.js';
 import { startNodeCommand } from './commands/start/command.js';
@@ -29,6 +30,7 @@ export const createNosanaCLI = (version: string) =>
     .hook('preAction', async (command, actionCommand) => {
       const opts = actionCommand.optsWithGlobals();
       NodeConfigsSingleton.getInstance(opts);
+      IpfsClientSingleton.set();
       let market = opts.market;
       if (opts.network || opts.wallet) {
         await setSDK(

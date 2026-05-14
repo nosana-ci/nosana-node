@@ -73,6 +73,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.1-beta.1",
     "@inquirer/prompts": "^4.3.0",
+    "@nosana/ipfs": "^2.2.6",
     "@nosana/sdk": "^0.4.81",
     "@solana/web3.js": "^1.78.0",
     "bn.js": "^5.2.1",

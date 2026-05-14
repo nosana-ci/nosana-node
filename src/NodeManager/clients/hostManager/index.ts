@@ -3,6 +3,7 @@ import createClient from 'openapi-fetch';
 import { paths } from './schema.js';
 import { getSDK } from '../../sdk/index.js';
 import { configs } from '../../configs/configs.js';
+import { maintenanceMiddleware } from '../maintenanceMiddleware.js';
 
 import type { AuthenticatedClient } from '../types.utils.js';
 
@@ -22,6 +23,7 @@ export const hostManagerClientSelector = (): HostManagerClient => {
       },
     });
 
+    instance.use(maintenanceMiddleware);
     instance.use({
       async onRequest({ request }) {
         const authHeader = await sdk.authorization.generate(address);
