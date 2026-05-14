@@ -7,10 +7,10 @@ import { applyLoggingProxyToClass } from '../../monitoring/proxy/loggingProxy.js
 export class RegisterHandler {
   private answers:
     | {
-      email: string;
-      discord: string | undefined;
-      twitter: string | undefined;
-    }
+        email: string;
+        discord: string | undefined;
+        twitter: string | undefined;
+      }
     | undefined;
 
   constructor() {
@@ -20,12 +20,12 @@ export class RegisterHandler {
   private async gainConsent() {
     this.answers = {
       email: await input({
-        message: 'Your Email Address',
+        message: "Your Email Address",
         validate: (value) => /\S+@\S+\.\S+/.test(value),
       }),
       discord: await input({
         message:
-          'Join our Discord server for direct support from the team and community: https://nosana.com/discord. \nDiscord username:',
+          "Join our Discord server for direct support from the team and community: https://nosana.com/discord. \nDiscord username:",
       }),
       twitter: await input({
         message:
@@ -34,18 +34,18 @@ export class RegisterHandler {
     };
 
     if (!this.answers.email) {
-      console.log(chalk.red('Email address is required'));
+      console.log(chalk.red("Email address is required"));
       process.exit();
     }
 
     const accept = await confirm({
       message: `Have you read the Participation Agreement and agree to the terms and conditions contained within?\nParticipation agreement: ${chalk.blue(
-        'https://drive.google.com/file/d/1dFWCT5Zon08pCPrftdxB9ByvbuDafTwy/view',
+        "https://drive.google.com/file/d/1dFWCT5Zon08pCPrftdxB9ByvbuDafTwy/view"
       )}`,
     });
     if (!accept) {
       console.log(
-        chalk.red('To continue you must agree to the terms and conditions'),
+        chalk.red("To continue you must agree to the terms and conditions")
       );
       process.exit();
     }

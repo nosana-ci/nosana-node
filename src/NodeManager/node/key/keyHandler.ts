@@ -39,11 +39,11 @@ export class KeyHandler {
     try {
       this.key = await this.sdk.solana.getNftFromCollection(
         this.address,
-        market!.nodeAccessKey.toString(),
+        market!.nodeAccessKey.toString()
       );
 
       if (!this.key) {
-        throw new Error('Could not find access key');
+        throw new Error("Could not find access key");
       }
 
       return this.key;

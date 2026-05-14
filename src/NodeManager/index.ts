@@ -1,4 +1,4 @@
-import type { Client } from '@nosana/sdk';
+import type { Client } from "@nosana/sdk";
 
 import { ApiHandler } from './node/api/ApiHandler.js';
 import { BasicNode } from './node/Node.js';
@@ -152,7 +152,7 @@ export default class NodeManager {
     this.inJobLoop = true;
 
     if (!(await this.node.isApiActive())) {
-      throw new Error('Node API is detected offline');
+      throw new Error("Node API is detected offline");
     }
     /**
      * pending
@@ -204,7 +204,7 @@ export default class NodeManager {
        * restarts after jobs
        */
       await this.apiHandler.stop();
-    } catch (error) { }
+    } catch (error) {}
 
     /**
      * check if the node exists then stop the node, this will involve killing and cleaning
@@ -294,31 +294,31 @@ export default class NodeManager {
       process.exit();
     };
 
-    process.on('SIGINT', exitHandler); // Handle Ctrl+C
-    process.on('SIGTERM', exitHandler); // Handle termination signals
+    process.on("SIGINT", exitHandler); // Handle Ctrl+C
+    process.on("SIGTERM", exitHandler); // Handle termination signals
 
     // log crashes
-    process.on('unhandledRejection', async (reason, p) => {
+    process.on("unhandledRejection", async (reason, p) => {
       try {
         const e = reason as any;
         await reportError({
-          error_type: 'unhandledRejection',
+          error_type: "unhandledRejection",
           error_name: e.name,
           error_message: e.message,
           error_stack: e.stack ?? e.trace,
         });
-      } catch (_) { }
+      } catch (_) {}
     });
-    process.on('uncaughtException', async (reason) => {
+    process.on("uncaughtException", async (reason) => {
       try {
         const e = reason as any;
         await reportError({
-          error_type: 'uncaughtException',
+          error_type: "uncaughtException",
           error_name: e.name,
           error_message: e.message,
           error_stack: e.stack ?? e.trace,
         });
-      } catch (_) { }
+      } catch (_) {}
     });
   }
 }

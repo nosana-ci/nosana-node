@@ -1,6 +1,6 @@
-import { KeyWallet, Market, Run, Client as SDK } from '@nosana/sdk';
-import { applyLoggingProxyToClass } from '../../monitoring/proxy/loggingProxy.js';
-import { NodeRepository } from '../../repository/NodeRepository.js';
+import { KeyWallet, Market, Run, Client as SDK } from "@nosana/sdk";
+import { applyLoggingProxyToClass } from "../../monitoring/proxy/loggingProxy.js";
+import { NodeRepository } from "../../repository/NodeRepository.js";
 import {
   BlockheightBasedTransactionConfirmationStrategy,
   PublicKey,
@@ -36,20 +36,20 @@ export class GridHandler {
     } catch (error: unknown) {
       if (
         error instanceof Error &&
-        error.message.includes('Node not onboarded yet')
+        error.message.includes("Node not onboarded yet")
       ) {
         throw new Error(
-          'Node is still on the waitlist, wait until you are accepted.',
+          "Node is still on the waitlist, wait until you are accepted."
         );
       } else if (
         error instanceof Error &&
-        !error.message.includes('Node not found')
+        !error.message.includes("Node not found")
       ) {
         throw error;
       }
 
       return {
-        status: 'not-found',
+        status: "not-found",
         market: undefined,
       };
     }
