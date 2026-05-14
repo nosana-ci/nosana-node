@@ -440,6 +440,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/benchmarks/market-thresholds/describe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postBenchmarksMarket-thresholdsDescribe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/benchmarks/market-thresholds/delete": {
         parameters: {
             query?: never;
@@ -560,22 +576,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getRpc"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getNodes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -776,6 +776,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/nodes/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNodes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/nodes/promote": {
         parameters: {
             query?: never;
@@ -866,6 +882,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["postNodesBan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nodes/unban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postNodesUnban"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2199,20 +2231,20 @@ export interface operations {
                 "application/json": {
                     thresholdId: number;
                     marketAddresses: (string | null)[];
-                    jsonLogic: Record<string, never> | unknown[];
-                    interval?: string;
+                    jsonLogic: Record<string, never>;
+                    interval?: (string | null) | null;
                 };
                 "multipart/form-data": {
                     thresholdId: number;
                     marketAddresses: (string | null)[];
-                    jsonLogic: Record<string, never> | unknown[];
-                    interval?: string;
+                    jsonLogic: Record<string, never>;
+                    interval?: (string | null) | null;
                 };
                 "text/plain": {
                     thresholdId: number;
                     marketAddresses: (string | null)[];
-                    jsonLogic: Record<string, never> | unknown[];
-                    interval?: string;
+                    jsonLogic: Record<string, never>;
+                    interval?: (string | null) | null;
                 };
             };
         };
@@ -2239,20 +2271,20 @@ export interface operations {
                 "application/json": {
                     thresholdId: number;
                     marketAddresses: (string | null)[];
-                    jsonLogic: Record<string, never> | unknown[];
-                    interval?: string;
+                    jsonLogic: Record<string, never>;
+                    interval?: (string | null) | null;
                 };
                 "multipart/form-data": {
                     thresholdId: number;
                     marketAddresses: (string | null)[];
-                    jsonLogic: Record<string, never> | unknown[];
-                    interval?: string;
+                    jsonLogic: Record<string, never>;
+                    interval?: (string | null) | null;
                 };
                 "text/plain": {
                     thresholdId: number;
                     marketAddresses: (string | null)[];
-                    jsonLogic: Record<string, never> | unknown[];
-                    interval?: string;
+                    jsonLogic: Record<string, never>;
+                    interval?: (string | null) | null;
                 };
             };
         };
@@ -2262,6 +2294,50 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "postBenchmarksMarket-thresholdsDescribe": {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    jsonLogic: Record<string, never>;
+                    subject?: string;
+                };
+                "multipart/form-data": {
+                    jsonLogic: Record<string, never>;
+                    subject?: string;
+                };
+                "text/plain": {
+                    jsonLogic: Record<string, never>;
+                    subject?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        description: string;
+                    };
+                    "multipart/form-data": {
+                        description: string;
+                    };
+                    "text/plain": {
+                        description: string;
+                    };
+                };
             };
         };
     };
@@ -3645,11 +3721,12 @@ export interface operations {
                         status: "success" | "failed";
                         report?: {
                             marketAddress: string;
+                            marketName?: string;
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                value: ((number | string | boolean) | null) | null;
                                 measuredValue?: number | string | boolean;
+                                ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
                             }[];
@@ -3659,11 +3736,12 @@ export interface operations {
                         status: "success" | "failed";
                         report?: {
                             marketAddress: string;
+                            marketName?: string;
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                value: ((number | string | boolean) | null) | null;
                                 measuredValue?: number | string | boolean;
+                                ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
                             }[];
@@ -3673,11 +3751,12 @@ export interface operations {
                         status: "success" | "failed";
                         report?: {
                             marketAddress: string;
+                            marketName?: string;
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                value: ((number | string | boolean) | null) | null;
                                 measuredValue?: number | string | boolean;
+                                ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
                             }[];
@@ -3792,112 +3871,6 @@ export interface operations {
                     "text/plain": {
                         url: string | Record<string, never>;
                     };
-                };
-            };
-        };
-    };
-    getNodes: {
-        parameters: {
-            query?: {
-                state?: ("REJECTED" | "ONBOARDED" | "PREMIUM") | ("REJECTED" | "ONBOARDED" | "PREMIUM")[];
-                state_neq?: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                state_notIn?: ("REJECTED" | "ONBOARDED" | "PREMIUM")[];
-                state_gt?: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                state_lt?: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                state_gte?: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                state_lte?: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                state_like?: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                state_ilike?: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                market?: string | string[];
-                market_neq?: string;
-                market_notIn?: string[];
-                market_gt?: string;
-                market_lt?: string;
-                market_gte?: string;
-                market_lte?: string;
-                market_like?: string;
-                market_ilike?: string;
-                orderBy?: "nodeAddress" | "status" | "marketAddress" | "createdAt";
-                order?: "asc" | "desc";
-                limit?: string | number;
-                offset?: string | number;
-                search?: string;
-                csv_export?: boolean | string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        nodes: {
-                            nodeAddress: string;
-                            status: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                            marketAddress: (string | null) | null;
-                            recommendedMarket: (string | null) | null;
-                            feedbackReport: ({
-                                marketAddress: string;
-                                passed: boolean;
-                                metrics: {
-                                    metricKey: string;
-                                    value: unknown;
-                                    measuredValue?: number | string | boolean;
-                                    ruleDescription?: string;
-                                    passed: boolean;
-                                    failureMessage?: string;
-                                }[];
-                            } | null) | null;
-                        }[];
-                        total: number;
-                    } | string;
-                    "multipart/form-data": {
-                        nodes: {
-                            nodeAddress: string;
-                            status: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                            marketAddress: (string | null) | null;
-                            recommendedMarket: (string | null) | null;
-                            feedbackReport: ({
-                                marketAddress: string;
-                                passed: boolean;
-                                metrics: {
-                                    metricKey: string;
-                                    value: unknown;
-                                    measuredValue?: number | string | boolean;
-                                    ruleDescription?: string;
-                                    passed: boolean;
-                                    failureMessage?: string;
-                                }[];
-                            } | null) | null;
-                        }[];
-                        total: number;
-                    } | string;
-                    "text/plain": {
-                        nodes: {
-                            nodeAddress: string;
-                            status: "REJECTED" | "ONBOARDED" | "PREMIUM";
-                            marketAddress: (string | null) | null;
-                            recommendedMarket: (string | null) | null;
-                            feedbackReport: ({
-                                marketAddress: string;
-                                passed: boolean;
-                                metrics: {
-                                    metricKey: string;
-                                    value: unknown;
-                                    measuredValue?: number | string | boolean;
-                                    ruleDescription?: string;
-                                    passed: boolean;
-                                    failureMessage?: string;
-                                }[];
-                            } | null) | null;
-                        }[];
-                        total: number;
-                    } | string;
                 };
             };
         };
@@ -4094,6 +4067,10 @@ export interface operations {
                             minorArchitecture: (number | null) | null;
                         }[];
                         metrics: Record<string, never>;
+                        email?: string;
+                        discord?: (string | null) | null;
+                        twitter?: (string | null) | null;
+                        createdAt?: ((Record<string, never> | string | number) | null) | null;
                     };
                     "multipart/form-data": {
                         nodeAddress: string;
@@ -4109,6 +4086,10 @@ export interface operations {
                             minorArchitecture: (number | null) | null;
                         }[];
                         metrics: Record<string, never>;
+                        email?: string;
+                        discord?: (string | null) | null;
+                        twitter?: (string | null) | null;
+                        createdAt?: ((Record<string, never> | string | number) | null) | null;
                     };
                     "text/plain": {
                         nodeAddress: string;
@@ -4124,6 +4105,10 @@ export interface operations {
                             minorArchitecture: (number | null) | null;
                         }[];
                         metrics: Record<string, never>;
+                        email?: string;
+                        discord?: (string | null) | null;
+                        twitter?: (string | null) | null;
+                        createdAt?: ((Record<string, never> | string | number) | null) | null;
                     };
                 };
             };
@@ -4421,12 +4406,12 @@ export interface operations {
                         };
                         feedbackReport?: {
                             marketAddress: string;
+                            marketName?: string;
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                value: unknown;
                                 measuredValue?: number | string | boolean;
-                                ruleDescription?: string;
+                                ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
                             }[];
@@ -4654,12 +4639,12 @@ export interface operations {
                         };
                         feedbackReport?: {
                             marketAddress: string;
+                            marketName?: string;
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                value: unknown;
                                 measuredValue?: number | string | boolean;
-                                ruleDescription?: string;
+                                ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
                             }[];
@@ -4887,12 +4872,12 @@ export interface operations {
                         };
                         feedbackReport?: {
                             marketAddress: string;
+                            marketName?: string;
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                value: unknown;
                                 measuredValue?: number | string | boolean;
-                                ruleDescription?: string;
+                                ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
                             }[];
@@ -5007,6 +4992,120 @@ export interface operations {
                         totalClaimedUptimeNosRewards: number;
                         totalClaimedUptimeUsdRewards: number;
                     };
+                };
+            };
+        };
+    };
+    getNodes: {
+        parameters: {
+            query?: {
+                state?: ("REJECTED" | "ONBOARDED" | "PREMIUM") | ("REJECTED" | "ONBOARDED" | "PREMIUM")[];
+                state_neq?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_notIn?: ("REJECTED" | "ONBOARDED" | "PREMIUM")[];
+                state_gt?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_lt?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_gte?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_lte?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_like?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                state_ilike?: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                market?: string | string[];
+                market_neq?: string;
+                market_notIn?: string[];
+                market_gt?: string;
+                market_lt?: string;
+                market_gte?: string;
+                market_lte?: string;
+                market_like?: string;
+                market_ilike?: string;
+                orderBy?: "nodeAddress" | "status" | "marketAddress" | "createdAt";
+                order?: "asc" | "desc";
+                limit?: string | number;
+                offset?: string | number;
+                search?: string;
+                csv_export?: boolean | string;
+            };
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        nodes: {
+                            nodeAddress: string;
+                            status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                            marketAddress: (string | null) | null;
+                            assignedMarket: (string | null) | null;
+                            destinedMarket: (string | null) | null;
+                            recommendedMarket: (string | null) | null;
+                            feedbackReport: ({
+                                marketAddress: string;
+                                marketName?: string;
+                                passed: boolean;
+                                metrics: {
+                                    metricKey: string;
+                                    measuredValue?: number | string | boolean;
+                                    ruleDescription: string;
+                                    passed: boolean;
+                                    failureMessage?: string;
+                                }[];
+                            } | null) | null;
+                        }[];
+                        total: number;
+                    } | string;
+                    "multipart/form-data": {
+                        nodes: {
+                            nodeAddress: string;
+                            status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                            marketAddress: (string | null) | null;
+                            assignedMarket: (string | null) | null;
+                            destinedMarket: (string | null) | null;
+                            recommendedMarket: (string | null) | null;
+                            feedbackReport: ({
+                                marketAddress: string;
+                                marketName?: string;
+                                passed: boolean;
+                                metrics: {
+                                    metricKey: string;
+                                    measuredValue?: number | string | boolean;
+                                    ruleDescription: string;
+                                    passed: boolean;
+                                    failureMessage?: string;
+                                }[];
+                            } | null) | null;
+                        }[];
+                        total: number;
+                    } | string;
+                    "text/plain": {
+                        nodes: {
+                            nodeAddress: string;
+                            status: "REJECTED" | "ONBOARDED" | "PREMIUM";
+                            marketAddress: (string | null) | null;
+                            assignedMarket: (string | null) | null;
+                            destinedMarket: (string | null) | null;
+                            recommendedMarket: (string | null) | null;
+                            feedbackReport: ({
+                                marketAddress: string;
+                                marketName?: string;
+                                passed: boolean;
+                                metrics: {
+                                    metricKey: string;
+                                    measuredValue?: number | string | boolean;
+                                    ruleDescription: string;
+                                    passed: boolean;
+                                    failureMessage?: string;
+                                }[];
+                            } | null) | null;
+                        }[];
+                        total: number;
+                    } | string;
                 };
             };
         };
@@ -5170,6 +5269,37 @@ export interface operations {
         };
     };
     postNodesBan: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    address: string | string[];
+                };
+                "multipart/form-data": {
+                    address: string | string[];
+                };
+                "text/plain": {
+                    address: string | string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postNodesUnban: {
         parameters: {
             query?: never;
             header: {

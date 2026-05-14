@@ -67,11 +67,6 @@ export class MarketHandler {
       return await this.request(requestedMarket);
     }
 
-    // Show feedback report for visibility
-    if (result.feedbackReport) {
-      this.logFeedbackReport(result.feedbackReport);
-    }
-
     // Sign and send SFT mint/burn transaction if provided
     if (result.market?.sftTx) {
       await this.marketAccessHandler.mintAccessKey(result.market.sftTx);
@@ -79,26 +74,8 @@ export class MarketHandler {
       await HostManager.syncNodeAfterMint(this.address.toString());
     }
 
-    // feedbackReport failed with no market -> node doesn't qualify for any market
-    if (
-      result.feedbackReport &&
-      !result.feedbackReport.passed &&
-      !result.market?.address
-    ) {
-      throw new NodeNotQualifiedError();
-    }
-
-    // feedbackReport failed but a market is present -> node is PREMIUM, continue
-    if (
-      result.feedbackReport &&
-      !result.feedbackReport.passed &&
-      result.market?.address
-    ) {
-      console.log(
-        chalk.yellow(
-          "Some thresholds not met, but market access granted. Continuing.",
-        ),
-      );
+    if (result.feedbackReport) {
+      this.logFeedbackReport(result.feedbackReport);
     }
 
     if (!result.market?.address) {
@@ -112,46 +89,57 @@ export class MarketHandler {
       );
     }
 
+    if (result.feedbackReport && !result.feedbackReport.passed) {
+      console.log(
+        chalk.yellow(
+          "Some thresholds are still below the target market requirements, but access was granted. Continuing.",
+        ),
+      );
+    }
+
     this.market = onchainMarket;
     return onchainMarket;
   }
 
   private logFeedbackReport(report: FeedbackReport): void {
-    const passed = report.metrics.filter((m) => m.passed);
-    const failed = report.metrics.filter((m) => !m.passed);
+    const targetMarketLabel = report.marketName ?? report.marketAddress;
+    const total = report.metrics.length;
 
-    console.log("\n" + chalk.bgCyan.black.bold("  THRESHOLD REPORT  ") + "\n");
+    let passedCount = 0;
+    let nameWidth = 24;
+    for (const metric of report.metrics) {
+      if (metric.passed) passedCount++;
+      if (metric.metricKey.length > nameWidth) nameWidth = metric.metricKey.length;
+    }
+    const failedCount = total - passedCount;
+
+    console.log("\n" + chalk.bgCyan.black.bold("  TARGET MARKET  ") + "\n");
+    console.log(`  ${chalk.bold(targetMarketLabel)}`);
+    console.log();
 
     for (const metric of report.metrics) {
-      const measuredStr =
-        metric.measuredValue !== undefined
-          ? chalk.gray(` (measured: ${metric.measuredValue})`)
-          : "";
+      const icon = metric.passed ? chalk.green("  ✔ ") : chalk.red("  ✖ ");
+      const measuredStr = metric.measuredValue !== undefined
+        ? `  ${chalk.cyan(`measured: ${metric.measuredValue}`)}`
+        : "";
 
-      if (metric.passed) {
-        console.log(
-          chalk.green("  ✔ ") + chalk.bold(metric.metricKey) + measuredStr,
-        );
-      } else {
-        console.log(
-          chalk.red("  ✖ ") + chalk.bold(metric.metricKey) + measuredStr,
-        );
-        if (metric.failureMessage) {
-          console.log(chalk.yellow(`    ↳ ${metric.failureMessage}`));
-        }
+      console.log(icon + chalk.bold(metric.metricKey.padEnd(nameWidth)) + measuredStr);
+      console.log(chalk.gray(`    rule: ${metric.ruleDescription}`));
+      if (!metric.passed && metric.failureMessage) {
+        console.log(chalk.yellow(`    ↳ ${metric.failureMessage}`));
       }
     }
 
     if (report.passed) {
       console.log(
         chalk.bgGreen.black.bold(
-          `  ${passed.length}/${report.metrics.length} threshold(s) passed  `,
+          `  Node currently meets all ${total} market requirements for ${targetMarketLabel}  `,
         ) + "\n",
       );
     } else {
       console.log(
         chalk.bgYellow.black.bold(
-          `  ${passed.length}/${report.metrics.length} threshold(s) passed — ${failed.length} failed  `,
+          `  Node currently meets ${passedCount} of ${total} market requirements for ${targetMarketLabel} — ${failedCount} still need improvement  `,
         ) + "\n",
       );
     }
