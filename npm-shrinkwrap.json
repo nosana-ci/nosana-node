@@ -11,6 +11,7 @@
       "dependencies": {
         "@coral-xyz/anchor": "^0.28.1-beta.1",
         "@inquirer/prompts": "^4.3.0",
+        "@nosana/ipfs": "^2.2.6",
         "@nosana/sdk": "^0.4.81",
         "@solana/web3.js": "^1.78.0",
         "bn.js": "^5.2.1",
@@ -1578,6 +1579,33 @@
       },
       "engines": {
         "node": ">= 8"
+      }
+    },
+    "node_modules/@nosana/ipfs": {
+      "version": "2.2.6",
+      "resolved": "https://registry.npmjs.org/@nosana/ipfs/-/ipfs-2.2.6.tgz",
+      "integrity": "sha512-T9FraaJu/BlC2nyG2Xx2zzBeSf+FSeUkWrkV7vNxG36fmILqhnX9eqtrTpHVNtVtsC+jS6W2b/NANQ/OFgY+VA==",
+      "license": "MIT",
+      "dependencies": {
+        "bs58": "^5.0.0"
+      },
+      "engines": {
+        "node": ">=20.18.0"
+      }
+    },
+    "node_modules/@nosana/ipfs/node_modules/base-x": {
+      "version": "4.0.1",
+      "resolved": "https://registry.npmjs.org/base-x/-/base-x-4.0.1.tgz",
+      "integrity": "sha512-uAZ8x6r6S3aUM9rbHGVOIsR15U/ZSc82b3ymnCPsT45Gk1DDvhDPdIgB5MrhirZWt+5K0EEPQH985kNqZgNPFw==",
+      "license": "MIT"
+    },
+    "node_modules/@nosana/ipfs/node_modules/bs58": {
+      "version": "5.0.0",
+      "resolved": "https://registry.npmjs.org/bs58/-/bs58-5.0.0.tgz",
+      "integrity": "sha512-r+ihvQJvahgYT50JD05dyJNKlmmSlMoOGwn1lCcEzanPglg7TxYjioQUYehQ9mAR/+hOSd2jRc/Z2y5UxBymvQ==",
+      "license": "MIT",
+      "dependencies": {
+        "base-x": "^4.0.0"
       }
     },
     "node_modules/@nosana/sdk": {

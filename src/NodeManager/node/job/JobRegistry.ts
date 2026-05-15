@@ -1,6 +1,8 @@
 import { FlowState, Job, Run, Client as SDK } from '@nosana/sdk';
+import { ipfsHashToSolBytesArray } from '@nosana/ipfs';
 import { NodeRepository } from '../../repository/NodeRepository.js';
 import { JobExternalUtil } from './jobExternalUtil.js';
+import { IpfsClientSingleton } from '../../../ipfs/IpfsClient.js';
 
 export class JobRegistry {
   private static instance: JobRegistry;
@@ -39,11 +41,11 @@ export class JobRegistry {
 
     for (const [jobId, job] of this.registry.entries()) {
       const promise = (async () => {
-        const jobExternalUtil = new JobExternalUtil(sdk, repository);
+        const jobExternalUtil = new JobExternalUtil(repository);
         const result = await jobExternalUtil.resolveResult(jobId, job);
 
-        const ipfsResult = await sdk.ipfs.pin(result as object);
-        const bytesArray = sdk.ipfs.IpfsHashToByteArray(ipfsResult);
+        const ipfsResult = await IpfsClientSingleton.pin(result as object);
+        const bytesArray = ipfsHashToSolBytesArray(ipfsResult);
 
         await sdk.jobs.submitResult(
           bytesArray,
