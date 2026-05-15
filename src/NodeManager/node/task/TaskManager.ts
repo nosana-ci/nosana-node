@@ -57,6 +57,7 @@ import { Flow } from '@nosana/sdk';
 import { configs } from '../../configs/configs.js';
 import { getSDK } from '../../sdk/index.js';
 import { StatsBuffer } from './loggers/StatsBuffer.js';
+import { pkg } from '../../../static/index.js';
 
 export type TaskManagerOps = Array<Operation<OperationType>>;
 
@@ -153,6 +154,7 @@ export type GlobalStore = {
   host: string;
   project: string;
   frps_address: string;
+  version: string;
   variables?: Record<string, string>;
 };
 
@@ -372,6 +374,7 @@ export default class TaskManager {
       project,
       frps_address: configs().frp.serverAddr,
       host: sdk.solana.wallet.publicKey.toString(),
+      version: pkg.version,
     };
 
     // Allow more listeners to account for many ops without warnings
