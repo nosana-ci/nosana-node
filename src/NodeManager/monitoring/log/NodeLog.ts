@@ -85,7 +85,18 @@ class NodeLog {
   }
 
   private process(data: LogEntry) {
-    if (data.class === 'TaskManager') {
+    if (data.class === 'BenchmarkTaskManager' && data.method === 'progress') {
+      this.addLog({
+        method: `${data.class}.${data.method}`,
+        job: this.job,
+        log: '',
+        timestamp: Date.now(),
+        type: 'update',
+        payload: data.payload,
+      });
+    }
+
+    if (data.class === 'TaskManager' || data.class === 'BenchmarkTaskManager') {
       if (data.method === 'start') {
         if (data.type === 'call') {
           this.addLog({
@@ -186,9 +197,7 @@ class NodeLog {
       this.handleRestart(data);
     }
 
-    if (data.class === 'BasicNode' && data.method === 'specs') {
-      this.handleSpecs(data);
-    }
+
 
     if (data.class === 'BasicNode' && data.method === 'recommend') {
       this.handleRecommend(data);
@@ -496,41 +505,6 @@ class NodeLog {
   //     });
   //   }
   // }
-
-  private handleSpecs(data: LogEntry) {
-    if (data.type === 'call') {
-      this.addLog({
-        method: `${data.class}.${data.method}`,
-        job: this.job,
-        log: chalk.cyan('Node is checking specs'),
-        timestamp: Date.now(),
-        // type: 'info',
-        type: 'process',
-        pending: {
-          isPending: true,
-          expecting: `${data.class}.${data.method}`,
-        },
-      });
-    }
-    if (data.type === 'return') {
-      this.addLog({
-        method: `${data.class}.${data.method}`,
-        job: this.job,
-        log: chalk.green('Node specs check completed successfully'),
-        timestamp: Date.now(),
-        type: 'success',
-      });
-    }
-    if (data.type === 'error') {
-      this.addLog({
-        method: `${data.class}.${data.method}`,
-        job: this.job,
-        log: chalk.red('Node specs check failed'),
-        timestamp: Date.now(),
-        type: 'error',
-      });
-    }
-  }
 
   private handleRegister(data: LogEntry) {
     if (data.type === 'call') {

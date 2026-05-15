@@ -1,15 +1,32 @@
-import { Client as SDK, Market } from '@nosana/sdk';
-import { PublicKey } from '@solana/web3.js';
+import chalk from "chalk";
+import { Client as SDK, Market } from "@nosana/sdk";
+import { PublicKey } from "@solana/web3.js";
+
+import { HostManager, FeedbackReport } from "./hostManager.js";
+import { Benchmark } from "./benchmark.js";
+import { NodeNotRegisteredError } from "../../errors/NodeNotRegisteredError.js";
+import { NodeBannedError } from "../../errors/NodeBannedError.js";
+import { NodeNotQualifiedError } from "../../errors/NodeNotQualifiedError.js";
+import { Provider } from "../../provider/Provider.js";
+import { NodeRepository } from "../../repository/NodeRepository.js";
+import { MarketAccessHandler } from "./marketAccess.js";
+import { sleep } from "../../utils/utils.js";
 
 export class MarketHandler {
   private market: Market | undefined;
   private address: PublicKey;
   private checkQueuedInterval?: NodeJS.Timeout; // Interval to check market queue
+  private marketAccessHandler: MarketAccessHandler;
 
-  private inMarket: boolean = false;
+  private inMarket = false;
 
-  constructor(private sdk: SDK) {
+  constructor(
+    private sdk: SDK,
+    private provider: Provider,
+    private repository: NodeRepository,
+  ) {
     this.address = this.sdk.solana.provider!.wallet.publicKey;
+    this.marketAccessHandler = new MarketAccessHandler(this.sdk);
   }
 
   public clear(): void {
@@ -22,6 +39,110 @@ export class MarketHandler {
 
   public setInMarket() {
     this.inMarket = true;
+  }
+
+  public async request(requestedMarket?: string): Promise<Market> {
+    const result = await HostManager.requestMarket(requestedMarket);
+
+    // Not registered - caller will handle registration and retry
+    if (result.notRegistered) {
+      throw new NodeNotRegisteredError();
+    }
+
+    // Node is banned
+    if (result.status === "REJECTED") {
+      throw new NodeBannedError();
+    }
+
+    // Host manager wants us to run a benchmark first
+    if (result.jobDefinition) {
+      const benchmark = new Benchmark(
+        result.benchmarkId ?? result.jobDefinition.id,
+        result.jobDefinition,
+        this.sdk,
+        this.provider,
+        this.repository,
+      );
+      await benchmark.run();
+      return await this.request(requestedMarket);
+    }
+
+    // Sign and send SFT mint/burn transaction if provided
+    if (result.market?.sftTx) {
+      await this.marketAccessHandler.mintAccessKey(result.market.sftTx);
+      await sleep(30);
+      await HostManager.syncNodeAfterMint(this.address.toString());
+    }
+
+    if (result.feedbackReport) {
+      this.logFeedbackReport(result.feedbackReport);
+    }
+
+    if (!result.market?.address) {
+      throw new NodeNotQualifiedError();
+    }
+
+    const onchainMarket = await this.sdk.jobs.getMarket(result.market.address);
+    if (!onchainMarket) {
+      throw new Error(
+        `Requested market ${result.market.address} not found on-chain`,
+      );
+    }
+
+    if (result.feedbackReport && !result.feedbackReport.passed) {
+      console.log(
+        chalk.yellow(
+          "Some thresholds are still below the target market requirements, but access was granted. Continuing.",
+        ),
+      );
+    }
+
+    this.market = onchainMarket;
+    return onchainMarket;
+  }
+
+  private logFeedbackReport(report: FeedbackReport): void {
+    const targetMarketLabel = report.marketName ?? report.marketAddress;
+    const total = report.metrics.length;
+
+    let passedCount = 0;
+    let nameWidth = 24;
+    for (const metric of report.metrics) {
+      if (metric.passed) passedCount++;
+      if (metric.metricKey.length > nameWidth) nameWidth = metric.metricKey.length;
+    }
+    const failedCount = total - passedCount;
+
+    console.log("\n" + chalk.bgCyan.black.bold("  TARGET MARKET  ") + "\n");
+    console.log(`  ${chalk.bold(targetMarketLabel)}`);
+    console.log();
+
+    for (const metric of report.metrics) {
+      const icon = metric.passed ? chalk.green("  ✔ ") : chalk.red("  ✖ ");
+      const measuredStr = metric.measuredValue !== undefined
+        ? `  ${chalk.cyan(`measured: ${metric.measuredValue}`)}`
+        : "";
+
+      console.log(icon + chalk.bold(metric.metricKey.padEnd(nameWidth)) + measuredStr);
+      console.log(chalk.gray(`    rule: ${metric.ruleDescription}`));
+      if (!metric.passed && metric.failureMessage) {
+        console.log(chalk.yellow(`    ↳ ${metric.failureMessage}`));
+      }
+    }
+
+    if (report.passed) {
+      console.log(
+        chalk.bgGreen.black.bold(
+          `  Node currently meets all ${total} market requirements for ${targetMarketLabel}  `,
+        ) + "\n",
+      );
+    } else {
+      console.log(
+        chalk.bgYellow.black.bold(
+          `  Node currently meets ${passedCount} of ${total} market requirements for ${targetMarketLabel} — ${failedCount} still need improvement  `,
+        ) + "\n",
+      );
+    }
   }
 
   public async check(market: string): Promise<Market> {
@@ -48,7 +169,7 @@ export class MarketHandler {
       this.market = await this.sdk.jobs.getMarket(market);
       return this.market;
     } catch (error) {
-      throw new Error('market does not exists');
+      throw new Error("market does not exists");
     }
   }
 
@@ -61,7 +182,7 @@ export class MarketHandler {
       this.market = await this.sdk.jobs.getMarket(market);
       return this.market;
     } catch (error) {
-      throw new Error('market does not exists');
+      throw new Error("market does not exists");
     }
   }
 
@@ -86,7 +207,7 @@ export class MarketHandler {
 
   public async join(accessKey?: PublicKey): Promise<Market> {
     if (!this.market) {
-      throw new Error('market not defined');
+      throw new Error("market not defined");
     }
     try {
       await this.sdk.jobs.work(this.market.address, accessKey);
@@ -106,7 +227,7 @@ export class MarketHandler {
     if (this.market) {
       try {
         await this.sdk.jobs.stop(this.market.address);
-      } catch (error) {}
+      } catch (error) { }
       this.inMarket = false;
     }
   }
@@ -133,7 +254,7 @@ export class MarketHandler {
       const queuedMarketInfo = await this.checkQueuedInMarket();
       updateCallback(queuedMarketInfo);
     } catch (error) {
-      console.warn('\nCould not update queue status', error);
+      console.warn("\nCould not update queue status", error);
     }
 
     // Check market queue status every minute
@@ -142,7 +263,7 @@ export class MarketHandler {
         const queuedMarketInfo = await this.checkQueuedInMarket();
         updateCallback(queuedMarketInfo);
       } catch (error) {
-        console.warn('\nCould not update queue status', error);
+        console.warn("\nCould not update queue status", error);
       }
     }, 60000);
   }

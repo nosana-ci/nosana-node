@@ -3,9 +3,7 @@ import { loadConfigurationValue } from '../utils/utils.js';
 
 export type configType = {
   isNodeRun: boolean;
-  backendUrl: string;
-  backendSolanaAddress: string;
-  backendAuthorizationAddress: string;
+  hostManagerBaseUrl: string;
   explorerUrl: string;
   signMessage: string;
   frp: {
@@ -26,11 +24,7 @@ export const configs = (options?: { [key: string]: any }): configType => {
 
   return {
     isNodeRun: options?.isNodeRun,
-    backendUrl: loadConfigurationValue('BACKEND_URL'),
-    backendSolanaAddress: loadConfigurationValue('BACKEND_SOLANA_ADDRESS'),
-    backendAuthorizationAddress: loadConfigurationValue(
-      'BACKEND_AUTHORIZATION_ADDRESS',
-    ),
+    hostManagerBaseUrl: loadConfigurationValue('HOST_MANAGER_BASE_URL'),
     explorerUrl: loadConfigurationValue('EXPLORER_URL'),
     signMessage: loadConfigurationValue('SIGN_MESSAGE'),
     frp: {

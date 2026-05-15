@@ -1,4 +1,4 @@
-import type { Client } from '@nosana/sdk';
+import type { Client } from "@nosana/sdk";
 
 import { ApiHandler } from './node/api/ApiHandler.js';
 import { BasicNode } from './node/Node.js';
@@ -9,11 +9,13 @@ import { log } from './monitoring/log/NodeLog.js';
 import { logStreaming } from './monitoring/streaming/LogStreamer.js';
 import { consoleLogging } from './monitoring/log/console/ConsoleLogger.js';
 import { validateCLIVersion } from '../version/index.js';
+import { checkForMaintenance } from './checkForMaintenance.js';
 import { configs } from './configs/configs.js';
 import { getSDK } from './sdk/index.js';
 import { ping } from './monitoring/ping/PingHandler.js';
 import { LogMonitoringRegistry } from './monitoring/LogMonitoringRegistry.js';
 import { checkWSLStatus } from './utils/wslCheck.js';
+import { HostManager } from './node/market/hostManager.js';
 
 export default class NodeManager {
   private node: BasicNode;
@@ -74,10 +76,6 @@ export default class NodeManager {
 
     await this.node.start();
 
-    if (!this.node.isOnboarded) {
-      await this.node.register();
-    }
-
     /**
      * start the api of the node and register all the routes of the nodes,
      * we call this here in the init so the api survives restarts between jobs
@@ -99,30 +97,13 @@ export default class NodeManager {
     this.exiting = false;
 
     if (this.inJobLoop) {
-      await validateCLIVersion();
+      await Promise.all([validateCLIVersion(), checkForMaintenance()]);
     }
 
     /**
      * maintenance
      */
     await this.node.maintenance();
-
-    /**
-     * specs
-     *
-     * this retrieves specs from the node to ensure it can run the jobs.
-     * It gets the GPUs, CPUs, and internet speed.
-     *
-     * if the specs fails restart the system
-     */
-    if (!(await this.node.specs())) {
-      /**
-       * start
-       *
-       * recursively start the the process again by calling the restart function
-       */
-      return await this.restart(marketArg);
-    }
 
     /**
      * WSL check
@@ -132,14 +113,26 @@ export default class NodeManager {
     checkWSLStatus(this.node.getSystemEnvironment());
 
     /**
-     * grid
+     * market
      *
-     * if no market was supplied, we will register on the grid and get
-     * market and access key recommened for our PC based on specs result
+     * request a market to join from the host manager, 
+     * we can pass a requested market or let the host manager recommend us one
      */
-    let market = marketArg;
-    if (!market || !market.length) {
-      market = await this.node.recommend();
+    const market = await this.node.requestMarket(marketArg);
+
+    /**
+     * healthcheck
+     *
+     * this checks the health of the container tech,
+     * the connectivity, and every other critical system.
+     */
+    if (!(await this.node.healthcheck())) {
+      /**
+       * start
+       *
+       * recursively start the the process again by calling the restart function
+       */
+      return await this.restart(marketArg);
     }
 
     /**
@@ -149,20 +142,6 @@ export default class NodeManager {
      */
     await this.node.setup(market);
 
-    /**
-     * healthcheck
-     *
-     * this checks the health of the container tech,
-     * the connectivity, and every other critical system.
-     */
-    if (!(await this.node.healthcheck(market))) {
-      /**
-       * start
-       *
-       * recursively start the the process again by calling the restart function
-       */
-      return await this.restart(marketArg);
-    }
 
     /**
      * this variable was added to know when the node has gone past the setup/checks stages
@@ -173,7 +152,7 @@ export default class NodeManager {
     this.inJobLoop = true;
 
     if (!(await this.node.isApiActive())) {
-      throw new Error('Node API is detected offline');
+      throw new Error("Node API is detected offline");
     }
     /**
      * pending
@@ -189,7 +168,7 @@ export default class NodeManager {
        *
        * Enter the queue to wait for a job since we have no pending jobs.
        */
-      await this.node.queue(market);
+      await this.node.queue(market.address.toString());
     }
 
     /**
@@ -225,7 +204,7 @@ export default class NodeManager {
        * restarts after jobs
        */
       await this.apiHandler.stop();
-    } catch (error) { }
+    } catch (error) {}
 
     /**
      * check if the node exists then stop the node, this will involve killing and cleaning
@@ -315,31 +294,31 @@ export default class NodeManager {
       process.exit();
     };
 
-    process.on('SIGINT', exitHandler); // Handle Ctrl+C
-    process.on('SIGTERM', exitHandler); // Handle termination signals
+    process.on("SIGINT", exitHandler); // Handle Ctrl+C
+    process.on("SIGTERM", exitHandler); // Handle termination signals
 
     // log crashes
-    process.on('unhandledRejection', async (reason, p) => {
+    process.on("unhandledRejection", async (reason, p) => {
       try {
         const e = reason as any;
         await reportError({
-          error_type: 'unhandledRejection',
+          error_type: "unhandledRejection",
           error_name: e.name,
           error_message: e.message,
           error_stack: e.stack ?? e.trace,
         });
-      } catch (_) { }
+      } catch (_) {}
     });
-    process.on('uncaughtException', async (reason) => {
+    process.on("uncaughtException", async (reason) => {
       try {
         const e = reason as any;
         await reportError({
-          error_type: 'uncaughtException',
+          error_type: "uncaughtException",
           error_name: e.name,
           error_message: e.message,
           error_stack: e.stack ?? e.trace,
         });
-      } catch (_) { }
+      } catch (_) {}
     });
   }
 }
@@ -351,22 +330,8 @@ const reportError = async (data: {
   error_stack: string;
 }) => {
   const nosana = getSDK();
-  const response = await fetch(`${configs().backendUrl}/errors/report`, {
-    method: 'POST',
-    headers: {
-      Authorization: await nosana.authorization.generate(
-        configs().signMessage,
-        {
-          includeTime: true,
-        },
-      ),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      address: nosana.solana.provider!.wallet.publicKey.toString(),
-      ...data,
-    }),
+  return HostManager.reportError({
+    address: nosana.solana.provider!.wallet.publicKey.toString(),
+    ...data,
   });
-  const responseBody = await response.json();
-  return responseBody;
 };

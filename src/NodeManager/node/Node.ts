@@ -2,6 +2,7 @@ import { Client, Market } from '@nosana/sdk';
 
 import { getSDK } from '../sdk/index.js';
 import { MarketHandler } from './market/marketHandler.js';
+import { NodeNotRegisteredError } from '../errors/NodeNotRegisteredError.js';
 import { RunHandler } from './run/runHandler.js';
 import { JobHandler } from './job/jobHandler.js';
 import { DB } from '../db/index.js';
@@ -11,7 +12,6 @@ import { applyLoggingProxyToClass } from '../monitoring/proxy/loggingProxy.js';
 import { isNodeOnboarded } from '../utils/utils.js';
 import { ApiHandler } from './api/ApiHandler.js';
 import { NodeRepository } from '../repository/NodeRepository.js';
-import { SpecsHandler } from './specs/specsHandler.js';
 import { HealthHandler } from './health/healthHandler.js';
 import { KeyHandler } from './key/keyHandler.js';
 import { ExpiryHandler } from './expiry/expiryHandler.js';
@@ -27,16 +27,14 @@ import {
 import { pollForRun } from './utils/poll.js';
 import { configs } from '../configs/configs.js';
 import { TaskManagerRegistry } from './task/TaskManagerRegistry.js';
-import TaskManager, { StopReason, StopReasons } from './task/TaskManager.js';
+import { StopReason, StopReasons } from './task/TaskManager.js';
 
 export class BasicNode {
-  public isOnboarded: boolean = false;
   private apiHandler: ApiHandler;
   private balanceHandler: BalanceHandler;
   private runHandler: RunHandler;
   private marketHandler: MarketHandler;
   private jobHandler: JobHandler;
-  private specsHandler: SpecsHandler;
   private keyHandler: KeyHandler;
   private healthHandler: HealthHandler;
   private expiryHandler: ExpiryHandler;
@@ -79,13 +77,9 @@ export class BasicNode {
     );
     this.balanceHandler = new BalanceHandler(this.sdk);
     this.gridHandler = new GridHandler(this.sdk, this.repository);
-    this.specsHandler = new SpecsHandler(
-      this.provider,
-      this.repository,
-      this.sdk,
-    );
+
     this.jobHandler = new JobHandler(this.sdk, this.provider, this.repository);
-    this.marketHandler = new MarketHandler(this.sdk);
+    this.marketHandler = new MarketHandler(this.sdk, this.provider, this.repository);
     this.runHandler = new RunHandler(this.sdk);
 
     this.keyHandler = new KeyHandler(this.sdk);
@@ -97,11 +91,7 @@ export class BasicNode {
       this.keyHandler,
     );
 
-    this.registerHandler = new RegisterHandler(
-      this.sdk,
-      this.provider,
-      this.repository,
-    );
+    this.registerHandler = new RegisterHandler();
 
     this.expiryHandler = new ExpiryHandler(this.sdk);
 
@@ -112,28 +102,23 @@ export class BasicNode {
     await this.registerHandler.register();
   }
 
-  async healthcheck(market: string): Promise<boolean> {
+  async healthcheck(): Promise<boolean> {
     /**
      * run health check,
      */
-    return await this.healthHandler.run(market);
+    return await this.healthHandler.run();
   }
 
-  async specs(): Promise<boolean> {
-    /**
-     * check the system using a premade job definitions
-     * run dependent on market status
-     */
-    return await this.specsHandler.check();
-  }
-
-  async recommend(): Promise<string> {
-    /**
-     * this means even tho we have been onboarded there might be no market assigned to us
-     * or we need to check if we are still in the right market,
-     * so we need to get a recommended one and return it
-     */
-    return await this.gridHandler.recommend();
+  async requestMarket(market?: string): Promise<Market> {
+    try {
+      return await this.marketHandler.request(market);
+    } catch (error) {
+      if (error instanceof NodeNotRegisteredError) {
+        await this.registerHandler.register();
+        return await this.marketHandler.request(market);
+      }
+      throw error;
+    }
   }
 
   public api(): ApiHandler {
@@ -178,14 +163,6 @@ export class BasicNode {
   }
 
   async start(): Promise<void> {
-    /**
-     * we query the grid to find out if the node has already been onboarded
-     * if it has been onboarded it might have been assigned/recommended a market
-     * if it has not been onboarded quit the process
-     */
-    const nodeData = await this.gridHandler.getNodeStatus();
-
-    this.isOnboarded = isNodeOnboarded(nodeData.status);
     if (await this.balanceHandler.balance()) {
       await this.balanceHandler.check(true);
     }
@@ -206,7 +183,7 @@ export class BasicNode {
     }
   }
 
-  async setup(market: string): Promise<void> {
+  async setup(market: Market): Promise<void> {
     await this.resourceManager.resyncResourcesDB();
     await this.resourceManager.fetchMarketRequiredResources(market);
   }

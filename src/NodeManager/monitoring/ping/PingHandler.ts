@@ -1,7 +1,4 @@
-import { Client as SDK } from '@nosana/sdk';
-import { getSDK } from '../../sdk/index.js';
-import { configs } from '../../configs/configs.js';
-import { PublicKey } from '@solana/web3.js';
+import { HostManager } from '../../node/market/hostManager.js';
 
 export const ping = (() => {
   let instance: PingHandler | null = null;
@@ -18,70 +15,60 @@ export const ping = (() => {
 export class PingHandler {
   private timeoutId: NodeJS.Timeout | null = null;
   private intervalSeconds = 30;
-
-  private sdk: SDK;
-  private address: PublicKey;
-
-  constructor() {
-    this.sdk = getSDK();
-    this.address = this.sdk.solana.provider!.wallet.publicKey;
-  }
+  private stopped = false;
 
   async start() {
     if (this.timeoutId) return;
-
-    // start with an immediate ping
+    this.stopped = false;
     await this.scheduleNextPing(Date.now());
   }
 
   private async scheduleNextPing(expectedTime: number) {
-    await this.ping();
+    const { retryAfterSeconds } = await this.ping();
+    if (this.stopped) return;
 
-    const nextExpected = expectedTime + this.intervalSeconds * 1000;
-
+    const intervalSeconds = retryAfterSeconds ?? this.intervalSeconds;
+    const nextExpected = expectedTime + intervalSeconds * 1000;
     const delay = Math.max(nextExpected - Date.now(), 0);
     this.timeoutId = setTimeout(() => {
       this.scheduleNextPing(nextExpected);
     }, delay);
   }
 
-  private async ping() {
+  private async ping(): Promise<{ retryAfterSeconds?: number }> {
     try {
-      const response = await fetch(`${configs().backendUrl}/nodes/heartbeat`, {
-        method: 'POST',
-        headers: {
-          Authorization: `${this.address}:${await this.getAuthSignature()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ping: 'pong' }),
-      });
-
-      if (response.ok) {
-        const json = await response.json();
-
-        if (json.maxHeartbeatsPerDay) {
-          const newInterval = Math.floor(
-            (24 * 60 * 60) / json.maxHeartbeatsPerDay,
-          );
-
-          if (newInterval !== this.intervalSeconds) {
-            this.intervalSeconds = newInterval;
-          }
-        }
+      const response = await HostManager.sendHeartbeat();
+      if (response.maxHeartbeatsPerDay) {
+        this.intervalSeconds = Math.floor((24 * 60 * 60) / response.maxHeartbeatsPerDay);
       }
+      return {};
     } catch (err) {
+      if (err instanceof Error && err.message.includes('Node not found')) {
+        return {};
+      }
+      const retryAfterSeconds = this.getHeartbeatRetryAfterSeconds(err);
+      if (retryAfterSeconds !== null) {
+        return { retryAfterSeconds };
+      }
       console.error('Ping failed:', err);
+      return {};
     }
   }
 
-  private async getAuthSignature(): Promise<string> {
-    const signature = (await this.sdk.solana.signMessage(
-      configs().signMessage,
-    )) as Uint8Array;
-    return Buffer.from(signature).toString('base64');
+  private getHeartbeatRetryAfterSeconds(err: unknown): number | null {
+    if (!(err instanceof Error)) return null;
+
+    const match = err.message.match(/next heartbeat in (\d+) seconds/i);
+    if (!match) return null;
+
+    const retryAfterSeconds = Number.parseInt(match[1], 10);
+    return Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+      ? retryAfterSeconds
+      : null;
   }
 
   stop() {
+    this.stopped = true;
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;

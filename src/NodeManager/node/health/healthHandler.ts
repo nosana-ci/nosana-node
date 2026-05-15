@@ -27,13 +27,13 @@ export class HealthHandler {
     applyLoggingProxyToClass(this);
   }
 
-  async run(market: string): Promise<boolean> {
+  async run(): Promise<boolean> {
     /**
      * market health check,
      *
      * check if the market supplied is valid and can be joined
      */
-    const marketAccount = await this.marketHandler.check(market);
+    const marketAccount = await this.marketHandler.getMarket();
 
     /**
      * balances (SOL) health check
@@ -45,16 +45,19 @@ export class HealthHandler {
       await this.balanceHandler.check();
     }
 
-    /**
-     * staking healtcheck, check if market can be joined or staking is needed
-     */
-    await this.stake(marketAccount);
 
-    /**
-     * health check on market access key
-     */
-    if (this.keyHandler.doesMarketNeedAccessKey(marketAccount)) {
-      await this.keyHandler.loadAccessKeyFromChain(marketAccount);
+    if (marketAccount) {
+      /**
+       * staking healtcheck, check if market can be joined or staking is needed
+       */
+      await this.stake(marketAccount);
+
+      /**
+       * health check on market access key
+       */
+      if (this.keyHandler.doesMarketNeedAccessKey(marketAccount)) {
+        await this.keyHandler.loadAccessKeyFromChain(marketAccount);
+      }
     }
 
     /**

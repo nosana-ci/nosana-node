@@ -10,6 +10,7 @@ export interface LogEntry {
   type: 'call' | 'return' | 'error';
   result?: any;
   error?: any;
+  payload?: any;
 }
 
 export function applyLoggingProxyToClass(instance: any) {
@@ -29,7 +30,6 @@ export function applyLoggingProxyToClass(instance: any) {
     'healthHandler',
     'stakeHandler',
     'expiryHandler',
-    'specsHandler',
     'progressBarReporter',
     'registerHandler',
   ];
@@ -42,8 +42,12 @@ export function applyLoggingProxyToClass(instance: any) {
   });
 }
 
-export function createLoggingProxy<T extends object>(target: T): T {
-  const className = Object.getPrototypeOf(target).constructor.name;
+export function createLoggingProxy<T extends object>(
+  target: T,
+  classNameOverride?: string,
+): T {
+  const className =
+    classNameOverride ?? Object.getPrototypeOf(target).constructor.name;
 
   const formatArguments = (args: any[]) => {
     return args.map((arg) => {
