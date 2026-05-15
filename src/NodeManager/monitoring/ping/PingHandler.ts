@@ -43,6 +43,9 @@ export class PingHandler {
       }
       return {};
     } catch (err) {
+      if (err instanceof Error && err.message.includes('Node not found')) {
+        return {};
+      }
       const retryAfterSeconds = this.getHeartbeatRetryAfterSeconds(err);
       if (retryAfterSeconds !== null) {
         return { retryAfterSeconds };
