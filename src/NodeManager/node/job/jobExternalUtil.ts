@@ -1,4 +1,4 @@
-import { Job, JobDefinition, validateJobDefinition, FlowState } from '@nosana/sdk';
+import { Job, JobDefinition, validateJobDefinition, FlowState, sleep } from '@nosana/sdk';
 import { NodeRepository } from '../../repository/NodeRepository.js';
 import { IpfsClientSingleton } from '../../../ipfs/IpfsClient.js';
 import { JobDefinitionStrategySelector } from './defination/JobDefinitionStrategy.js';
@@ -8,13 +8,28 @@ import { createInitialFlow } from '../task/helpers/createInitialFlow.js';
 export class JobExternalUtil {
   constructor(private repository: NodeRepository) { }
 
+  private async retrieveJobDefinitionWithRetry(
+    ipfsHash: string,
+    attempts = 0,
+  ): Promise<JobDefinition> {
+    try {
+      return await IpfsClientSingleton.retrieve(ipfsHash);
+    } catch (error) {
+      if (attempts >= 2) {
+        throw error;
+      }
+
+      await sleep(10);
+      return this.retrieveJobDefinitionWithRetry(ipfsHash, attempts + 1);
+    }
+  }
+
   public async resolveJobDefinition(
     id: string,
     job: Job,
   ): Promise<JobDefinition | null> {
-    let jobDefinition: JobDefinition | null = await IpfsClientSingleton.retrieve(
-      job.ipfsJob,
-    );
+    let jobDefinition: JobDefinition | null =
+      await this.retrieveJobDefinitionWithRetry(job.ipfsJob);
 
     if (jobDefinition && jobDefinition.logistics?.send?.type) {
       const strategySelector = new JobDefinitionStrategySelector();
@@ -54,7 +69,7 @@ export class JobExternalUtil {
   public async resolveResult(id: string, job: Job): Promise<FlowState> {
     let result = this.repository.getFlowState(id);
 
-    let jobDefinition: JobDefinition = await IpfsClientSingleton.retrieve(
+    let jobDefinition: JobDefinition = await this.retrieveJobDefinitionWithRetry(
       job.ipfsJob,
     );
 

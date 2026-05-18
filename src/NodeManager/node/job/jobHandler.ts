@@ -81,14 +81,22 @@ export class JobHandler {
     this.finishing = false;
   }
 
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return String(error);
+  }
+
   async claim(jobAddress: string): Promise<Job> {
     try {
       const job: Job = await this.sdk.jobs.get(jobAddress);
       this.id = jobAddress;
       this.job = job;
       return job;
-    } catch (_) {
-      throw new Error('could not start job');
+    } catch (error) {
+      throw new Error(`could not start job: ${this.getErrorMessage(error)}`);
     }
   }
 
