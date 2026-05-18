@@ -79,7 +79,7 @@ export class MarketHandler {
     }
 
     if (!result.market?.address) {
-      throw new NodeNotQualifiedError();
+      throw new NodeNotQualifiedError(result.nextTestAt);
     }
 
     const onchainMarket = await this.sdk.jobs.getMarket(result.market.address);

@@ -18,6 +18,7 @@ export type RequestMarketResult =
     notRegistered?: true;
     jobDefinition?: JobDefinition & { id: string };
     benchmarkId?: string;
+    nextTestAt?: string;
   };
 
 export class HostManager {
@@ -73,6 +74,11 @@ export class HostManager {
         address: data.market.address,
         sftTx: data.market.sftTx ?? undefined,
       };
+    }
+
+    const nextTestAt = (data as { nextTestAt?: unknown }).nextTestAt;
+    if (typeof nextTestAt === "string") {
+      result.nextTestAt = nextTestAt;
     }
 
     return result;
