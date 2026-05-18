@@ -73,7 +73,11 @@ export class JobRegistry {
   }
 
   public async stop(sdk: SDK, repository: NodeRepository): Promise<void> {
-    const stopPromises: Promise<{ jobId: string; error?: unknown }>[] = [];
+    const stopPromises: Promise<{
+      jobId: string;
+      status: 'submitted' | 'stale' | 'retryable-error';
+      error?: unknown;
+    }>[] = [];
 
     for (const [jobId, job] of this.registry.entries()) {
       const promise = (async () => {
@@ -89,12 +93,15 @@ export class JobRegistry {
             this.runs.get(jobId) as Run,
             job.market,
           );
-          return { jobId };
+          this.remove(jobId);
+          return { jobId, status: 'submitted' as const };
         } catch (error) {
-          return { jobId, error };
-        } finally {
-          this.runs.delete(jobId);
-          this.registry.delete(jobId);
+          if (this.isStaleCleanupError(error)) {
+            this.remove(jobId);
+            return { jobId, status: 'stale' as const, error };
+          }
+
+          return { jobId, status: 'retryable-error' as const, error };
         }
       })();
 
@@ -103,7 +110,7 @@ export class JobRegistry {
 
     const results = await Promise.all(stopPromises);
     for (const result of results) {
-      if (result.error) {
+      if (result.status !== 'submitted') {
         this.logCleanupError(result.jobId, result.error);
       }
     }
