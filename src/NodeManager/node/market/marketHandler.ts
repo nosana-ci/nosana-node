@@ -74,11 +74,11 @@ export class MarketHandler {
       await HostManager.syncNodeAfterMint(this.address.toString());
     }
 
+    await this.logLatestMeasurements();
+
     if (result.feedbackReport) {
       this.logFeedbackReport(result.feedbackReport);
     }
-
-    await this.logLatestMeasurements();
 
     if (!result.market?.address) {
       throw new NodeNotQualifiedError(result.nextTestAt);
@@ -124,7 +124,7 @@ export class MarketHandler {
       const icon = metric.passed ? chalk.green("  ✔ ") : chalk.red("  ✖ ");
       const measuredStr =
         metric.measuredValue !== undefined && metric.measuredValue !== null
-          ? `  ${chalk.cyan(`measured: ${metric.measuredValue}`)}`
+          ? `  ${chalk.cyan(metric.measuredValue)}`
           : "";
 
       console.log(icon + chalk.bold(metric.metricKey.padEnd(nameWidth)) + measuredStr);
@@ -190,7 +190,7 @@ export class MarketHandler {
 
     for (const [key, value] of flat) {
       const name = chalk.bold(key.padEnd(nameWidth));
-      const details = chalk.cyan(`measured: ${value}`);
+      const details = chalk.cyan(value);
       console.log(`  ${chalk.cyan("•")}  ${name}  ${details}`);
     }
 
