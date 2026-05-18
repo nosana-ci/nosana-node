@@ -2125,6 +2125,7 @@ export interface operations {
                     group?: (string | null) | null;
                     multiValue?: boolean;
                     instanceKey?: (string | null) | null;
+                    defaultValue: unknown;
                 };
                 "multipart/form-data": {
                     key: string;
@@ -2138,6 +2139,7 @@ export interface operations {
                     group?: (string | null) | null;
                     multiValue?: boolean;
                     instanceKey?: (string | null) | null;
+                    defaultValue: unknown;
                 };
                 "text/plain": {
                     key: string;
@@ -2151,6 +2153,7 @@ export interface operations {
                     group?: (string | null) | null;
                     multiValue?: boolean;
                     instanceKey?: (string | null) | null;
+                    defaultValue: unknown;
                 };
             };
         };
@@ -2188,6 +2191,7 @@ export interface operations {
                     group?: (string | null) | null;
                     multiValue?: boolean;
                     instanceKey?: (string | null) | null;
+                    defaultValue: unknown;
                 };
                 "multipart/form-data": {
                     key: string;
@@ -2201,6 +2205,7 @@ export interface operations {
                     group?: (string | null) | null;
                     multiValue?: boolean;
                     instanceKey?: (string | null) | null;
+                    defaultValue: unknown;
                 };
                 "text/plain": {
                     key: string;
@@ -2214,6 +2219,7 @@ export interface operations {
                     group?: (string | null) | null;
                     multiValue?: boolean;
                     instanceKey?: (string | null) | null;
+                    defaultValue: unknown;
                 };
             };
         };
@@ -2285,18 +2291,21 @@ export interface operations {
                     marketAddresses: (string | null)[];
                     jsonLogic: Record<string, never>;
                     interval?: (string | null) | null;
+                    isOptional?: boolean;
                 };
                 "multipart/form-data": {
                     thresholdId: number;
                     marketAddresses: (string | null)[];
                     jsonLogic: Record<string, never>;
                     interval?: (string | null) | null;
+                    isOptional?: boolean;
                 };
                 "text/plain": {
                     thresholdId: number;
                     marketAddresses: (string | null)[];
                     jsonLogic: Record<string, never>;
                     interval?: (string | null) | null;
+                    isOptional?: boolean;
                 };
             };
         };
@@ -2325,18 +2334,21 @@ export interface operations {
                     marketAddresses: (string | null)[];
                     jsonLogic: Record<string, never>;
                     interval?: (string | null) | null;
+                    isOptional?: boolean;
                 };
                 "multipart/form-data": {
                     thresholdId: number;
                     marketAddresses: (string | null)[];
                     jsonLogic: Record<string, never>;
                     interval?: (string | null) | null;
+                    isOptional?: boolean;
                 };
                 "text/plain": {
                     thresholdId: number;
                     marketAddresses: (string | null)[];
                     jsonLogic: Record<string, never>;
                     interval?: (string | null) | null;
+                    isOptional?: boolean;
                 };
             };
         };
@@ -2612,6 +2624,7 @@ export interface operations {
                         group?: (string | null) | null;
                         multiValue?: boolean;
                         instanceKey?: (string | null) | null;
+                        defaultValue: unknown;
                     }[];
                 };
                 "multipart/form-data": {
@@ -2788,6 +2801,7 @@ export interface operations {
                         group?: (string | null) | null;
                         multiValue?: boolean;
                         instanceKey?: (string | null) | null;
+                        defaultValue: unknown;
                     }[];
                 };
                 "text/plain": {
@@ -2964,6 +2978,7 @@ export interface operations {
                         group?: (string | null) | null;
                         multiValue?: boolean;
                         instanceKey?: (string | null) | null;
+                        defaultValue: unknown;
                     }[];
                 };
             };
@@ -3164,6 +3179,7 @@ export interface operations {
                         group?: (string | null) | null;
                         multiValue?: boolean;
                         instanceKey?: (string | null) | null;
+                        defaultValue: unknown;
                     }[];
                 };
                 "multipart/form-data": {
@@ -3340,6 +3356,7 @@ export interface operations {
                         group?: (string | null) | null;
                         multiValue?: boolean;
                         instanceKey?: (string | null) | null;
+                        defaultValue: unknown;
                     }[];
                 };
                 "text/plain": {
@@ -3516,6 +3533,7 @@ export interface operations {
                         group?: (string | null) | null;
                         multiValue?: boolean;
                         instanceKey?: (string | null) | null;
+                        defaultValue: unknown;
                     }[];
                 };
             };
@@ -3777,7 +3795,7 @@ export interface operations {
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                measuredValue?: number | string | boolean;
+                                measuredValue?: number | string | boolean | null | (number | string | boolean | null)[];
                                 ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
@@ -3792,7 +3810,7 @@ export interface operations {
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                measuredValue?: number | string | boolean;
+                                measuredValue?: number | string | boolean | null | (number | string | boolean | null)[];
                                 ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
@@ -3807,7 +3825,7 @@ export interface operations {
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                measuredValue?: number | string | boolean;
+                                measuredValue?: number | string | boolean | null | (number | string | boolean | null)[];
                                 ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
@@ -4462,12 +4480,14 @@ export interface operations {
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                measuredValue?: number | string | boolean;
+                                measuredValue?: number | string | boolean | null | (number | string | boolean | null)[];
                                 ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
+                                isOptional: boolean;
                             }[];
                         };
+                        nextTestAt?: string;
                         status?: string;
                     };
                     "multipart/form-data": {
@@ -4695,12 +4715,14 @@ export interface operations {
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                measuredValue?: number | string | boolean;
+                                measuredValue?: number | string | boolean | null | (number | string | boolean | null)[];
                                 ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
+                                isOptional: boolean;
                             }[];
                         };
+                        nextTestAt?: string;
                         status?: string;
                     };
                     "text/plain": {
@@ -4928,12 +4950,14 @@ export interface operations {
                             passed: boolean;
                             metrics: {
                                 metricKey: string;
-                                measuredValue?: number | string | boolean;
+                                measuredValue?: number | string | boolean | null | (number | string | boolean | null)[];
                                 ruleDescription: string;
                                 passed: boolean;
                                 failureMessage?: string;
+                                isOptional: boolean;
                             }[];
                         };
+                        nextTestAt?: string;
                         status?: string;
                     };
                 };
