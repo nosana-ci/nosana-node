@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { Client, ContainerRunArgs, JobDefinition } from "@nosana/sdk";
 
 import { HostManager } from './hostManager.js';
@@ -19,7 +18,6 @@ export class Benchmark {
   public async run(): Promise<void> {
     await this.executeBenchmark();
     await this.submitResults();
-    await this.reportResults();
   }
 
   private async executeBenchmark(): Promise<void> {
@@ -87,64 +85,4 @@ export class Benchmark {
 
     await HostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
   }
-
-  private async reportResults(): Promise<void> {
-    const address = this.sdk.solana.provider!.wallet.publicKey.toString();
-
-    let response;
-    try {
-      response = await HostManager.getNodeMetrics(address);
-    } catch (error) {
-      console.warn(chalk.yellow('Could not fetch latest measurements:'), error);
-      return;
-    }
-
-    const rawMetrics = response?.metrics as Record<string, unknown> | undefined;
-    if (!rawMetrics) return;
-
-    const flat = flattenMetrics(rawMetrics);
-    if (flat.length === 0) return;
-
-    const nameWidth = Math.max(20, ...flat.map(([key]) => key.length));
-    const width = nameWidth + 30;
-
-    console.log();
-    console.log('  ' + chalk.cyan('━'.repeat(width)));
-    console.log('  ' + chalk.bold.cyan('LATEST MEASUREMENTS'));
-    console.log('  ' + chalk.cyan('━'.repeat(width)));
-    console.log();
-
-    for (const [key, value] of flat) {
-      const name = chalk.bold(key.padEnd(nameWidth));
-      const details = chalk.cyan(`measured: ${value}`);
-      console.log(`  ${chalk.cyan('•')}  ${name}  ${details}`);
-    }
-
-    console.log();
-  }
-}
-
-function flattenMetrics(
-  obj: Record<string, unknown>,
-  prefix = '',
-): Array<[string, string]> {
-  const result: Array<[string, string]> = [];
-  for (const [key, value] of Object.entries(obj)) {
-    const fullKey = prefix ? `${prefix}.${key}` : key;
-    if (Array.isArray(value)) {
-      value.forEach((item, i) => {
-        const indexed = `${fullKey}[${i}]`;
-        if (item && typeof item === 'object') {
-          result.push(...flattenMetrics(item as Record<string, unknown>, indexed));
-        } else {
-          result.push([indexed, String(item)]);
-        }
-      });
-    } else if (value && typeof value === 'object') {
-      result.push(...flattenMetrics(value as Record<string, unknown>, fullKey));
-    } else if (value !== null && value !== undefined) {
-      result.push([fullKey, String(value)]);
-    }
-  }
-  return result;
 }
