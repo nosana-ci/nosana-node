@@ -1,5 +1,6 @@
 import { FlowState, Job, Run, Client as SDK } from '@nosana/sdk';
 import { ipfsHashToSolBytesArray } from '@nosana/ipfs';
+import chalk from 'chalk';
 import { NodeRepository } from '../../repository/NodeRepository.js';
 import { JobExternalUtil } from './jobExternalUtil.js';
 import { IpfsClientSingleton } from '../../../ipfs/IpfsClient.js';
@@ -36,34 +37,82 @@ export class JobRegistry {
     return this.registry.has(jobId);
   }
 
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return String(error);
+  }
+
+  private isStaleCleanupError(error: unknown): boolean {
+    const message = this.getErrorMessage(error);
+
+    return (
+      message.includes('AccountNotInitialized') ||
+      message.includes('The program expected this account to be already initialized') ||
+      message.includes('Account does not exist or has no data')
+    );
+  }
+
+  private logCleanupError(jobId: string, error: unknown): void {
+    if (this.isStaleCleanupError(error)) {
+      console.warn(
+        chalk.yellow(
+          `Skipping cleanup result submission for stale job ${jobId}: run is already closed on-chain.`,
+        ),
+      );
+      return;
+    }
+
+    console.warn(
+      chalk.yellow(
+        `Cleanup could not submit result for job ${jobId}: ${this.getErrorMessage(error)}`,
+      ),
+    );
+  }
+
   public async stop(sdk: SDK, repository: NodeRepository): Promise<void> {
-    const stopPromises: Promise<void>[] = [];
+    const stopPromises: Promise<{
+      jobId: string;
+      status: 'submitted' | 'stale' | 'retryable-error';
+      error?: unknown;
+    }>[] = [];
 
     for (const [jobId, job] of this.registry.entries()) {
       const promise = (async () => {
-        const jobExternalUtil = new JobExternalUtil(repository);
-        const result = await jobExternalUtil.resolveResult(jobId, job);
+        try {
+          const jobExternalUtil = new JobExternalUtil(repository);
+          const result = await jobExternalUtil.resolveResult(jobId, job);
 
-        const ipfsResult = await IpfsClientSingleton.pin(result as object);
-        const bytesArray = ipfsHashToSolBytesArray(ipfsResult);
+          const ipfsResult = await IpfsClientSingleton.pin(result as object);
+          const bytesArray = ipfsHashToSolBytesArray(ipfsResult);
 
-        await sdk.jobs.submitResult(
-          bytesArray,
-          this.runs.get(jobId) as Run,
-          job.market,
-        );
+          await sdk.jobs.submitResult(
+            bytesArray,
+            this.runs.get(jobId) as Run,
+            job.market,
+          );
+          this.remove(jobId);
+          return { jobId, status: 'submitted' as const };
+        } catch (error) {
+          if (this.isStaleCleanupError(error)) {
+            this.remove(jobId);
+            return { jobId, status: 'stale' as const, error };
+          }
 
-        this.runs.delete(jobId);
-        this.registry.delete(jobId);
+          return { jobId, status: 'retryable-error' as const, error };
+        }
       })();
 
       stopPromises.push(promise);
     }
 
-    try {
-      await Promise.all(stopPromises);
-    } catch (error) {
-      console.log(error);
+    const results = await Promise.all(stopPromises);
+    for (const result of results) {
+      if (result.status !== 'submitted') {
+        this.logCleanupError(result.jobId, result.error);
+      }
     }
   }
 }
