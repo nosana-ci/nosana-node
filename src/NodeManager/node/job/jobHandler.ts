@@ -89,6 +89,28 @@ export class JobHandler {
     return String(error);
   }
 
+  private formatErrorDetails(error: unknown): string {
+    if (!(error instanceof Error)) {
+      return String(error);
+    }
+
+    const details = [error.message];
+    const cause = (error as Error & { cause?: unknown }).cause;
+
+    if (cause instanceof Error) {
+      let causeDetails = cause.message;
+      const causeCode = (cause as Error & { code?: string }).code;
+      if (causeCode) {
+        causeDetails += ` [${causeCode}]`;
+      }
+      details.push(`cause: ${causeDetails}`);
+    } else if (cause !== undefined) {
+      details.push(`cause: ${String(cause)}`);
+    }
+
+    return details.join(' | ');
+  }
+
   async claim(jobAddress: string): Promise<Job> {
     try {
       const job: Job = await this.sdk.jobs.get(jobAddress);
@@ -96,7 +118,7 @@ export class JobHandler {
       this.job = job;
       return job;
     } catch (error) {
-      throw new Error(`could not start job: ${this.getErrorMessage(error)}`);
+      throw new Error(`could not start job: ${this.formatErrorDetails(error)}`);
     }
   }
 
@@ -303,8 +325,8 @@ export class JobHandler {
           this.getJobOrThrow().market.toString(),
         );
       }
-    } catch (e) {
-      throw new Error(`Failed to finish job: ${e}`);
+    } catch (error) {
+      throw new Error(`Failed to finish job: ${this.formatErrorDetails(error)}`);
     }
   }
 
