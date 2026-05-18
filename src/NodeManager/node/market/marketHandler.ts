@@ -103,43 +103,63 @@ export class MarketHandler {
 
   private logFeedbackReport(report: FeedbackReport): void {
     const targetMarketLabel = report.marketName ?? report.marketAddress;
-    const total = report.metrics.length;
 
-    let passedCount = 0;
+    const requiredMetrics = report.metrics.filter((m) => !m.isOptional);
+    const optionalMetrics = report.metrics.filter((m) => m.isOptional);
+
     let nameWidth = 24;
+    let passedRequired = 0;
     for (const metric of report.metrics) {
-      if (metric.passed) passedCount++;
       if (metric.metricKey.length > nameWidth) nameWidth = metric.metricKey.length;
     }
-    const failedCount = total - passedCount;
+    for (const metric of requiredMetrics) {
+      if (metric.passed) passedRequired++;
+    }
+    const totalRequired = requiredMetrics.length;
+    const failedRequired = totalRequired - passedRequired;
 
-    console.log("\n" + chalk.bgCyan.black.bold("  TARGET MARKET  ") + "\n");
-    console.log(`  ${chalk.bold(targetMarketLabel)}`);
-    console.log();
-
-    for (const metric of report.metrics) {
+    const printMetric = (metric: FeedbackReport["metrics"][number]) => {
       const icon = metric.passed ? chalk.green("  ✔ ") : chalk.red("  ✖ ");
-      const measuredStr = metric.measuredValue !== undefined
-        ? `  ${chalk.cyan(`measured: ${metric.measuredValue}`)}`
-        : "";
+      const measuredStr =
+        metric.measuredValue !== undefined && metric.measuredValue !== null
+          ? `  ${chalk.cyan(`measured: ${metric.measuredValue}`)}`
+          : "";
 
       console.log(icon + chalk.bold(metric.metricKey.padEnd(nameWidth)) + measuredStr);
       console.log(chalk.gray(`    rule: ${metric.ruleDescription}`));
       if (!metric.passed && metric.failureMessage) {
         console.log(chalk.yellow(`    ↳ ${metric.failureMessage}`));
       }
+    };
+
+    console.log("\n" + chalk.bgCyan.black.bold("  TARGET MARKET  ") + "\n");
+    console.log(`  ${chalk.bold(targetMarketLabel)}`);
+    console.log();
+
+    for (const metric of requiredMetrics) {
+      printMetric(metric);
+    }
+
+    if (optionalMetrics.length > 0) {
+      console.log();
+      console.log(`  ${chalk.bold.underline("Optional thresholds")}`);
+      console.log(chalk.gray(`  (do not block market access)`));
+      console.log();
+      for (const metric of optionalMetrics) {
+        printMetric(metric);
+      }
     }
 
     if (report.passed) {
       console.log(
         chalk.bgGreen.black.bold(
-          `  Node currently meets all ${total} market requirements for ${targetMarketLabel}  `,
+          `  Node currently meets all ${totalRequired} market requirements for ${targetMarketLabel}  `,
         ) + "\n",
       );
     } else {
       console.log(
         chalk.bgYellow.black.bold(
-          `  Node currently meets ${passedCount} of ${total} market requirements for ${targetMarketLabel} — ${failedCount} still need improvement  `,
+          `  Node currently meets ${passedRequired} of ${totalRequired} market requirements for ${targetMarketLabel} — ${failedRequired} still need improvement  `,
         ) + "\n",
       );
     }

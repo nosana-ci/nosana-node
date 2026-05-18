@@ -6,6 +6,7 @@ import type { operations } from "../../clients/hostManager/schema.d.ts";
 type RequestMarketResponse = operations["getNodesRequest-market"]["responses"][200]["content"]["application/json"];
 export type SubmitBenchmarkBody = operations["postBenchmarksByIdSubmit-results"]["requestBody"]["content"]["application/json"];
 type GetNodeResponse = operations["getNodesById"]["responses"][200]["content"]["application/json"];
+export type NodeMetricsResponse = operations["getNodesByIdMetrics"]["responses"][200]["content"]["application/json"];
 type RequiredResourcesResponse = operations["getMarketsByIdRequired-resources"]["responses"][200]["content"]["application/json"];
 type HeartbeatResponse = operations["postNodesHeartbeat"]["responses"][200]["content"]["application/json"];
 type RpcResponse = operations["getRpc"]["responses"][200]["content"]["application/json"];
@@ -117,6 +118,21 @@ export class HostManager {
         return null;
       }
       throw new Error(`Error getting node: ${JSON.stringify(error)}`);
+    }
+
+    return data;
+  }
+
+  public static async getNodeMetrics(address: string): Promise<NodeMetricsResponse | null> {
+    const { data, error, response } = await hostManagerClientSelector().GET("/nodes/{id}/metrics", {
+      params: { path: { id: address }, query: {} },
+    });
+
+    if (error || !data) {
+      if ((response as any)?.status === 404 || (response as any)?.status === 'NotFound') {
+        return null;
+      }
+      throw new Error(`Error getting node metrics: ${JSON.stringify(error)}`);
     }
 
     return data;

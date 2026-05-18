@@ -1,13 +1,11 @@
 import chalk from 'chalk';
 import { Client, ContainerRunArgs, JobDefinition } from "@nosana/sdk";
 
-import { HostManager, FeedbackReport } from './hostManager.js';
+import { HostManager } from './hostManager.js';
 import TaskManager, { OperationProgressStatuses } from "../task/TaskManager.js";
 import { Provider } from "../../provider/Provider.js";
 import { NodeRepository } from "../../repository/NodeRepository.js";
 import { createLoggingProxy, logEmitter } from '../../monitoring/proxy/loggingProxy.js';
-
-type ReportMetric = FeedbackReport['metrics'][number];
 
 export class Benchmark {
   constructor(
@@ -20,8 +18,8 @@ export class Benchmark {
 
   public async run(): Promise<void> {
     await this.executeBenchmark();
-    const results = await this.submitResults();
-    await this.reportResults(results);
+    await this.submitResults();
+    await this.reportResults();
   }
 
   private async executeBenchmark(): Promise<void> {
@@ -81,25 +79,34 @@ export class Benchmark {
     }
   }
 
-  private async submitResults(): Promise<ReportMetric[]> {
+  private async submitResults(): Promise<void> {
     const flowResults = this.repository.getFlow(this.benchmarkId);
     if (!flowResults) throw new Error(`Cannot find results for flow with id ${this.benchmarkId}`);
 
     this.repository.deleteflow(this.benchmarkId);
 
-    const response = await HostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
-    return response.report?.metrics ?? [];
+    await HostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
   }
 
-  private reportResults(metrics: ReportMetric[]): void {
-    const displayMetrics = metrics.filter(
-      (metric): metric is ReportMetric & { measuredValue: number | string | boolean } =>
-        metric.measuredValue !== undefined,
-    );
-    const nameWidth = displayMetrics.length > 0
-      ? Math.max(20, ...displayMetrics.map((metric) => metric.metricKey.length))
-      : 20;
-    const width = nameWidth + 20;
+  private async reportResults(): Promise<void> {
+    const address = this.sdk.solana.provider!.wallet.publicKey.toString();
+
+    let response;
+    try {
+      response = await HostManager.getNodeMetrics(address);
+    } catch (error) {
+      console.warn(chalk.yellow('Could not fetch latest measurements:'), error);
+      return;
+    }
+
+    const rawMetrics = response?.metrics as Record<string, unknown> | undefined;
+    if (!rawMetrics) return;
+
+    const flat = flattenMetrics(rawMetrics);
+    if (flat.length === 0) return;
+
+    const nameWidth = Math.max(20, ...flat.map(([key]) => key.length));
+    const width = nameWidth + 30;
 
     console.log();
     console.log('  ' + chalk.cyan('━'.repeat(width)));
@@ -107,12 +114,37 @@ export class Benchmark {
     console.log('  ' + chalk.cyan('━'.repeat(width)));
     console.log();
 
-    for (const metric of displayMetrics) {
-      const name = chalk.bold(metric.metricKey.padEnd(nameWidth));
-      const details = chalk.cyan(`measured: ${metric.measuredValue}`);
+    for (const [key, value] of flat) {
+      const name = chalk.bold(key.padEnd(nameWidth));
+      const details = chalk.cyan(`measured: ${value}`);
       console.log(`  ${chalk.cyan('•')}  ${name}  ${details}`);
     }
 
     console.log();
   }
+}
+
+function flattenMetrics(
+  obj: Record<string, unknown>,
+  prefix = '',
+): Array<[string, string]> {
+  const result: Array<[string, string]> = [];
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    if (Array.isArray(value)) {
+      value.forEach((item, i) => {
+        const indexed = `${fullKey}[${i}]`;
+        if (item && typeof item === 'object') {
+          result.push(...flattenMetrics(item as Record<string, unknown>, indexed));
+        } else {
+          result.push([indexed, String(item)]);
+        }
+      });
+    } else if (value && typeof value === 'object') {
+      result.push(...flattenMetrics(value as Record<string, unknown>, fullKey));
+    } else if (value !== null && value !== undefined) {
+      result.push([fullKey, String(value)]);
+    }
+  }
+  return result;
 }
