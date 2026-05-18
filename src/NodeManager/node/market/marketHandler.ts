@@ -149,6 +149,8 @@ export class MarketHandler {
       }
     }
 
+    console.log();
+
     if (report.passed) {
       console.log(
         chalk.bgGreen.black.bold(
