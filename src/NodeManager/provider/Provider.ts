@@ -22,6 +22,7 @@ import { s3HelperImage } from '../node/resource/definition/index.js';
 import { ResourceManager } from '../node/resource/resourceManager.js';
 import { applyLoggingProxyToClass } from '../monitoring/proxy/loggingProxy.js';
 import { promiseTimeoutWrapper } from '../utils/timeoutPromiseWrapper.js';
+import { liveAbortSignal } from '../utils/liveAbortSignal.js';
 import { ContainerOrchestrationInterface, RunContainerArgs } from './containerOrchestration/interface.js';
 import {
   generateProxies,
@@ -399,7 +400,7 @@ export class Provider {
 
       const info = await promiseTimeoutWrapper(
         container.inspect({
-          abortSignal: controller.signal,
+          abortSignal: liveAbortSignal(controller.signal),
         }),
         360,
         controller,

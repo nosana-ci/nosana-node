@@ -4,6 +4,7 @@ import { DockerContainerOrchestration } from '../docker/index.js';
 import { RunContainerArgs } from '../interface.js';
 import { createPodmanRunOptions } from './utils/createPodmanRunOptions.js';
 import { fetch, Agent, RequestInit, Response } from 'undici';
+import { liveAbortSignal } from '../../../utils/liveAbortSignal.js';
 
 export class PodmanContainerOrchestration extends DockerContainerOrchestration {
   private api: string;
@@ -42,7 +43,7 @@ export class PodmanContainerOrchestration extends DockerContainerOrchestration {
           Driver: 'bridge',
           Config: [{ Subnet: '192.168.101.0/24', Gateway: '192.168.101.1' }],
         },
-        abortSignal: controller?.signal,
+        abortSignal: liveAbortSignal(controller?.signal),
       });
     } catch (error) {
       if (error instanceof Error) {
