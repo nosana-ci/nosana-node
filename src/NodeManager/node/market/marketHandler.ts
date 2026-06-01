@@ -41,8 +41,8 @@ export class MarketHandler {
     this.inMarket = true;
   }
 
-  public async request(requestedMarket?: string): Promise<Market> {
-    const result = await HostManager.requestMarket(requestedMarket);
+  public async request(requestedMarket?: string, session?: string): Promise<Market> {
+    const result = await HostManager.requestMarket(requestedMarket, session);
 
     // Not registered - caller will handle registration and retry
     if (result.notRegistered) {
@@ -64,7 +64,9 @@ export class MarketHandler {
         this.repository,
       );
       await benchmark.run();
-      return await this.request(requestedMarket);
+      // Re-poll within the same request-market cycle, echoing the session the
+      // host issued so lifecycle metrics aren't re-requested on the retry.
+      return await this.request(requestedMarket, result.session ?? session);
     }
 
     // Sign and send SFT mint/burn transaction if provided

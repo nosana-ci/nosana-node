@@ -4241,6 +4241,7 @@ export interface operations {
         parameters: {
             query?: {
                 market?: string;
+                session?: string;
             };
             header: {
                 authorization: string;
@@ -4489,6 +4490,7 @@ export interface operations {
                         };
                         nextTestAt?: string;
                         status?: string;
+                        session?: string;
                     };
                     "multipart/form-data": {
                         benchmarkId?: string;
@@ -4724,6 +4726,7 @@ export interface operations {
                         };
                         nextTestAt?: string;
                         status?: string;
+                        session?: string;
                     };
                     "text/plain": {
                         benchmarkId?: string;
@@ -4959,6 +4962,7 @@ export interface operations {
                         };
                         nextTestAt?: string;
                         status?: string;
+                        session?: string;
                     };
                 };
             };

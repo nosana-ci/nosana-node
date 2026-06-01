@@ -20,6 +20,7 @@ export type RequestMarketResult =
     jobDefinition?: JobDefinition & { id: string };
     benchmarkId?: string;
     nextTestAt?: string;
+    session?: string;
   };
 
 export class HostManager {
@@ -37,11 +38,12 @@ export class HostManager {
     }
   }
 
-  public static async requestMarket(market?: string): Promise<RequestMarketResult> {
+  public static async requestMarket(market?: string, session?: string): Promise<RequestMarketResult> {
     const { data, error, response } = await hostManagerClientSelector().GET("/nodes/request-market", {
       params: {
         query: {
-          market
+          market,
+          session
         }
       }
     });
@@ -77,9 +79,12 @@ export class HostManager {
       };
     }
 
-    const nextTestAt = (data as { nextTestAt?: unknown }).nextTestAt;
-    if (typeof nextTestAt === "string") {
-      result.nextTestAt = nextTestAt;
+    if (data.nextTestAt) {
+      result.nextTestAt = data.nextTestAt;
+    }
+
+    if (data.session) {
+      result.session = data.session;
     }
 
     return result;
