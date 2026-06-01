@@ -1,0 +1,108 @@
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { EventEmitter } from 'events';
+
+import { enforceOperationTimeout } from '../enforceOperationTimeout.js';
+
+describe('enforceOperationTimeout', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('fires onTimeout once the op has been running for the full timeout', () => {
+    const emitter = new EventEmitter();
+    const onTimeout = vi.fn();
+
+    enforceOperationTimeout(emitter, 2, onTimeout);
+    emitter.emit('start');
+
+    // Clock starts on `start`, and the unit is seconds.
+    vi.advanceTimersByTime(1999);
+    expect(onTimeout).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not start counting until the op emits `start`', () => {
+    const emitter = new EventEmitter();
+    const onTimeout = vi.fn();
+
+    enforceOperationTimeout(emitter, 1, onTimeout);
+
+    // No `start` yet — the timer must not be armed.
+    vi.advanceTimersByTime(5000);
+    expect(onTimeout).not.toHaveBeenCalled();
+  });
+
+  it('clears the timer when the op exits before the timeout', () => {
+    const emitter = new EventEmitter();
+    const onTimeout = vi.fn();
+
+    enforceOperationTimeout(emitter, 5, onTimeout);
+    emitter.emit('start');
+    vi.advanceTimersByTime(1000);
+    emitter.emit('exit', { exitCode: 0 });
+
+    vi.advanceTimersByTime(10000);
+    expect(onTimeout).not.toHaveBeenCalled();
+  });
+
+  it('clears the timer when the op errors before the timeout', () => {
+    const emitter = new EventEmitter();
+    const onTimeout = vi.fn();
+
+    enforceOperationTimeout(emitter, 5, onTimeout);
+    emitter.emit('start');
+    emitter.emit('error', new Error('boom'));
+
+    vi.advanceTimersByTime(10000);
+    expect(onTimeout).not.toHaveBeenCalled();
+  });
+
+  it('clears the timer when the op is torn down (`end`)', () => {
+    const emitter = new EventEmitter();
+    const onTimeout = vi.fn();
+
+    enforceOperationTimeout(emitter, 5, onTimeout);
+    emitter.emit('start');
+    emitter.emit('end');
+
+    vi.advanceTimersByTime(10000);
+    expect(onTimeout).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, 0, -1])(
+    'is a no-op when the timeout is %s',
+    (timeout) => {
+      const emitter = new EventEmitter();
+      const onTimeout = vi.fn();
+
+      enforceOperationTimeout(emitter, timeout as number | undefined, onTimeout);
+      emitter.emit('start');
+
+      vi.advanceTimersByTime(60_000);
+      expect(onTimeout).not.toHaveBeenCalled();
+    },
+  );
+
+  it('re-arms (and does not duplicate) when the op starts again', () => {
+    const emitter = new EventEmitter();
+    const onTimeout = vi.fn();
+
+    enforceOperationTimeout(emitter, 2, onTimeout);
+
+    emitter.emit('start');
+    vi.advanceTimersByTime(1500); // partway through the first window
+    emitter.emit('start'); // restart resets the clock
+
+    vi.advanceTimersByTime(1999);
+    expect(onTimeout).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+  });
+});

@@ -23,6 +23,7 @@ import {
 import { stanatizeArrays } from '../globalStore/stanatizeArrays.js';
 import { logEmitter } from '../../../monitoring/proxy/loggingProxy.js';
 import type { HealthcheckPayload } from '../../../provider/types.js';
+import { enforceOperationTimeout } from './enforceOperationTimeout.js';
 
 /**
  * Executes a full lifecycle of a container-based operation using internal class state.
@@ -106,6 +107,23 @@ export async function runTaskManagerOperation(
 
   this.mainAbortController.signal.addEventListener('abort', handleMainAbort);
   this.abortControllerMap.set(op.id, abort);
+
+  /**
+   * Enforce the operation's maximum run time, if one was supplied on its
+   * execution. The clock starts when the op emits `start`; if it's still
+   * running when the timeout elapses, we abort it with EXPIRED — the same
+   * clean (non-failure) stop used for job-level expiry — and record the reason
+   * for diagnostics/auditing.
+   */
+  const opTimeoutSeconds: number | undefined = op.execution?.timeout;
+
+  enforceOperationTimeout(emitter, opTimeoutSeconds, () => {
+    this.operationStatus.set(op.id, OperationProgressStatuses.STOPPING);
+    this.repository.setOpStateDiagnosticsReason(this.job, index, {
+      reason: `Operation killed after exceeding its timeout of ${opTimeoutSeconds}s`,
+    });
+    abort.abort(StopReasons.EXPIRED);
+  });
 
   /**
    * quit the operation if the main controller is already emmited

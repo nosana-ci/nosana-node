@@ -26,6 +26,9 @@
             ]
           }
         ]
+      },
+      "execution": {
+        "timeout": 30
       }
     }
   ]
