@@ -32,7 +32,6 @@ export function enforceOperationTimeout(
   };
 
   emitter.on('start', () => {
-    // Guard against a second `start` (e.g. a restart) arming a duplicate timer.
     clear();
     handle = setTimeout(() => {
       handle = undefined;
