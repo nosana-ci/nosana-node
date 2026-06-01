@@ -45,6 +45,12 @@ export class ContainerStateManager {
         .wait({ abortSignal: this.controller.signal })
         .finally(() => {
           this.state = 'exited';
+        })
+        .catch(() => {
+          // `wait` rejects with an AbortError when the op is aborted (timeout,
+          // stop, expiry) while the container is still running. The exit is
+          // already reflected via `state` above and observed by `waitForExit`,
+          // so swallow the rejection to avoid an unhandled promise rejection.
         });
       return;
     }
