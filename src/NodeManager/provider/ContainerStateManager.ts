@@ -3,6 +3,7 @@ import { createInterface } from 'readline';
 
 import { parseBuffer } from './utils/parseBuffer.js';
 import { parseDockerStat } from './utils/parseDockerStat.js';
+import { liveAbortSignal } from '../utils/liveAbortSignal.js';
 
 import type EventEmitter from 'events';
 import type Dockerode from 'dockerode';
@@ -42,9 +43,15 @@ export class ContainerStateManager {
 
     if (!this.restartPolicy) {
       this.container
-        .wait({ abortSignal: this.controller.signal })
+        .wait({ abortSignal: liveAbortSignal(this.controller.signal) })
         .finally(() => {
           this.state = 'exited';
+        })
+        .catch(() => {
+          // `wait` rejects with an AbortError when the op is aborted (timeout,
+          // stop, expiry) while the container is still running. The exit is
+          // already reflected via `state` above and observed by `waitForExit`,
+          // so swallow the rejection to avoid an unhandled promise rejection.
         });
       return;
     }
@@ -80,6 +87,11 @@ export class ContainerStateManager {
   }
 
   private async attachLogStream() {
+    // A re-attach can be scheduled (on stream close) before an abort lands;
+    // bail if the op is already gone so we never open a stream against a
+    // container we're tearing down. Mirrors `attachStatsStream`.
+    if (this.controller.signal.aborted) return;
+
     try {
       this.currentLogStream = await this.container.logs({
         stdout: true,
@@ -87,7 +99,7 @@ export class ContainerStateManager {
         follow: true,
         timestamps: true,
         since: this.lastLogTimestamp + 1,
-        abortSignal: this.controller.signal,
+        abortSignal: liveAbortSignal(this.controller.signal),
       });
 
       this.currentLogStream.on('data', (data) => {

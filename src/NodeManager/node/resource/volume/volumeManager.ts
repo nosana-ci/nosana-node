@@ -25,6 +25,7 @@ import { convertFromBytes } from '../../utils/convertFromBytes.js';
 import { createHFArgs } from '../helpers/createHFArgs.js';
 import { createS3Args } from '../helpers/createS3Args.js';
 import { createOllamaArgs } from '../helpers/createOllamaArgs.js';
+import { liveAbortSignal } from '../../../utils/liveAbortSignal.js';
 
 export class VolumeManager {
   private fetched: boolean = false;
@@ -193,7 +194,7 @@ export class VolumeManager {
       stdout: true,
       stderr: false,
       follow: true,
-      abortSignal: controller?.signal,
+      abortSignal: liveAbortSignal(controller?.signal),
     });
 
     let start = false;
@@ -234,7 +235,7 @@ export class VolumeManager {
 
     const { StatusCode } = await container.wait({
       condition: 'not-running',
-      abortSignal: controller?.signal,
+      abortSignal: liveAbortSignal(controller?.signal),
     });
 
     // If download failed, remove volume

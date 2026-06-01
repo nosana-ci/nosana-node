@@ -22,6 +22,7 @@ import {
 import { ReturnedStatus } from '../../types.js';
 import { checkDeprecationDeadline } from './utils/deadline.js';
 import { createDockerRunOptions } from './createDockerRunOptions.js';
+import { liveAbortSignal } from '../../../utils/liveAbortSignal.js';
 
 export class DockerContainerOrchestration
   implements ContainerOrchestrationInterface {
@@ -156,7 +157,7 @@ export class DockerContainerOrchestration
     if (await this.docker.hasImage(image)) {
       await this.docker
         .getImage(image)
-        .remove({ force: true, abortSignal: controller?.signal });
+        .remove({ force: true, abortSignal: liveAbortSignal(controller?.signal) });
     }
   }
 
@@ -173,7 +174,7 @@ export class DockerContainerOrchestration
           Driver: 'default',
           Config: [{ Subnet: '192.168.101.0/24', Gateway: '192.168.101.1' }],
         },
-        abortSignal: controller?.signal,
+        abortSignal: liveAbortSignal(controller?.signal),
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -238,7 +239,7 @@ export class DockerContainerOrchestration
 
     try {
       await volume.inspect(); // This will throw if the volume doesn't exist
-      await volume.remove({ force: true, abortSignal: controller?.signal });
+      await volume.remove({ force: true, abortSignal: liveAbortSignal(controller?.signal) });
     } catch (error: any) {
       if (error.statusCode === 404) {
         // Volume doesn't exist, nothing to delete
@@ -302,7 +303,7 @@ export class DockerContainerOrchestration
 
       const container = await this.docker.createContainer({
         ...args,
-        abortSignal: controller?.signal,
+        abortSignal: liveAbortSignal(controller?.signal),
       });
       await container.start();
       if (controller) {
@@ -347,7 +348,7 @@ export class DockerContainerOrchestration
     try {
       const info = await container.inspect();
       if (info.State.Status !== 'exited')
-        await container.stop({ abortSignal: controller?.signal });
+        await container.stop({ abortSignal: liveAbortSignal(controller?.signal) });
     } catch { }
   }
 
@@ -363,12 +364,12 @@ export class DockerContainerOrchestration
     const container = await this.docker.getContainer(id);
     try {
       // Need to catch in case container is already stopped
-      await container.stop({ abortSignal: controller?.signal }).catch(() => { });
+      await container.stop({ abortSignal: liveAbortSignal(controller?.signal) }).catch(() => { });
       const info = await container.inspect();
       await container.remove({
         force: true,
         v: true,
-        abortSignal: controller?.signal,
+        abortSignal: liveAbortSignal(controller?.signal),
       });
       return info;
     } catch (error) {
