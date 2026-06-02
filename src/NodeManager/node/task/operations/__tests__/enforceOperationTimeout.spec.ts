@@ -12,14 +12,14 @@ describe('enforceOperationTimeout', () => {
     vi.useRealTimers();
   });
 
-  it('fires onTimeout once the op has been running for the full timeout', () => {
+  it('fires onTimeout once the container has been running for the full timeout', () => {
     const emitter = new EventEmitter();
     const onTimeout = vi.fn();
 
     enforceOperationTimeout(emitter, 2, onTimeout);
-    emitter.emit('start');
+    emitter.emit('container:started');
 
-    // Clock starts on `start`, and the unit is seconds.
+    // Clock starts on `container:started`, and the unit is seconds.
     vi.advanceTimersByTime(1999);
     expect(onTimeout).not.toHaveBeenCalled();
 
@@ -27,13 +27,14 @@ describe('enforceOperationTimeout', () => {
     expect(onTimeout).toHaveBeenCalledTimes(1);
   });
 
-  it('does not start counting until the op emits `start`', () => {
+  it('does not count image-pull time: `start` alone does not arm the timer', () => {
     const emitter = new EventEmitter();
     const onTimeout = vi.fn();
 
     enforceOperationTimeout(emitter, 1, onTimeout);
 
-    // No `start` yet — the timer must not be armed.
+    // `start` fires before the image pull — the timer must not arm yet.
+    emitter.emit('start');
     vi.advanceTimersByTime(5000);
     expect(onTimeout).not.toHaveBeenCalled();
   });
@@ -43,7 +44,7 @@ describe('enforceOperationTimeout', () => {
     const onTimeout = vi.fn();
 
     enforceOperationTimeout(emitter, 5, onTimeout);
-    emitter.emit('start');
+    emitter.emit('container:started');
     vi.advanceTimersByTime(1000);
     emitter.emit('exit', { exitCode: 0 });
 
@@ -56,7 +57,7 @@ describe('enforceOperationTimeout', () => {
     const onTimeout = vi.fn();
 
     enforceOperationTimeout(emitter, 5, onTimeout);
-    emitter.emit('start');
+    emitter.emit('container:started');
     emitter.emit('error', new Error('boom'));
 
     vi.advanceTimersByTime(10000);
@@ -68,7 +69,7 @@ describe('enforceOperationTimeout', () => {
     const onTimeout = vi.fn();
 
     enforceOperationTimeout(emitter, 5, onTimeout);
-    emitter.emit('start');
+    emitter.emit('container:started');
     emitter.emit('end');
 
     vi.advanceTimersByTime(10000);
@@ -82,22 +83,22 @@ describe('enforceOperationTimeout', () => {
       const onTimeout = vi.fn();
 
       enforceOperationTimeout(emitter, timeout as number | undefined, onTimeout);
-      emitter.emit('start');
+      emitter.emit('container:started');
 
       vi.advanceTimersByTime(60_000);
       expect(onTimeout).not.toHaveBeenCalled();
     },
   );
 
-  it('re-arms (and does not duplicate) when the op starts again', () => {
+  it('re-arms (and does not duplicate) when the container starts again', () => {
     const emitter = new EventEmitter();
     const onTimeout = vi.fn();
 
     enforceOperationTimeout(emitter, 2, onTimeout);
 
-    emitter.emit('start');
+    emitter.emit('container:started');
     vi.advanceTimersByTime(1500); // partway through the first window
-    emitter.emit('start'); // restart resets the clock
+    emitter.emit('container:started'); // a fresh start resets the clock
 
     vi.advanceTimersByTime(1999);
     expect(onTimeout).not.toHaveBeenCalled();

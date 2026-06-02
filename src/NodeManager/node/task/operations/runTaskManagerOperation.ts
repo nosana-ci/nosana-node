@@ -110,7 +110,8 @@ export async function runTaskManagerOperation(
 
   /**
    * Enforce the operation's maximum run time, if one was supplied on its
-   * execution. The clock starts when the op emits `start`; if it's still
+   * execution. The clock starts when the container is running (`container:started`,
+   * i.e. after the image pull), so download time isn't counted. If it's still
    * running when the timeout elapses, we abort it with EXPIRED — the same
    * clean (non-failure) stop used for job-level expiry — and record the reason
    * for diagnostics/auditing.

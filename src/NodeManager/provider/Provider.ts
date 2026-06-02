@@ -198,6 +198,10 @@ export class Provider {
           op.args.restart_policy,
         );
         await stateManager.startMonitoring();
+
+        // Reused container is already running (no pull needed) — start the
+        // op-execution timeout clock here too.
+        emitter.emit('container:started');
       } else {
         await this.containerOrchestration.pullImage(
           op.args.image,
@@ -364,6 +368,11 @@ export class Provider {
           op.args.image ?? flow.jobDefinition.global?.image!,
           createContainerOptions
         );
+
+        // The container is now running (image pull is already done). This is the
+        // point the op-execution timeout clock starts from, so pull time isn't
+        // counted against it.
+        emitter.emit('container:started');
 
         const info = await container.inspect();
 
