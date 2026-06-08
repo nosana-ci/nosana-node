@@ -1,7 +1,12 @@
+import { getSDK } from '../sdk/index.js';
+
 export class NodeNotQualifiedError extends Error {
   constructor(nextTestAt?: string) {
     const nextTestSuffix = formatNextTestSuffix(nextTestAt);
-    super(`Node does not meet the minimum requirements for any market.${nextTestSuffix} Shutting down.`);
+    const address = getSDK().solana.wallet.publicKey.toString();
+    super(
+      `Node does not meet the minimum requirements for any market.${nextTestSuffix} For a detailed breakdown of your latest benchmark results, visit https://host.nosana.com/${address}.`,
+    );
     this.name = 'NodeNotQualifiedError';
   }
 }
