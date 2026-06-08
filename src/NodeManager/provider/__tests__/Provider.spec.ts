@@ -4,6 +4,7 @@ import type { Flow, Operation } from '@nosana/sdk';
 import { isOpExposed, getExposePorts } from '@nosana/sdk';
 import { generateProxies } from '../../utils/expose-util.js';
 import EventEmitter from 'events';
+import { Readable } from 'stream';
 
 const TEST_SERVER_ADDRESS = 'test.frp.server.com';
 const TEST_SERVER_PORT = 7000;
@@ -88,10 +89,7 @@ describe('Provider', () => {
       pullImage: vi.fn().mockResolvedValue(undefined),
       runFlowContainer: vi.fn().mockResolvedValue({
         id: TEST_CONTAINER_ID,
-        logs: vi.fn().mockResolvedValue({
-          on: vi.fn(),
-          removeAllListeners: vi.fn(),
-        }),
+        logs: vi.fn().mockImplementation(async () => Readable.from([])),
         wait: vi.fn().mockResolvedValue(undefined),
         inspect: vi.fn().mockResolvedValue({ State: { ExitCode: 0 } }),
       }),
@@ -103,10 +101,7 @@ describe('Provider', () => {
       hasNetwork: vi.fn().mockResolvedValue(false),
       getContainer: vi.fn().mockReturnValue({
         id: TEST_CONTAINER_ID,
-        logs: vi.fn().mockResolvedValue({
-          on: vi.fn(),
-          removeAllListeners: vi.fn(),
-        }),
+        logs: vi.fn().mockImplementation(async () => Readable.from([])),
         wait: vi.fn().mockResolvedValue(undefined),
         inspect: vi.fn().mockResolvedValue({ State: { ExitCode: 0 } }),
       }),
