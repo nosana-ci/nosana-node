@@ -405,6 +405,11 @@ export class Provider {
         }
 
         await stateManager.waitForExit();
+
+        // `wait()` reporting the exit and the log stream finishing its final
+        // flush are independent; drain the stream before results are read off
+        // the logs so the last line (e.g. the op's result) isn't lost.
+        await stateManager.waitForLogsDrained();
       }
 
       const info = await promiseTimeoutWrapper(

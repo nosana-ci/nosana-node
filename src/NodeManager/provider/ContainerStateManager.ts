@@ -1,7 +1,7 @@
 import { Readable } from 'stream';
 import { createInterface } from 'readline';
 
-import { parseBuffer } from './utils/parseBuffer.js';
+import { parseLogFrames } from './utils/parseBuffer.js';
 import { parseDockerStat } from './utils/parseDockerStat.js';
 import { liveAbortSignal } from '../utils/liveAbortSignal.js';
 
@@ -22,6 +22,7 @@ export class ContainerStateManager {
   private state: ContainerState = 'starting';
   private exitedCheckCount: number = 0;
   private lastLogTimestamp: number = 0; // Unix timestamp in seconds from actual container logs
+  private logRemainder: Buffer = Buffer.alloc(0); // trailing partial frame between chunks
   private readonly EXITED_CHECKS_REQUIRED = 3; // Require 3 consecutive checks before confirming exit
   private currentLogStream: NodeJS.ReadableStream | null = null;
   private currentStatsStream: NodeJS.ReadableStream | null = null;
@@ -92,6 +93,10 @@ export class ContainerStateManager {
     // container we're tearing down. Mirrors `attachStatsStream`.
     if (this.controller.signal.aborted) return;
 
+    // Any partial frame buffered from a previous stream can never be completed
+    // by this freshly re-attached stream, so start clean.
+    this.logRemainder = Buffer.alloc(0);
+
     try {
       this.currentLogStream = await this.container.logs({
         stdout: true,
@@ -102,14 +107,24 @@ export class ContainerStateManager {
         abortSignal: liveAbortSignal(this.controller.signal),
       });
 
-      this.currentLogStream.on('data', (data) => {
-        const { log, type, timestamp } = parseBuffer(data);
-        if (!log) return;
-
-        this.lastLogTimestamp = Math.floor(
-          new Date(timestamp).getTime() / 1000,
+      this.currentLogStream.on('data', (data: Buffer) => {
+        // A single 'data' event can carry several multiplexed frames (Docker
+        // coalesces output, especially the final flush at container exit) and
+        // can split one frame across events. Decode every complete frame and
+        // carry any partial trailing frame over to the next chunk.
+        const { logs, rest } = parseLogFrames(
+          Buffer.concat([this.logRemainder, data]),
         );
-        this.emitter.emit('log', log, type, 'container', timestamp);
+        this.logRemainder = rest;
+
+        for (const { log, type, timestamp } of logs) {
+          if (!log) continue;
+
+          this.lastLogTimestamp = Math.floor(
+            new Date(timestamp).getTime() / 1000,
+          );
+          this.emitter.emit('log', log, type, 'container', timestamp);
+        }
       });
 
       this.currentLogStream.on('close', () => {
@@ -144,6 +159,26 @@ export class ContainerStateManager {
         }
       }, 500);
     });
+  }
+
+  /**
+   * Wait for the followed log stream to finish delivering its final buffered
+   * frames after the container has exited.
+   *
+   * `container.wait()` (which drives `waitForExit`) and the log stream are
+   * independent connections, so when `wait()` reports the exit the stream may
+   * still be flushing the last lines (e.g. an op's final result line). Reading
+   * logs or tearing the stream down at that point loses them. The stream's
+   * `close` handler nulls `currentLogStream`, and it won't re-attach once the
+   * container has exited, so a null stream means the flush is complete. Bounded
+   * so a stream that never closes can't stall completion.
+   */
+  async waitForLogsDrained(timeoutMs = 3000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (this.currentLogStream !== null) {
+      if (this.controller.signal.aborted || Date.now() >= deadline) return;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
   }
 
   stopMonitoring() {
