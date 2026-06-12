@@ -150,7 +150,7 @@ export class JobHandler {
     }
 
     if (jobDefinition.ops.some(op => op.type === "container/run" && (op.args as OperationArgsMap["container/run"]).trusted_execution_env)) {
-      if (!await this.provider.hasTrustedExecutionEnvCapability("SEV-SNP")) {
+      if (!await this.provider.hasTrustedExecutionEnvCapability()) {
         this.repository.updateflowStateError(this.jobId(), {
           status: 'validation-error',
           error: 'Node does not support Trusted Execution Environments',

@@ -10,8 +10,8 @@ export class PodmanContainerOrchestration extends DockerContainerOrchestration {
   private api: string;
   public name: string = 'podman';
 
-  constructor(server: string, gpu: string, _teeRuntime?: string) {
-    super(server, gpu);
+  constructor(server: string, gpu: string, teeRuntime?: string) {
+    super(server, gpu, teeRuntime);
     if (this.protocol === 'socket') {
       this.api = `http://localhost/v4.5.0/libpod`;
     } else {
