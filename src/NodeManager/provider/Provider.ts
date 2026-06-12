@@ -9,7 +9,6 @@ import {
   OperationType,
   Ops,
   Resource,
-  TrustedExecutionEnv,
 } from '@nosana/sdk';
 import EventEmitter from 'events';
 import Dockerode from 'dockerode';
@@ -41,8 +40,8 @@ export class Provider {
     applyLoggingProxyToClass(this);
   }
 
-  public async hasTrustedExecutionEnvCapability(required_environment: TrustedExecutionEnv): Promise<boolean> {
-    return this.containerOrchestration.teeRuntime === required_environment;
+  public async hasTrustedExecutionEnvCapability(): Promise<boolean> {
+    return this.containerOrchestration.teeRuntime !== undefined;
   }
 
   public async stopReverseProxyApi(address: string): Promise<boolean> {
@@ -325,6 +324,12 @@ export class Provider {
           volumes.push(...resourceVolumes);
         }
 
+        // The op only declares that it wants a TEE; the node's configured
+        // runtime decides how that is fulfilled.
+        const teeRuntime = op.args.trusted_execution_env
+          ? this.containerOrchestration.teeRuntime
+          : undefined;
+
         const createContainerOptions: RunContainerArgs = {
           name,
           cmd,
@@ -339,10 +344,10 @@ export class Provider {
           volumes,
           aliases,
           restart_policy: op.args.restart_policy,
-          runtime: op.args.trusted_execution_env
+          runtime: teeRuntime,
         };
 
-        if (op.args.trusted_execution_env) {
+        if (teeRuntime === 'SEV-SNP') {
           await this.containerOrchestration.pullImage("busybox");
           await this.resourceManager.images.setImage("busybox");
 
@@ -378,7 +383,7 @@ export class Provider {
 
         emitter.emit('updateOpState', { providerId: container.id });
 
-        if (!op.args.trusted_execution_env && info.NetworkSettings?.Networks["NOSANA_GATEWAY"].IPAddress) {
+        if (teeRuntime !== 'SEV-SNP' && info.NetworkSettings?.Networks["NOSANA_GATEWAY"].IPAddress) {
           emitter.emit('setContainerInternalIp', info.NetworkSettings.Networks["NOSANA_GATEWAY"].IPAddress);
         }
 

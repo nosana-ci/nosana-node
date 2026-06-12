@@ -9,13 +9,13 @@ export function selectContainerOrchestrationProvider(
   gpu: string,
   teeRuntime: string | undefined,
 ): ContainerOrchestrationInterface {
-  if (provider !== 'docker' && teeRuntime) {
+  if (provider !== 'docker' && teeRuntime === 'SEV-SNP') {
     throw new Error('Custom runtimes are only supported with the Docker provider.');
   }
 
   switch (provider) {
     case 'podman':
-      return new PodmanContainerOrchestration(url, gpu, undefined);
+      return new PodmanContainerOrchestration(url, gpu, teeRuntime);
     case 'docker':
     default:
       return new DockerContainerOrchestration(url, gpu, teeRuntime);

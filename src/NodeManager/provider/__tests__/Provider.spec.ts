@@ -127,6 +127,21 @@ describe('Provider', () => {
     );
   });
 
+  describe('hasTrustedExecutionEnvCapability', () => {
+    it('is true when the node has any TEE runtime configured', async () => {
+      mockContainerOrchestration.teeRuntime = 'SEV-GUEST';
+      expect(await provider.hasTrustedExecutionEnvCapability()).toBe(true);
+
+      mockContainerOrchestration.teeRuntime = 'SEV-SNP';
+      expect(await provider.hasTrustedExecutionEnvCapability()).toBe(true);
+    });
+
+    it('is false when no TEE runtime is configured', async () => {
+      mockContainerOrchestration.teeRuntime = undefined;
+      expect(await provider.hasTrustedExecutionEnvCapability()).toBe(false);
+    });
+  });
+
   describe('generateFrpcContainerConfig', () => {
     const baseFlow: Flow = {
       id: TEST_FLOW_ID,
@@ -477,6 +492,107 @@ describe('Provider', () => {
         );
         expect(frpcContainerCall).toBeDefined();
         expect(frpcContainerCall[0]).toBe(TEST_FRPC_IMAGE);
+      });
+    });
+
+    describe('when operation requests a TEE', () => {
+      const teeFlow: Flow = {
+        ...baseFlow,
+        jobDefinition: {
+          ...baseFlow.jobDefinition,
+          ops: [
+            {
+              id: TEST_OP_ID,
+              type: TEST_OP_TYPE,
+              args: {
+                image: TEST_OP_CONTAINER_IMAGE,
+                trusted_execution_env: 'SEV-SNP',
+              },
+            },
+          ],
+        },
+      };
+
+      const teeOp: Operation<'container/run'> = {
+        id: TEST_OP_ID,
+        type: TEST_OP_TYPE,
+        args: {
+          image: TEST_OP_CONTAINER_IMAGE,
+          trusted_execution_env: 'SEV-SNP',
+        },
+      };
+
+      beforeEach(() => {
+        (isOpExposed as any).mockReturnValue(false);
+        (getExposePorts as any).mockReturnValue([]);
+      });
+
+      const findOpContainerCall = () =>
+        mockContainerOrchestration.runFlowContainer.mock.calls.find(
+          (call: any[]) => call[0] === TEST_OP_CONTAINER_IMAGE,
+        );
+
+      const findBridgeContainerCall = () =>
+        mockContainerOrchestration.runFlowContainer.mock.calls.find(
+          (call: any[]) => call[0] === 'busybox',
+        );
+
+      it('on a SEV-SNP node, runs the op behind a bridge container with the custom runtime', async () => {
+        mockContainerOrchestration.teeRuntime = 'SEV-SNP';
+
+        await provider.taskManagerContainerRunOperation(
+          teeFlow,
+          teeOp,
+          new AbortController(),
+          new EventEmitter(),
+        );
+
+        expect(mockContainerOrchestration.pullImage).toHaveBeenCalledWith(
+          'busybox',
+        );
+        const bridgeCall = findBridgeContainerCall();
+        expect(bridgeCall[1].name).toBe(`bridge-${TEST_FLOW_ID}-0`);
+
+        const opCall = findOpContainerCall();
+        expect(opCall[1].runtime).toBe('SEV-SNP');
+        expect(opCall[1].bind_network_to_container).toBe(
+          `container:bridge-${TEST_FLOW_ID}-0`,
+        );
+        expect(opCall[1].aliases).toBeUndefined();
+      });
+
+      it('on a SEV-GUEST node, runs the op directly with the SEV-GUEST runtime', async () => {
+        mockContainerOrchestration.teeRuntime = 'SEV-GUEST';
+
+        await provider.taskManagerContainerRunOperation(
+          teeFlow,
+          teeOp,
+          new AbortController(),
+          new EventEmitter(),
+        );
+
+        expect(findBridgeContainerCall()).toBeUndefined();
+
+        const opCall = findOpContainerCall();
+        expect(opCall[1].runtime).toBe('SEV-GUEST');
+        expect(opCall[1].bind_network_to_container).toBeUndefined();
+      });
+
+      it('without a TEE request, passes no runtime even on a TEE-capable node', async () => {
+        mockContainerOrchestration.teeRuntime = 'SEV-GUEST';
+
+        await provider.taskManagerContainerRunOperation(
+          baseFlow,
+          baseOp,
+          new AbortController(),
+          new EventEmitter(),
+        );
+
+        expect(findBridgeContainerCall()).toBeUndefined();
+
+        const opCall = findOpContainerCall();
+        expect(opCall[1].runtime).toBeUndefined();
+        expect(opCall[1].bind_network_to_container).toBeUndefined();
       });
     });
 

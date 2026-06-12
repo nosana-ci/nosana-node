@@ -45,6 +45,7 @@ export function createPodmanRunOptions(
     work_dir,
     entrypoint,
     restart_policy,
+    runtime,
   } = args;
 
   const devices = gpu
@@ -56,6 +57,10 @@ export function createPodmanRunOptions(
       ]
       : gpuOption.split(',').map((id) => ({ path: `nvidia.com/gpu=${id}` }))
     : [];
+
+  if (runtime === 'SEV-GUEST') {
+    devices.push({ path: '/dev/sev-guest' });
+  }
 
   return {
     image,

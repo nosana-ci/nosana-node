@@ -82,7 +82,7 @@ export function createDockerRunOptions(
       })),
       NetworkMode: bind_network_to_container ? bind_network_to_container : 'bridge',
       DeviceRequests: devices,
-      ...(runtime === 'SEV-SNP' ? {
+      ...(runtime === 'SEV-SNP' || runtime === 'SEV-GUEST' ? {
         Devices: [
           {
             PathOnHost: '/dev/sev-guest',
@@ -92,7 +92,7 @@ export function createDockerRunOptions(
         ]
       } : {}),
       RestartPolicy: parseRestartPolicy(restart_policy),
-      ...(runtime ? { Runtime: runtime } : {}),
+      ...(runtime === 'SEV-SNP' ? { Runtime: runtime } : {}),
     },
   };
 }
