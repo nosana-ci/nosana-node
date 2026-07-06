@@ -86,81 +86,95 @@ export async function stopTaskManagerOperation(
   controller?.abort(StopReasons.STOPPED);
 
   /**
-   * Wait for the original promise tied to this operation to resolve.
-   * Even if it fails (e.g., due to abort), we silently swallow the error
-   * since the focus here is cleanup, not success.
+   * The container teardown below can take a while (graceful container stop, etc).
+   * We deliberately DO NOT await it here: this function is invoked from an HTTP
+   * handler whose response is tunneled through frp, and holding the response open
+   * for the whole teardown means frp has no live backend for that window and serves
+   * its "no backend" (503) page to the caller.
+   *
+   * The lock and the STOPPING status have already been set synchronously above, so
+   * it is safe to let the teardown — and the STOPPED-state finalization that depends
+   * on it — run in the background and return now. The caller gets an immediate
+   * acknowledgement that the stop was initiated.
    */
-  const originalPromise = this.currentGroupOperationsPromises.get(opId);
-  if (originalPromise) {
-    try {
-      await originalPromise;
-    } catch {
-      // swallow error, we're only waiting for cleanup
-    }
-  }
-
-  /**
-   * Ensure we clean up the operation's reference in the promise map
-   * to avoid holding stale references or leaking memory.
-   */
-  this.currentGroupOperationsPromises.delete(opId);
-
-  // Unlock the operation so it can be restarted or reused later
-  this.lockedOperations.delete(opId);
-
-  // Ensure final STOPPED state is reflected in memory and repository
-  this.operationStatus.set(opId, OperationProgressStatuses.STOPPED);
-  const index = this.getOpStateIndex(opId);
-  const opState = this.repository.getOpState(this.job, index);
-  const alreadyEnded = !!opState.endTime;
-  if (!alreadyEnded) {
-    this.repository.updateOpState(this.job, index, {
-      status: this.getStatus(StopReasons.STOPPED, 'ops'),
-      endTime: Date.now(),
-    });
-  }
-  this.events.emit('flow:updated', {
-    jobId: this.job,
-    opId,
-    type: 'status:stopped',
-  });
-
-  try {
-    const flow = this.repository.getFlow(this.job);
-    const secrets = flow?.state?.secrets as FlowSecrets | undefined;
-    let jobSecrets: JobExposeSecrets = {};
-    if (
-      secrets &&
-      typeof secrets[this.job] === 'object' &&
-      secrets[this.job] !== 'private' &&
-      secrets[this.job] !== 'public' &&
-      secrets[this.job]
-    ) {
-      jobSecrets = secrets[this.job] as JobExposeSecrets;
-    }
-
-    let updated = false;
-    const newJobSecrets: JobExposeSecrets = {};
-
-    for (const [exposeId, value] of Object.entries(jobSecrets)) {
-      const v = value as EndpointSecret;
-      if (v && typeof v === 'object' && v.opID === opId) {
-        newJobSecrets[exposeId] = { ...v, status: 'OFFLINE' };
-        updated = true;
-      } else {
-        newJobSecrets[exposeId] = v;
+  void (async () => {
+    /**
+     * Wait for the original promise tied to this operation to resolve.
+     * Even if it fails (e.g., due to abort), we silently swallow the error
+     * since the focus here is cleanup, not success.
+     */
+    const originalPromise = this.currentGroupOperationsPromises.get(opId);
+    if (originalPromise) {
+      try {
+        await originalPromise;
+      } catch {
+        // swallow error, we're only waiting for cleanup
       }
     }
 
-    if (updated) {
-      this.repository.updateflowStateSecret(this.job, {
-        [this.job]: newJobSecrets,
-      });
-      this.events.emit('flow:updated', {
-        jobId: this.job,
-        opId,
-        type: 'flow:secrets-updated',
+    /**
+     * Ensure we clean up the operation's reference in the promise map
+     * to avoid holding stale references or leaking memory.
+     */
+    this.currentGroupOperationsPromises.delete(opId);
+
+    // Unlock the operation so it can be restarted or reused later
+    this.lockedOperations.delete(opId);
+
+    // Ensure final STOPPED state is reflected in memory and repository
+    this.operationStatus.set(opId, OperationProgressStatuses.STOPPED);
+    const index = this.getOpStateIndex(opId);
+    const opState = this.repository.getOpState(this.job, index);
+    const alreadyEnded = !!opState.endTime;
+    if (!alreadyEnded) {
+      this.repository.updateOpState(this.job, index, {
+        status: this.getStatus(StopReasons.STOPPED, 'ops'),
+        endTime: Date.now(),
       });
     }
-  } catch {}
+    this.events.emit('flow:updated', {
+      jobId: this.job,
+      opId,
+      type: 'status:stopped',
+    });
+
+    try {
+      const flow = this.repository.getFlow(this.job);
+      const secrets = flow?.state?.secrets as FlowSecrets | undefined;
+      let jobSecrets: JobExposeSecrets = {};
+      if (
+        secrets &&
+        typeof secrets[this.job] === 'object' &&
+        secrets[this.job] !== 'private' &&
+        secrets[this.job] !== 'public' &&
+        secrets[this.job]
+      ) {
+        jobSecrets = secrets[this.job] as JobExposeSecrets;
+      }
+
+      let updated = false;
+      const newJobSecrets: JobExposeSecrets = {};
+
+      for (const [exposeId, value] of Object.entries(jobSecrets)) {
+        const v = value as EndpointSecret;
+        if (v && typeof v === 'object' && v.opID === opId) {
+          newJobSecrets[exposeId] = { ...v, status: 'OFFLINE' };
+          updated = true;
+        } else {
+          newJobSecrets[exposeId] = v;
+        }
+      }
+
+      if (updated) {
+        this.repository.updateflowStateSecret(this.job, {
+          [this.job]: newJobSecrets,
+        });
+        this.events.emit('flow:updated', {
+          jobId: this.job,
+          opId,
+          type: 'flow:secrets-updated',
+        });
+      }
+    } catch {}
+  })();
 }

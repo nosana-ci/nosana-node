@@ -40,6 +40,14 @@ export async function restartTaskManagerOperation(
     throw new Error(`OPERATION_${this.lockedOperations.get(opId)}`);
   }
 
+  /**
+   * Validate the operation exists up front, before we acquire the lock or kick
+   * off any async work. This lets the caller (HTTP handler) reject an invalid
+   * opId synchronously, and avoids leaving the operation permanently locked if
+   * the lookup were to fail later in the flow.
+   */
+  if (!this.opMap.has(opId)) throw new Error(`INVALID_OPID`);
+
   // Mark this op as "RESTARTING" so no one else touches it mid-process
   this.lockedOperations.set(opId, 'RESTARTING');
   this.operationStatus.set(opId, OperationProgressStatuses.RESTARTING);
@@ -102,50 +110,66 @@ export async function restartTaskManagerOperation(
   controller?.abort('restart');
 
   /**
-   * If the operation had already started, wait for it to finish fully (even if it failed).
-   * This avoids stomping over any still-pending teardown work.
+   * The container teardown + relaunch below can take a while (graceful container
+   * stop, image checks, etc). We deliberately DO NOT await it here: this function
+   * is invoked from an HTTP handler whose response is tunneled through frp, and
+   * holding the response open for the whole teardown means frp has no live backend
+   * for that window and serves its "no backend" (503) page to the caller.
+   *
+   * Everything that guards against races — the lock, the RESTARTING status and the
+   * group-hold placeholder — has already been put in place synchronously above, so
+   * it is safe to let the heavy lifting run in the background and return now. The
+   * caller gets an immediate acknowledgement that the restart was initiated.
    */
-  const originalPromise = this.currentGroupOperationsPromises.get(opId);
-  if (originalPromise) {
+  void (async () => {
     try {
-      await originalPromise;
-    } catch {
-      // We intentionally ignore any error here.
-      // Our goal is just to make sure the cleanup is finished, not whether it succeeded.
+      /**
+       * If the operation had already started, wait for it to finish fully (even if it
+       * failed). This avoids stomping over any still-pending teardown work.
+       */
+      const originalPromise = this.currentGroupOperationsPromises.get(opId);
+      if (originalPromise) {
+        try {
+          await originalPromise;
+        } catch {
+          // We intentionally ignore any error here.
+          // Our goal is just to make sure the cleanup is finished, not whether it succeeded.
+        }
+      }
+
+      /**
+       * Now that the original op has been stopped, we need to restart it.
+       * Get the latest flow data from storage — this could've been updated elsewhere
+       * in the meantime.
+       */
+      const flow = this.repository.getFlow(this.job);
+
+      /**
+       * Re-register the operation for execution and begin tracking it again.
+       * This effectively restarts the operation from scratch.
+       */
+      this.currentGroupOperationsPromises.set(
+        opId,
+        this.trackGroupOperationPromise(
+          opId,
+          this.setUpOperationFunc(flow, opId, []),
+        ),
+      );
+    } catch (error: any) {
+      emitter?.emit(
+        'log',
+        `Failed to restart operation: ${error?.message ?? error}`,
+        'error',
+      );
+    } finally {
+      /**
+       * Release the group hold so the group can eventually complete, and unlock the
+       * operation so other calls (like restart or stop) can act on it again. This runs
+       * regardless of whether the relaunch succeeded, so we never leave the group held
+       * or the operation permanently locked.
+       */
+      groupHold.releaseGroupOperationBlock();
+      this.lockedOperations.delete(opId);
     }
-  }
-
-  /**
-   * Now that the original op has been stopped, we need to restart it.
-   * Get the latest flow data from storage — this could’ve been updated elsewhere in the meantime.
-   */
-  const flow = this.repository.getFlow(this.job);
-
-  /**
-   * Look up the original operation details.
-   * This should always exist unless something went very wrong.
-   */
-  const op = this.opMap.get(opId);
-  if (!op) throw new Error(`INVALID_OPID`);
-
-  /**
-   * Re-register the operation for execution and begin tracking it again.
-   * This effectively restarts the operation from scratch.
-   */
-  this.currentGroupOperationsPromises.set(
-    opId,
-    this.trackGroupOperationPromise(
-      opId,
-      this.setUpOperationFunc(flow, opId, []),
-    ),
-  );
-
-  /**
-   * Now that we've re-launched the op and it's being tracked,
-   * we can safely release the group hold so the group can eventually complete.
-   */
-  groupHold.releaseGroupOperationBlock();
-
-  // Finally, unlock the operation so other calls (like restart or stop) can act on it again
-  this.lockedOperations.delete(opId);
+  })();
 }
