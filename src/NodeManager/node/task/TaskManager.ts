@@ -39,7 +39,6 @@ import {
   subscribeStats,
   unsubscribeStats,
 } from './loggers/statsManager.js';
-import { moveTaskManagerGroupOperations } from './operations/moveTaskManagerGroupOperation.js';
 import {
   setResult,
   setResults,
@@ -320,8 +319,6 @@ export default class TaskManager {
       stopTaskManagerGroupOperations.bind(this);
     this.restartTaskManagerGroupOperations =
       restartTaskManagerGroupOperations.bind(this);
-    this.moveTaskManagerGroupOperations =
-      moveTaskManagerGroupOperations.bind(this);
     this.stopAllTaskManagerOperations = stopAllTaskManagerOperations.bind(this);
 
     this.createOperationMap = createOperationMap.bind(this);
@@ -397,7 +394,6 @@ export default class TaskManager {
   ) => Promise<void>;
   public stopTaskManagerGroupOperations: (group: string) => Promise<void>;
   public restartTaskManagerGroupOperations: (group: string) => Promise<void>;
-  public moveTaskManagerGroupOperations: (group: string) => Promise<void>;
   public stopAllTaskManagerOperations: (reason: StopReason) => void;
 
   // executions methods

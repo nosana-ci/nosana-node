@@ -856,6 +856,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/nodes/kick-from-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postNodesKick-from-queue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/nodes/assign-node": {
         parameters: {
             query?: never;
@@ -5663,6 +5679,37 @@ export interface operations {
         };
     };
     "postNodesMove-market": {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    address: string | string[];
+                };
+                "multipart/form-data": {
+                    address: string | string[];
+                };
+                "text/plain": {
+                    address: string | string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "postNodesKick-from-queue": {
         parameters: {
             query?: never;
             header: {
