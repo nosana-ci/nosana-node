@@ -652,6 +652,16 @@ export default class TaskManager {
         // If status is still 'running', mark the job as successful
         this.status = this.status === 'running' ? 'success' : this.status;
 
+        // The job as a whole fails if any of its operations failed,
+        // regardless of how the flow itself ended.
+        const hasFailedOp = this.repository
+          .getFlowState(this.job)
+          .opStates.some((opState) => opState.status === Statuses.FAILED);
+
+        if (hasFailedOp) {
+          this.status = Statuses.FAILED;
+        }
+
         this.repository.updateflowState(this.job, {
           status: this.status,
           endTime: Date.now(),
