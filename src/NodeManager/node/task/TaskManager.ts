@@ -286,13 +286,13 @@ export default class TaskManager {
    */
   protected statMatchers: Map<WebSocket, (stat: TaskStat) => boolean> = new Map();
 
-  protected TOTAL_LOGS_COUNT: number = 0;
+  protected TOTAL_LOGS_COUNT = 0;
 
   /**
    * Lifecycle status of the task manager.
    * Can be 'init', 'running', 'stopped', or 'done'.
    */
-  protected status: string = 'init';
+  protected status = 'init';
 
   private currentRunningStartPromise?: Promise<void>;
 
@@ -534,7 +534,8 @@ export default class TaskManager {
    * - Sets status to 'running' and updates the repository with start time.
    * - Iterates through execution groups and runs each op concurrently.
    * - Uses a dynamic while-loop to ensure all ops (including restarts) finish before advancing.
-   * - After all groups finish, updates the flow state to 'success' or keeps previous status.
+   * - After all groups finish, sets the final flow status: 'failed' if any op
+   *   failed, 'success' otherwise (including stopped/expired jobs).
    * - On any uncaught failure, marks the flow as 'failed' with end time.
    */
   public async start() {
@@ -649,18 +650,15 @@ export default class TaskManager {
           }
         }
 
-        // If status is still 'running', mark the job as successful
-        this.status = this.status === 'running' ? 'success' : this.status;
-
-        // The job as a whole fails if any of its operations failed,
-        // regardless of how the flow itself ended.
+        // The final status only reflects the workload outcome: 'failed' if any
+        // operation failed, 'success' otherwise. How the job ended (stopped,
+        // expired) is tracked in the op statuses/diagnostics, so
+        // ops that were merely stopped don't fail the job.
         const hasFailedOp = this.repository
           .getFlowState(this.job)
           .opStates.some((opState) => opState.status === Statuses.FAILED);
 
-        if (hasFailedOp) {
-          this.status = Statuses.FAILED;
-        }
+        this.status = hasFailedOp ? Statuses.FAILED : Statuses.SUCCESS;
 
         this.repository.updateflowState(this.job, {
           status: this.status,

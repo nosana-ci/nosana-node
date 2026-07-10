@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import EventEmitter from 'events';
 import type { Flow, JobDefinition, Operation, OperationType } from '@nosana/sdk';
 
-import TaskManager from '../TaskManager.js';
+import TaskManager, { StopReasons } from '../TaskManager.js';
 import { NodeRepository } from '../../../repository/NodeRepository.js';
 import type { Provider } from '../../../provider/Provider.js';
 
@@ -94,6 +94,37 @@ function createProvider(
   } as unknown as Provider;
 }
 
+/**
+ * A provider stub for service-like ops: each op keeps running until its abort
+ * controller fires (e.g. the job is stopped or expires), then exits with the
+ * given exit code — mimicking a container killed by SIGTERM.
+ */
+function createServiceProvider(
+  exitCodes: Record<string, number> = {},
+): Provider {
+  return {
+    runTaskManagerOperation: vi.fn(
+      async (
+        _flow: Flow,
+        op: Operation<OperationType>,
+        controller: AbortController,
+        emitter: EventEmitter,
+      ) => {
+        emitter.emit('start');
+        await new Promise<void>((resolve) => {
+          if (controller.signal.aborted) return resolve();
+          controller.signal.addEventListener('abort', () => resolve(), {
+            once: true,
+          });
+        });
+        emitter.emit('exit', { exitCode: exitCodes[op.id] ?? 143 });
+        emitter.emit('end');
+      },
+    ),
+    stopTaskManagerOperation: vi.fn(async () => {}),
+  } as unknown as Provider;
+}
+
 async function runJob(
   provider: Provider,
   ops: JobDefinition['ops'],
@@ -160,6 +191,98 @@ describe('TaskManager', () => {
 
       const state = repository.getFlowState(TEST_JOB_ID);
       expect(state.opStates[0].status).toEqual('failed');
+      expect(state.status).toEqual('failed');
+    });
+
+    it('marks a stopped service job as success when no op failed', async () => {
+      const repository = createRepository();
+      const manager = new TaskManager(
+        createServiceProvider(),
+        repository,
+        TEST_JOB_ID,
+        TEST_PROJECT,
+        createJobDefinition([createRunOp('server')]),
+      );
+      manager.bootstrap();
+
+      const running = manager.start();
+      await new Promise((resolve) => setImmediate(resolve));
+      await manager.stop(StopReasons.STOPPED);
+      await running;
+
+      const state = repository.getFlowState(TEST_JOB_ID);
+      expect(state.opStates[0].status).toEqual('stopped');
+      expect(state.status).toEqual('success');
+    });
+
+    it('marks an expired service job as success when no op failed', async () => {
+      const repository = createRepository();
+      const manager = new TaskManager(
+        createServiceProvider(),
+        repository,
+        TEST_JOB_ID,
+        TEST_PROJECT,
+        createJobDefinition([createRunOp('server')]),
+      );
+      manager.bootstrap();
+
+      const running = manager.start();
+      await new Promise((resolve) => setImmediate(resolve));
+      await manager.stop(StopReasons.EXPIRED);
+      await running;
+
+      const state = repository.getFlowState(TEST_JOB_ID);
+      expect(state.opStates[0].status).toEqual('success');
+      expect(state.status).toEqual('success');
+    });
+
+    it('marks a stopped job as failed when an op had already failed', async () => {
+      const repository = createRepository();
+      const provider = {
+        runTaskManagerOperation: vi.fn(
+          async (
+            _flow: Flow,
+            op: Operation<OperationType>,
+            controller: AbortController,
+            emitter: EventEmitter,
+          ) => {
+            emitter.emit('start');
+            if (op.id === 'setup') {
+              emitter.emit('exit', { exitCode: 1 });
+            } else {
+              await new Promise<void>((resolve) => {
+                if (controller.signal.aborted) return resolve();
+                controller.signal.addEventListener('abort', () => resolve(), {
+                  once: true,
+                });
+              });
+              emitter.emit('exit', { exitCode: 143 });
+            }
+            emitter.emit('end');
+          },
+        ),
+        stopTaskManagerOperation: vi.fn(async () => {}),
+      } as unknown as Provider;
+
+      const manager = new TaskManager(
+        provider,
+        repository,
+        TEST_JOB_ID,
+        TEST_PROJECT,
+        createJobDefinition([createRunOp('setup'), createRunOp('server')]),
+      );
+      manager.bootstrap();
+
+      const running = manager.start();
+      await new Promise((resolve) => setImmediate(resolve));
+      await manager.stop(StopReasons.STOPPED);
+      await running;
+
+      const state = repository.getFlowState(TEST_JOB_ID);
+      expect(state.opStates.map((op) => op.status)).toEqual([
+        'failed',
+        'stopped',
+      ]);
       expect(state.status).toEqual('failed');
     });
   });
