@@ -11,16 +11,20 @@ import TaskManager, {
  * - Lifecycle shutdown for any running ops
  * - A consistent status applied to the flow and all ops
  *
- * The stop reason determines what status each op and the overall flow will be marked with.
+ * The stop reason determines what status each op will be marked with.
  *
- * | Reason   | Ops Status | Flow Status |
- * |----------|------------|-------------|
- * | expired  | success    | success     |
- * | stopped  | stopped    | stopped     |
- * | quit     | failed     | failed      |
- * | unknown  | failed     | failed      |
+ * | Reason   | Ops Status |
+ * |----------|------------|
+ * | expired  | success    |
+ * | stopped  | stopped    |
+ * | quit     | failed     |
+ * | unknown  | failed     |
  *
  * `getStatus()` is used internally to apply the correct status values.
+ *
+ * The flow status set here is transient: the final result status is derived
+ * from the op statuses when `start()` completes — 'failed' if any op failed,
+ * 'success' otherwise.
  */
 export function stopAllTaskManagerOperations(
   this: TaskManager,
