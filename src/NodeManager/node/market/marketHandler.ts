@@ -12,6 +12,8 @@ import { NodeRepository } from "../../repository/NodeRepository.js";
 import { MarketAccessHandler } from "./marketAccess.js";
 import { sleep } from "../../utils/utils.js";
 
+const RETEST_BUFFER_S = 60;
+
 export class MarketHandler {
   private market: Market | undefined;
   private address: PublicKey;
@@ -83,6 +85,23 @@ export class MarketHandler {
     }
 
     if (!result.market?.address) {
+      const nextTestAt = parseFutureDate(result.nextTestAt);
+
+      if (nextTestAt) {
+        const waitSeconds =
+          Math.ceil((nextTestAt.getTime() - Date.now()) / 1000) +
+          RETEST_BUFFER_S;
+
+        console.log(
+          chalk.yellow(
+            `Node does not qualify for a market yet. Next eligible retest at ${nextTestAt.toISOString()}, retrying in ~${Math.ceil(waitSeconds / 60)} minutes.`,
+          ),
+        );
+
+        await sleep(waitSeconds);
+        return await this.request(requestedMarket);
+      }
+
       throw new NodeNotQualifiedError(result.nextTestAt);
     }
 
@@ -342,6 +361,15 @@ export class MarketHandler {
     this.stopMarketQueueMonitoring();
     this.clear();
   }
+}
+
+function parseFutureDate(value?: string): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) {
+    return undefined;
+  }
+  return date;
 }
 
 function flattenMetrics(

@@ -1,8 +1,5 @@
 import 'rpc-websockets/dist/lib/client.js';
-import chalk from 'chalk';
 import NodeManager from '../../../NodeManager/index.js';
-
-const RETEST_BUFFER_S = 60;
 
 export async function startNode(
   market: string,
@@ -44,25 +41,6 @@ export async function startNode(
 
       if (error.name == 'NodeAlreadyActiveError') {
         process.exit();
-      }
-
-      if (error.name === 'NodeNotQualifiedError' && error.nextTestAt) {
-        const waitSeconds =
-          Math.ceil((error.nextTestAt.getTime() - Date.now()) / 1000) +
-          RETEST_BUFFER_S;
-
-        console.log(
-          chalk.yellow(
-            `Node will automatically retry at ${error.nextTestAt.toISOString()} (in ~${Math.ceil(waitSeconds / 60)} minutes).`,
-          ),
-        );
-
-        try {
-          await nodeManager.clean();
-        } catch (error) { }
-
-        await nodeManager.delay(waitSeconds);
-        continue;
       }
 
       if (nodeManager.inJobLoop) {
