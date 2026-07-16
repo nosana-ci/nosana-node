@@ -104,7 +104,11 @@ export class MarketHandler {
         );
 
         await sleep(waitSeconds);
-        return await this.request(requestedMarket, undefined, benchmarkRetries + 1);
+        return await this.request(
+          requestedMarket,
+          result.session ?? session,
+          benchmarkRetries + 1,
+        );
       }
 
       throw new NodeNotQualifiedError(result.nextTestAt);
