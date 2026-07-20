@@ -12,6 +12,9 @@ import { NodeRepository } from "../../repository/NodeRepository.js";
 import { MarketAccessHandler } from "./marketAccess.js";
 import { sleep } from "../../utils/utils.js";
 
+const RETEST_BUFFER_S = 60;
+const MAX_BENCHMARK_RETRIES = 3;
+
 export class MarketHandler {
   private market: Market | undefined;
   private address: PublicKey;
@@ -41,7 +44,11 @@ export class MarketHandler {
     this.inMarket = true;
   }
 
-  public async request(requestedMarket?: string, session?: string): Promise<Market> {
+  public async request(
+    requestedMarket?: string,
+    session?: string,
+    benchmarkRetries = 0,
+  ): Promise<Market> {
     const result = await HostManager.requestMarket(requestedMarket, session);
 
     // Not registered - caller will handle registration and retry
@@ -66,7 +73,7 @@ export class MarketHandler {
       await benchmark.run();
       // Re-poll within the same request-market cycle, echoing the session the
       // host issued so lifecycle metrics aren't re-requested on the retry.
-      return await this.request(requestedMarket, result.session ?? session);
+      return await this.request(requestedMarket, result.session ?? session, benchmarkRetries);
     }
 
     // Sign and send SFT mint/burn transaction if provided
@@ -83,6 +90,27 @@ export class MarketHandler {
     }
 
     if (!result.market?.address) {
+      const nextTestAt = parseFutureDate(result.nextTestAt);
+
+      if (nextTestAt && benchmarkRetries < MAX_BENCHMARK_RETRIES) {
+        const waitSeconds =
+          Math.ceil((nextTestAt.getTime() - Date.now()) / 1000) +
+          RETEST_BUFFER_S;
+
+        console.log(
+          chalk.yellow(
+            `Node does not qualify for a market yet. Next eligible retest at ${nextTestAt.toISOString()}, retrying in ~${Math.ceil(waitSeconds / 60)} minutes.`,
+          ),
+        );
+
+        await sleep(waitSeconds);
+        return await this.request(
+          requestedMarket,
+          result.session ?? session,
+          benchmarkRetries + 1,
+        );
+      }
+
       throw new NodeNotQualifiedError(result.nextTestAt);
     }
 
@@ -342,6 +370,15 @@ export class MarketHandler {
     this.stopMarketQueueMonitoring();
     this.clear();
   }
+}
+
+function parseFutureDate(value?: string): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) {
+    return undefined;
+  }
+  return date;
 }
 
 function flattenMetrics(
