@@ -1,0 +1,16 @@
+file:///s3/node_modules/@huggingface/hub/dist/index.mjs:180
+  const error = new HubApiError(response.url, response.status, response.headers.get("X-Request-Id") ?? opts?.requestId);
+                ^
+
+HubApiError: Invalid username or password.. URL: https://huggingface.co/api/models/nosana-does-not-exist/nope-404/tree/main?recursive=true&expand=false. Request ID: Root=1-6a6c3cd0-62764caa3988ea7c3dc34f90
+    at createApiError (file:///s3/node_modules/@huggingface/hub/dist/index.mjs:180:17)
+    at listFiles (file:///s3/node_modules/@huggingface/hub/dist/index.mjs:1544:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async startHuggingFace (file:///s3/src/services/hf/index.ts:26:22) {
+  statusCode: 401,
+  url: 'https://huggingface.co/api/models/nosana-does-not-exist/nope-404/tree/main?recursive=true&expand=false',
+  requestId: 'Root=1-6a6c3cd0-62764caa3988ea7c3dc34f90',
+  data: { error: 'Invalid username or password.' }
+}
+
+Node.js v22.16.0
