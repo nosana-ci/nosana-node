@@ -1,5 +1,5 @@
 import { Presets } from 'cli-progress';
-import { ContainerCreateOptions } from 'dockerode';
+import { ContainerCreateOptions, ContainerInspectInfo } from 'dockerode';
 import {
   HFResource,
   OllamaResource,
@@ -26,6 +26,45 @@ import { createHFArgs } from '../helpers/createHFArgs.js';
 import { createS3Args } from '../helpers/createS3Args.js';
 import { createOllamaArgs } from '../helpers/createOllamaArgs.js';
 import { liveAbortSignal } from '../../../utils/liveAbortSignal.js';
+
+/**
+ * Renders the runtime state that says why the download stopped, for inclusion in
+ * the error message. A process that is killed rather than failing logs nothing,
+ * so this is the only evidence of an OOM.
+ *
+ * Optional because the caller inspects on a best-effort basis; the fields
+ * themselves are always present when it succeeds.
+ */
+function describeContainerState(state?: ContainerInspectInfo['State']): string {
+  if (!state) return '';
+
+  const parts = [
+    `exitCode: ${state.ExitCode}`,
+    `OOMKilled: ${state.OOMKilled}`
+  ];
+
+  return ` [${parts.join(', ')}]`;
+}
+
+/**
+ * The reason the resource manager gave for failing, if it gave one.
+ *
+ * It reports failures as a JSON line on stderr — `{"event":"error","message":
+ * "..."}` — from every service it implements, then exits non-zero. Read the
+ * last such line, since a run may log several before giving up.
+ */
+export function findReportedError(logs: { log?: string }[]): string | undefined {
+  for (const log of logs.reverse()) {
+    if (log.log?.includes('{"event":"error"')) {
+      try {
+        const parsed = JSON.parse(log.log.slice(log.log.indexOf('{')));
+        if (typeof parsed.message === 'string') return parsed.message;
+      } catch { }
+    }
+  }
+
+  return undefined;
+}
 
 export class VolumeManager {
   private fetched: boolean = false;
@@ -256,13 +295,25 @@ export class VolumeManager {
         undefined,
       );
 
+      // Read the state before removing it: a killed process logs nothing, so
+      // the runtime's own record is the only account of why.
+      const state = await container
+        .inspect()
+        .then(({ State }) => State)
+        .catch(() => undefined);
+
       await container.remove({ force: true });
       await this.containerOrchestration.deleteVolume(volume);
 
-      const errorLog = logs.find(({ log }) => log?.startsWith('Error:'));
-      if (errorLog) {
-        throw new Error(errorLog.log?.replace('Error: ', ''));
-      }
+      // A non-zero exit is a failed download whether or not the container
+      // managed to report a reason, so this must throw either way: returning
+      // normally here reports success for a volume already deleted, and the run
+      // then fails later with the cause lost.
+      const reason =
+        findReportedError(logs) ??
+        `resource download failed (exit code ${StatusCode})`;
+
+      throw new Error(`${reason}${describeContainerState(state)}`);
     }
 
     this.progressBarReporter.stop(
