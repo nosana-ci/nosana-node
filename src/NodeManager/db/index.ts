@@ -47,6 +47,14 @@ export type ResourceHistory = {
 
 export type VolumeResource = ResourceHistory & {
   volume: string;
+  /**
+   * True from the moment the Docker volume is created until its download
+   * completes. The entry is written before the download starts so that a
+   * crash mid-download cannot orphan the volume: a pending entry is resynced
+   * when its resource is requested again, and expired like any other entry
+   * otherwise. Absent on entries written before this field existed.
+   */
+  pending?: boolean;
 };
 
 const initial_state: NodeDb = {

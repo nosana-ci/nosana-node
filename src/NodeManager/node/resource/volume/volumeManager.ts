@@ -109,7 +109,10 @@ export class VolumeManager {
 
     const savedVolumes = this.repository.getVolumesResources();
     for (const resource of this.market_required_volumes) {
-      if (!savedVolumes[createResourceName(resource)]) {
+      // A pending entry is a download that never finished — the volume exists
+      // but its contents can't be trusted, so it must be synced, not skipped.
+      const saved = savedVolumes[createResourceName(resource)];
+      if (!saved || saved.pending) {
         await this.createRemoteVolume(resource, controller);
       }
     }
@@ -130,7 +133,7 @@ export class VolumeManager {
       );
     }
 
-    let volumeName: string =
+    let volumeName: string | undefined =
       this.repository.getVolumeResource(resourceName)?.volume;
 
     let sync = true;
@@ -139,13 +142,23 @@ export class VolumeManager {
       sync = false;
       const response = await this.containerOrchestration.createVolume();
 
-      // @ts-ignore **PODMAN returns name not Name**
-      if (response.name) {
-        // @ts-ignore **PODMAN returns name not Name**
-        volumeName = response.name;
-      } else {
-        volumeName = response.Name;
-      }
+      // PODMAN returns `name`, Docker returns `Name`.
+      volumeName = (response as { name?: string }).name ?? response.Name;
+
+      // Recorded before the download starts, marked pending. Recording only
+      // after success left every crash mid-download with a full-size volume
+      // the DB had never heard of, which nothing ever swept. A pending entry
+      // is resynced when the resource is requested again and expires like any
+      // other entry if it never is.
+      this.repository.updateVolumeResource(resourceName, {
+        volume: volumeName,
+        required: this.market_required_volumes.some(
+          (vol) => createResourceName(vol) === resourceName,
+        ),
+        lastUsed: new Date(),
+        usage: 0,
+        pending: true,
+      });
     }
 
     switch (resource.type) {
@@ -249,91 +262,104 @@ export class VolumeManager {
   ): Promise<void> {
     const container = await this.containerOrchestration.runContainer(args);
 
-    const logStream = await container.logs({
-      stdout: true,
-      stderr: false,
-      follow: true,
-      abortSignal: liveAbortSignal(controller?.signal),
-    });
+    try {
+      const logStream = await container.logs({
+        stdout: true,
+        stderr: false,
+        follow: true,
+        abortSignal: liveAbortSignal(controller?.signal),
+      });
 
-    let start = false;
-    let formatSize: 'gb' | 'mb' | 'kb' = 'kb';
+      let start = false;
+      let formatSize: 'gb' | 'mb' | 'kb' = 'kb';
 
-    logStream.on('data', (logBuffer) => {
-      try {
-        const logString: string = logBuffer.toString('utf8');
-        const logJSON = JSON.parse(logString.slice(8, logString.length - 1));
+      logStream.on('data', (logBuffer) => {
+        try {
+          const logString: string = logBuffer.toString('utf8');
+          const logJSON = JSON.parse(logString.slice(8, logString.length - 1));
 
-        if (!start && logJSON.event === 'status') {
-          start = true;
-          const { value, format } = convertFromBytes(logJSON.size.total);
-          formatSize = format;
+          if (!start && logJSON.event === 'status') {
+            start = true;
+            const { value, format } = convertFromBytes(logJSON.size.total);
+            formatSize = format;
 
-          this.progressBarReporter.start(
-            `${syncing ? 'Syncing' : 'Downloading'} resource ${name}`,
-            {
-              format: `{bar} {percentage}% | {value}/{total}${format} | {valueFiles}/{totalFiles} files`,
-            },
-            value,
-            0,
-            {
-              valueFiles: 0,
-              totalFiles: logJSON.count.total,
-            },
-            Presets.shades_classic,
-          );
-        } else if (logJSON.event === 'status') {
-          const { value } = convertFromBytes(logJSON.size.current, formatSize);
+            this.progressBarReporter.start(
+              `${syncing ? 'Syncing' : 'Downloading'} resource ${name}`,
+              {
+                format: `{bar} {percentage}% | {value}/{total}${format} | {valueFiles}/{totalFiles} files`,
+              },
+              value,
+              0,
+              {
+                valueFiles: 0,
+                totalFiles: logJSON.count.total,
+              },
+              Presets.shades_classic,
+            );
+          } else if (logJSON.event === 'status') {
+            const { value } = convertFromBytes(logJSON.size.current, formatSize);
 
-          this.progressBarReporter.update(value, {
-            valueFiles: logJSON.count.current,
-          });
-        }
-      } catch (error) { }
-    });
+            this.progressBarReporter.update(value, {
+              valueFiles: logJSON.count.current,
+            });
+          }
+        } catch (error) { }
+      });
 
-    const { StatusCode } = await container.wait({
-      condition: 'not-running',
-      abortSignal: liveAbortSignal(controller?.signal),
-    });
+      const { StatusCode } = await container.wait({
+        condition: 'not-running',
+        abortSignal: liveAbortSignal(controller?.signal),
+      });
 
-    // If download failed, remove volume
-    if (StatusCode !== 0) {
+      if (StatusCode !== 0) {
+        const errrorBuffer = await container.logs({
+          follow: false,
+          stdout: false,
+          stderr: true,
+          tail: 24999,
+          timestamps: true,
+        });
+
+        const { logs } = extractLogsAndResultsFromLogBuffer(
+          errrorBuffer,
+          undefined,
+        );
+
+        // Read the state before the catch removes it: a killed process logs
+        // nothing, so the runtime's own record is the only account of why.
+        const state = await container
+          .inspect()
+          .then(({ State }) => State)
+          .catch(() => undefined);
+
+        // A non-zero exit is a failed download whether or not the container
+        // managed to report a reason, so this must throw either way: returning
+        // normally here reports success for an unfinished volume, and the run
+        // then fails later with the cause lost.
+        const reason =
+          findReportedError(logs) ??
+          `resource download failed (exit code ${StatusCode})`;
+
+        throw new Error(`${reason}${describeContainerState(state)}`);
+      }
+    } catch (error) {
       this.progressBarReporter.stop(
         `${syncing ? 'Syncing' : 'Downloading'} resource ${name} stopped`,
       );
-      const errrorBuffer = await container.logs({
-        follow: false,
-        stdout: false,
-        stderr: true,
-        tail: 24999,
-        timestamps: true,
-      });
 
-      const { logs } = extractLogsAndResultsFromLogBuffer(
-        errrorBuffer,
-        undefined,
-      );
+      // Force-removal also stops a download an abort left running.
+      await container.remove({ force: true }).catch(() => { });
 
-      // Read the state before removing it: a killed process logs nothing, so
-      // the runtime's own record is the only account of why.
-      const state = await container
-        .inspect()
-        .then(({ State }) => State)
-        .catch(() => undefined);
+      // The volume goes with the failed download, and its entry goes with the
+      // volume. If the deletion itself fails, the entry must stay: a pending
+      // entry over a leftover volume is resynced or expired later, which is
+      // the point of writing it up front.
+      try {
+        await this.containerOrchestration.deleteVolume(volume);
+        this.repository.deleteVolumeResource(name);
+      } catch { }
 
-      await container.remove({ force: true });
-      await this.containerOrchestration.deleteVolume(volume);
-
-      // A non-zero exit is a failed download whether or not the container
-      // managed to report a reason, so this must throw either way: returning
-      // normally here reports success for a volume already deleted, and the run
-      // then fails later with the cause lost.
-      const reason =
-        findReportedError(logs) ??
-        `resource download failed (exit code ${StatusCode})`;
-
-      throw new Error(`${reason}${describeContainerState(state)}`);
+      throw error;
     }
 
     this.progressBarReporter.stop(
@@ -352,6 +378,8 @@ export class VolumeManager {
       ),
       lastUsed: new Date(),
       usage: volumeObj?.usage + 1 || 1,
+      // Only a completed sync reaches here, which is what pending means.
+      pending: false,
     });
   }
 
@@ -434,7 +462,10 @@ export class VolumeManager {
       if (hoursSinceLastUsed > 24) {
         try {
           await this.containerOrchestration.deleteVolume(volume);
-          this.repository.deleteVolumeResource(volume);
+          // Keyed by resource name — `volume` is the Docker volume ID, which
+          // this map is not keyed by, so passing it left the entry behind
+          // pointing at a deleted volume.
+          this.repository.deleteVolumeResource(resource);
         } catch (err) {
           const message = (err as { json: { message: string } }).json.message;
         }
