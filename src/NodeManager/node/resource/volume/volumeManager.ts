@@ -54,7 +54,7 @@ function describeContainerState(state?: ContainerInspectInfo['State']): string {
  * last such line, since a run may log several before giving up.
  */
 export function findReportedError(logs: { log?: string }[]): string | undefined {
-  for (const log of logs.reverse()) {
+  for (const log of [...logs].reverse()) {
     if (log.log?.includes('{"event":"error"')) {
       try {
         const parsed = JSON.parse(log.log.slice(log.log.indexOf('{')));
@@ -64,6 +64,17 @@ export function findReportedError(logs: { log?: string }[]): string | undefined 
   }
 
   return undefined;
+}
+
+/**
+ * A resource rendered for an error message. Resources carry credentials (`IAM`,
+ * HF `accessToken`), and errors reach the logs and the support channel, so
+ * those fields are replaced rather than reported.
+ */
+function describeResource(resource: RequiredResource): string {
+  return JSON.stringify(resource, (key, value) =>
+    key === 'IAM' || key === 'accessToken' ? '[hidden]' : value,
+  );
 }
 
 export class VolumeManager {
@@ -109,6 +120,15 @@ export class VolumeManager {
     controller: AbortController,
   ): Promise<string> {
     const resourceName = createResourceName(resource);
+
+    // Checked before anything is allocated. Left to the download, an empty repo
+    // becomes a request for `/api/models//tree/main` and comes back as a bare
+    // 404 with nothing in it naming the resource at fault.
+    if (resource.type === 'HF' && !(resource as HFResource).repo) {
+      throw new Error(
+        `missing repo for HF resource ${describeResource(resource)}`,
+      );
+    }
 
     let volumeName: string =
       this.repository.getVolumeResource(resourceName)?.volume;
