@@ -81,8 +81,8 @@ export class Benchmark {
     const flowResults = this.repository.getFlow(this.benchmarkId);
     if (!flowResults) throw new Error(`Cannot find results for flow with id ${this.benchmarkId}`);
 
-    this.repository.deleteflow(this.benchmarkId);
-
     await HostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
+
+    this.repository.deleteflow(this.benchmarkId);
   }
 }

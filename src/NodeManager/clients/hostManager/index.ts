@@ -3,6 +3,7 @@ import createClient from 'openapi-fetch';
 import { paths } from './schema.js';
 import { getSDK } from '../../sdk/index.js';
 import { configs } from '../../configs/configs.js';
+import { retryFetch } from '../retryFetch.js';
 import { maintenanceMiddleware } from '../maintenanceMiddleware.js';
 
 import type { AuthenticatedClient } from '../types.utils.js';
@@ -18,6 +19,7 @@ export const hostManagerClientSelector = (): HostManagerClient => {
 
     instance = createClient<paths>({
       baseUrl: configs().hostManagerBaseUrl,
+      fetch: retryFetch,
       headers: {
         'Content-Type': 'application/json',
       },
