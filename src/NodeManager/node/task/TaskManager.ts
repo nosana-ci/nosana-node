@@ -758,17 +758,18 @@ export default class TaskManager {
     promise.finally(() => {
       this.currentGroupOperationsPromises.delete(opId);
 
-      for (const [nextOpId, { execution }] of this.opMap) {
-        if (
-          !this.currentGroup ||
-          !execution ||
-          !execution.depends_on ||
-          !execution.stop_if_dependent_stops
-        )
-          continue;
+      // Read from the dependency map rather than the op's own `depends_on`, so
+      // the pair can be declared from either side: the server naming what it
+      // serves, or those operations naming the server they wait for. Both
+      // produce the same dependents, and only that direction says whose ending
+      // stops the server.
+      for (const [candidateId, { execution }] of this.opMap) {
+        if (!this.currentGroup || !execution?.stop_if_dependent_stops) continue;
 
-        if (execution.depends_on.includes(opId)) {
-          this.stopTaskManagerOperation(this.currentGroup, nextOpId);
+        const dependents = this.dependecyMap.get(candidateId)?.dependents ?? [];
+
+        if (dependents.includes(opId)) {
+          this.stopTaskManagerOperation(this.currentGroup, candidateId);
         }
       }
     });
