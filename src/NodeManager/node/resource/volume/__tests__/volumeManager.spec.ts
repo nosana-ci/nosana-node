@@ -3,7 +3,9 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-import { findReportedError } from '../volumeManager.js';
+import { ContainerInspectInfo } from 'dockerode';
+
+import { describeContainerState, findReportedErrors } from '../volumeManager.js';
 import { extractLogsAndResultsFromLogBuffer } from '../../../utils/extractLogsAndResultsFromLogBuffer.js';
 
 /** Encode a single Docker multiplexed log frame (non-TTY stream format). */
@@ -23,12 +25,12 @@ const OLLAMA_ERROR =
 const PROGRESS =
   '{"event":"status","size":{"current":1024,"total":4096},"count":{"current":1,"total":9}}';
 
-describe('findReportedError', () => {
+describe('findReportedErrors', () => {
   it.each([
     ['a hugging face download', HF_ERROR, 'Failed to download model.safetensors'],
     ['an ollama manifest fetch', OLLAMA_ERROR, 'Failed to fetch manifest for model gemma4:26b'],
   ])('reads the reason the resource manager reported for %s', (_label, line, expected) => {
-    expect(findReportedError([{ log: line }])).toContain(expected);
+    expect(findReportedErrors([{ log: line }]).at(-1)).toContain(expected);
   });
 
   it('reads it through the real log decoder, header and timestamp included', () => {
@@ -39,18 +41,21 @@ describe('findReportedError', () => {
 
     const { logs } = extractLogsAndResultsFromLogBuffer(buffer, undefined);
 
-    expect(findReportedError(logs)).toContain('786432 bytes transferred');
+    expect(findReportedErrors(logs).at(-1)).toContain('786432 bytes transferred');
   });
 
   it('ignores progress lines, which share the same stream', () => {
-    expect(findReportedError([{ log: PROGRESS }])).toBeUndefined();
+    expect(findReportedErrors([{ log: PROGRESS }])).toEqual([]);
   });
 
-  it('takes the last reported error when a run logs several', () => {
+  it('collects every reported error when a run logs several, in order', () => {
     const first = '{"event":"error","message":"Failed to download a.bin - timeout"}';
     const last = '{"event":"error","message":"Failed to download b.bin - terminated"}';
 
-    expect(findReportedError([{ log: first }, { log: last }])).toContain('b.bin');
+    expect(findReportedErrors([{ log: first }, { log: last }])).toEqual([
+      'Failed to download a.bin - timeout',
+      'Failed to download b.bin - terminated',
+    ]);
   });
 
   it.each([
@@ -58,12 +63,58 @@ describe('findReportedError', () => {
     ['a container that logged nothing usable', [{ log: '' }, { log: undefined }]],
     ['plain text with no envelope', [{ log: 'downloading...' }]],
     ['a truncated envelope', [{ log: '{"event":"error","mess' }]],
-  ])('returns undefined for %s, so the caller falls back to the exit code', (_label, logs) => {
-    expect(findReportedError(logs)).toBeUndefined();
+  ])('reports nothing for %s, so the caller falls back to the exit code', (_label, logs) => {
+    expect(findReportedErrors(logs)).toEqual([]);
   });
 
   it('does not match the legacy `Error:` prefix, which the container never emits', () => {
-    expect(findReportedError([{ log: 'Error: boom' }])).toBeUndefined();
+    expect(findReportedErrors([{ log: 'Error: boom' }])).toEqual([]);
+  });
+});
+
+describe('describeContainerState', () => {
+  /** Only the fields the renderer reads, shaped like a real inspect result. */
+  const state = (
+    overrides: Partial<ContainerInspectInfo['State']> = {},
+  ): ContainerInspectInfo['State'] =>
+    ({
+      ExitCode: 1,
+      OOMKilled: false,
+      Error: '',
+      StartedAt: '2026-08-06T04:15:49.270Z',
+      FinishedAt: '2026-08-06T05:06:57.503Z',
+      ...overrides,
+    } as ContainerInspectInfo['State']);
+
+  it('reports the exit code, the OOM flag and how long the container ran', () => {
+    expect(describeContainerState(state())).toBe(
+      ' [exitCode: 1, OOMKilled: false, ran for 51m 8s]',
+    );
+  });
+
+  it('includes the runtime error for a container Docker could not start', () => {
+    const failed = state({
+      ExitCode: 128,
+      Error: 'OCI runtime create failed: no such device',
+      StartedAt: '0001-01-01T00:00:00Z',
+      FinishedAt: '0001-01-01T00:00:00Z',
+    });
+
+    expect(describeContainerState(failed)).toBe(
+      ' [exitCode: 128, OOMKilled: false, error: OCI runtime create failed: no such device]',
+    );
+  });
+
+  it('omits the duration while the container is still running', () => {
+    const running = state({ FinishedAt: '0001-01-01T00:00:00Z' });
+
+    expect(describeContainerState(running)).toBe(
+      ' [exitCode: 1, OOMKilled: false]',
+    );
+  });
+
+  it('returns nothing when the inspect itself failed', () => {
+    expect(describeContainerState(undefined)).toBe('');
   });
 });
 
@@ -74,15 +125,15 @@ describe('against real container output', () => {
       .map((log) => ({ log }));
 
   it('reads the reason a missing file is reported with', () => {
-    expect(findReportedError(load('real-envelope.txt'))).toBe(
+    expect(findReportedErrors(load('real-envelope.txt'))).toEqual([
       'Failed to download does-not-exist.bin - Failed to fetch: 404',
-    );
+    ]);
   });
 
   // The container is expected to report every failure through the envelope; a
   // crash that bypasses it leaves the caller with the exit code, rather than
   // this guessing at output it does not control.
   it('reads nothing from a crash that reported no envelope', () => {
-    expect(findReportedError(load('real-crash.txt'))).toBeUndefined();
+    expect(findReportedErrors(load('real-crash.txt'))).toEqual([]);
   });
 });

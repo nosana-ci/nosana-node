@@ -26,16 +26,22 @@ import { createHFArgs } from '../helpers/createHFArgs.js';
 import { createS3Args } from '../helpers/createS3Args.js';
 import { createOllamaArgs } from '../helpers/createOllamaArgs.js';
 import { liveAbortSignal } from '../../../utils/liveAbortSignal.js';
+import { formatTime } from '../../../utils/formatTime.js';
 
 /**
  * Renders the runtime state that says why the download stopped, for inclusion in
  * the error message. A process that is killed rather than failing logs nothing,
- * so this is the only evidence of an OOM.
+ * so this is the only evidence of an OOM; a container the runtime could not
+ * create or start logs nothing either, and `State.Error` is Docker's only
+ * account of that. The run duration separates a download that died on contact
+ * from one the network dropped an hour in.
  *
  * Optional because the caller inspects on a best-effort basis; the fields
  * themselves are always present when it succeeds.
  */
-function describeContainerState(state?: ContainerInspectInfo['State']): string {
+export function describeContainerState(
+  state?: ContainerInspectInfo['State'],
+): string {
   if (!state) return '';
 
   const parts = [
@@ -43,27 +49,44 @@ function describeContainerState(state?: ContainerInspectInfo['State']): string {
     `OOMKilled: ${state.OOMKilled}`
   ];
 
+  if (state.Error) {
+    parts.push(`error: ${state.Error}`);
+  }
+
+  const started = Date.parse(state.StartedAt);
+  const finished = Date.parse(state.FinishedAt);
+
+  // Docker reports a container that never started or never finished with the
+  // zero timestamp "0001-01-01T00:00:00Z"; a duration across one is noise.
+  if (started > 0 && finished >= started) {
+    parts.push(`ran for ${formatTime((finished - started) / 1000)}`);
+  }
+
   return ` [${parts.join(', ')}]`;
 }
 
 /**
- * The reason the resource manager gave for failing, if it gave one.
+ * The reasons the resource manager gave for failing, if it gave any.
  *
  * It reports failures as a JSON line on stderr — `{"event":"error","message":
- * "..."}` — from every service it implements, then exits non-zero. Read the
- * last such line, since a run may log several before giving up.
+ * "..."}` — from every service it implements, then exits non-zero. Parallel
+ * download workers can each report their own failure before the run dies, so
+ * every such line is collected, in the order logged; the last is the one the
+ * run gave up on.
  */
-export function findReportedError(logs: { log?: string }[]): string | undefined {
-  for (const log of [...logs].reverse()) {
+export function findReportedErrors(logs: { log?: string }[]): string[] {
+  const messages: string[] = [];
+
+  for (const log of logs) {
     if (log.log?.includes('{"event":"error"')) {
       try {
         const parsed = JSON.parse(log.log.slice(log.log.indexOf('{')));
-        if (typeof parsed.message === 'string') return parsed.message;
+        if (typeof parsed.message === 'string') messages.push(parsed.message);
       } catch { }
     }
   }
 
-  return undefined;
+  return messages;
 }
 
 /**
@@ -71,6 +94,15 @@ export function findReportedError(logs: { log?: string }[]): string | undefined 
  * HF `accessToken`), and errors reach the logs and the support channel, so
  * those fields are replaced rather than reported.
  */
+/**
+ * The op a download is running for. Passed only for job resources — a market
+ * preload has no op state to write errors to.
+ */
+export interface JobContext {
+  id: string;
+  opIndex: number;
+}
+
 function describeResource(resource: RequiredResource): string {
   return JSON.stringify(resource, (key, value) =>
     key === 'IAM' || key === 'accessToken' ? '[hidden]' : value,
@@ -121,6 +153,7 @@ export class VolumeManager {
   public async createRemoteVolume(
     resource: RequiredResource,
     controller: AbortController,
+    job?: JobContext,
   ): Promise<string> {
     const resourceName = createResourceName(resource);
 
@@ -182,6 +215,7 @@ export class VolumeManager {
               args,
               controller,
               sync,
+              job,
             );
           } else {
             for (const bucket of (s3Resource as S3WithBuckets).buckets!) {
@@ -196,6 +230,7 @@ export class VolumeManager {
                 args,
                 controller,
                 sync,
+                job,
               );
             }
           }
@@ -225,6 +260,7 @@ export class VolumeManager {
             args,
             controller,
             sync,
+            job,
           );
           this.setVolume(resourceName, volumeName);
         } catch (err) {
@@ -242,6 +278,7 @@ export class VolumeManager {
             args,
             controller,
             sync,
+            job,
           );
           this.setVolume(resourceName, volumeName);
         } catch (err) {
@@ -259,6 +296,7 @@ export class VolumeManager {
     args: ContainerCreateOptions,
     controller: AbortController,
     syncing = false,
+    job?: JobContext,
   ): Promise<void> {
     const container = await this.containerOrchestration.runContainer(args);
 
@@ -332,15 +370,32 @@ export class VolumeManager {
           .then(({ State }) => State)
           .catch(() => undefined);
 
+        const reported = findReportedErrors(logs);
+
+        // Written straight to the op state: the summary thrown below quotes
+        // only the last reported failure, and parallel download workers can
+        // each report their own before the run dies.
+        if (job) {
+          for (const message of reported) {
+            this.repository.updateOpStateError(job.id, job.opIndex, {
+              event: 'resource-error',
+              message,
+            });
+          }
+        }
+
         // A non-zero exit is a failed download whether or not the container
         // managed to report a reason, so this must throw either way: returning
         // normally here reports success for an unfinished volume, and the run
         // then fails later with the cause lost.
         const reason =
-          findReportedError(logs) ??
-          `resource download failed (exit code ${StatusCode})`;
+          reported.at(-1) ?? `no reason reported (exit code ${StatusCode})`;
 
-        throw new Error(`${reason}${describeContainerState(state)}`);
+        throw new Error(
+          `resource download failed for ${name}: ${reason}${describeContainerState(
+            state,
+          )}`,
+        );
       }
     } catch (error) {
       this.progressBarReporter.stop(

@@ -24,6 +24,15 @@ const RESOURCE = bucketsResource([
 const RESOURCE_NAME =
   'https://pub-5bc.r2.dev/SD1.5-https://pub-5bc.r2.dev/SDXL';
 
+/** Encode a stderr line as a Docker multiplexed log frame, as `logs()` returns them. */
+function frame(payload: string): Buffer {
+  const body = Buffer.from(payload, 'utf-8');
+  const header = Buffer.alloc(8);
+  header.writeUInt8(2, 0);
+  header.writeUInt32BE(body.length, 4);
+  return Buffer.concat([header, body]);
+}
+
 function makeContainer(statusCode = 0) {
   return {
     id: 'container-1',
@@ -53,6 +62,7 @@ function makeMocks(statusCode = 0) {
     deleteVolumeResource: vi.fn((key: string) => {
       delete volumes[key];
     }),
+    updateOpStateError: vi.fn(),
   } as unknown as NodeRepository;
 
   const containerOrchestration = {
@@ -159,6 +169,58 @@ describe('createRemoteVolume', () => {
         volume: 'half-downloaded',
         pending: false,
       });
+    });
+  });
+
+  describe('reported errors', () => {
+    const ERRORS = [
+      'Failed to download a.safetensors (512 of 4096 bytes written) - aborted (code: ECONNRESET)',
+      'Failed to download b.safetensors (0 of 8192 bytes written) - terminated',
+    ];
+
+    beforeEach(() => {
+      mocks = makeMocks(1);
+      const stderr = Buffer.concat(
+        ERRORS.map((message) =>
+          frame(
+            `2026-08-06T04:20:00Z ${JSON.stringify({ event: 'error', message })}\n`,
+          ),
+        ),
+      );
+      (mocks.container.logs as ReturnType<typeof vi.fn>).mockImplementation(
+        async (opts: { follow?: boolean }) =>
+          opts.follow ? new EventEmitter() : stderr,
+      );
+      manager = new VolumeManager(
+        mocks.containerOrchestration,
+        mocks.repository,
+      );
+    });
+
+    it('writes every reported error to the op state when downloading for a job', async () => {
+      await expect(
+        manager.createRemoteVolume(RESOURCE, new AbortController(), {
+          id: 'flow-1',
+          opIndex: 0,
+        }),
+      ).rejects.toThrow('resource download failed');
+
+      ERRORS.forEach((message, i) => {
+        expect(mocks.repository.updateOpStateError).toHaveBeenNthCalledWith(
+          i + 1,
+          'flow-1',
+          0,
+          { event: 'resource-error', message },
+        );
+      });
+    });
+
+    it('writes nothing for a market preload, which runs outside any job', async () => {
+      await expect(
+        manager.createRemoteVolume(RESOURCE, new AbortController()),
+      ).rejects.toThrow('resource download failed');
+
+      expect(mocks.repository.updateOpStateError).not.toHaveBeenCalled();
     });
   });
 

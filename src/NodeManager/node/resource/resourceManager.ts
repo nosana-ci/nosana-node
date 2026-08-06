@@ -6,7 +6,7 @@ import { ContainerOrchestrationInterface } from '../../provider/containerOrchest
 import { NodeRepository } from '../../repository/NodeRepository.js';
 import { createResourceName } from './helpers/createResourceName.js';
 import { ImageManager } from './image/imageManager.js';
-import { VolumeManager } from './volume/volumeManager.js';
+import { JobContext, VolumeManager } from './volume/volumeManager.js';
 
 /**
  * The market endpoint reports an HF resource's model as `url`, the field it
@@ -80,6 +80,7 @@ export class ResourceManager {
   public async getResourceVolumes(
     resources: Resource[],
     controller: AbortController,
+    job?: JobContext,
   ): Promise<
     {
       dest: string;
@@ -90,7 +91,7 @@ export class ResourceManager {
     const volumes: { dest: string; name: string; readonly?: boolean }[] = [];
 
     for (const resource of resources) {
-      await this.volumes.createRemoteVolume(resource, controller);
+      await this.volumes.createRemoteVolume(resource, controller, job);
       if ((await this.volumes.hasVolume(resource)) === false) {
         const error = new Error(
           `Missing required resource ${createResourceName(resource)}.`,

@@ -320,6 +320,7 @@ export class Provider {
           const resourceVolumes = await this.resourceManager.getResourceVolumes(
             (op.args.resources as Resource[]) ?? [],
             controller,
+            { id: flow.id, opIndex: index },
           );
           volumes.push(...resourceVolumes);
         }
