@@ -5,7 +5,11 @@ import { join } from 'path';
 
 import { ContainerInspectInfo } from 'dockerode';
 
-import { describeContainerState, findReportedErrors } from '../volumeManager.js';
+import {
+  describeContainerState,
+  describeUnreportedExit,
+  findReportedErrors,
+} from '../volumeManager.js';
 import { extractLogsAndResultsFromLogBuffer } from '../../../utils/extractLogsAndResultsFromLogBuffer.js';
 
 /** Encode a single Docker multiplexed log frame (non-TTY stream format). */
@@ -72,6 +76,28 @@ describe('findReportedErrors', () => {
   });
 });
 
+describe('describeUnreportedExit', () => {
+  it('carries the stderr tail, the only account of a crash without an envelope', () => {
+    const logs = [
+      { log: 'node:internal/errors:496' },
+      { log: '    throw error;' },
+      { log: '' },
+      { log: 'Error: EACCES: permission denied' },
+      { log: 'Node.js v22.16.0' },
+    ];
+
+    expect(describeUnreportedExit(logs, 1)).toBe(
+      'no reason reported (exit code 1); stderr tail: throw error; | Error: EACCES: permission denied | Node.js v22.16.0',
+    );
+  });
+
+  it('reports the exit code alone when the container wrote nothing at all', () => {
+    expect(describeUnreportedExit([], 1)).toBe(
+      'no reason reported (exit code 1)',
+    );
+  });
+});
+
 describe('describeContainerState', () => {
   /** Only the fields the renderer reads, shaped like a real inspect result. */
   const state = (
@@ -135,5 +161,11 @@ describe('against real container output', () => {
   // this guessing at output it does not control.
   it('reads nothing from a crash that reported no envelope', () => {
     expect(findReportedErrors(load('real-crash.txt'))).toEqual([]);
+  });
+
+  it('still surfaces such a crash through the stderr tail', () => {
+    expect(describeUnreportedExit(load('real-crash.txt'), 1)).toContain(
+      'Node.js v22.16.0',
+    );
   });
 });

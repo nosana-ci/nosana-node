@@ -90,10 +90,27 @@ export function findReportedErrors(logs: { log?: string }[]): string[] {
 }
 
 /**
- * A resource rendered for an error message. Resources carry credentials (`IAM`,
- * HF `accessToken`), and errors reach the logs and the support channel, so
- * those fields are replaced rather than reported.
+ * The fallback reason for a container that died without reporting through the
+ * envelope — a crash before the handlers install, or output lost to the kill.
+ * The raw stderr tail is the only account left of what happened, so the last
+ * few lines ride along rather than being discarded.
  */
+export function describeUnreportedExit(
+  logs: { log?: string }[],
+  statusCode: number,
+): string {
+  const tail = logs
+    .map((entry) => entry.log?.trim())
+    .filter((line): line is string => !!line)
+    .slice(-3)
+    .join(' | ')
+    .slice(-400);
+
+  return `no reason reported (exit code ${statusCode})${
+    tail ? `; stderr tail: ${tail}` : ''
+  }`;
+}
+
 /**
  * The op a download is running for. Passed only for job resources — a market
  * preload has no op state to write errors to.
@@ -103,6 +120,11 @@ export interface JobContext {
   opIndex: number;
 }
 
+/**
+ * A resource rendered for an error message. Resources carry credentials (`IAM`,
+ * HF `accessToken`), and errors reach the logs and the support channel, so
+ * those fields are replaced rather than reported.
+ */
 function describeResource(resource: RequiredResource): string {
   return JSON.stringify(resource, (key, value) =>
     key === 'IAM' || key === 'accessToken' ? '[hidden]' : value,
@@ -389,7 +411,7 @@ export class VolumeManager {
         // normally here reports success for an unfinished volume, and the run
         // then fails later with the cause lost.
         const reason =
-          reported.at(-1) ?? `no reason reported (exit code ${StatusCode})`;
+          reported.at(-1) ?? describeUnreportedExit(logs, StatusCode);
 
         throw new Error(
           `resource download failed for ${name}: ${reason}${describeContainerState(
