@@ -108,7 +108,6 @@ export interface ContainerOrchestrationInterface {
 
   getContainerByName(name: string): Promise<Container | undefined>;
   getContainersByName(names: string[]): Promise<Container[]>;
-  getContainer(id: string): Promise<Container>;
 
   runContainer(
     args: ContainerCreateOptions,

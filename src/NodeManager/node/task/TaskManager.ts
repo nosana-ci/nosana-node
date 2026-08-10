@@ -579,6 +579,15 @@ export default class TaskManager {
 
           // Queue each operation in the group for execution
           for (const id of p.ops) {
+            // Only an operation still pending has yet to run: one released by
+            // the operation it depends on runs in that operation's group, which
+            // can be earlier than this one.
+            if (
+              this.operationStatus.get(id) !== OperationProgressStatuses.PENDING
+            ) {
+              continue;
+            }
+
             const dependencyContext = this.dependecyMap.get(
               id,
             ) as DependencyContext;
