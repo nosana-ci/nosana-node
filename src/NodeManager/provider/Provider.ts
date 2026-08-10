@@ -184,10 +184,21 @@ export class Provider {
     try {
       emitter.emit('start');
       let frpcContainer;
-      let container = await this.containerOrchestration.getContainer(op.id);
 
-      const exist = await this.containerOrchestration.doesContainerExist(op.id);
-      const exited = await this.containerOrchestration.isContainerExited(op.id);
+      // A resumed flow re-runs operations that may already have a container, and
+      // the name below is the only handle on it.
+      const index = getOpStateIndex(flow.jobDefinition.ops, op.id);
+      const name = flow.id + '-' + index;
+
+      let container = await this.containerOrchestration.getContainer(name);
+
+      const exist = await this.containerOrchestration.doesContainerExist(name);
+      const exited = await this.containerOrchestration.isContainerExited(name);
+
+      // An exited container holds its name, and offers nothing to resume from.
+      if (exist && exited) {
+        await this.containerOrchestration.stopAndDeleteContainer(name);
+      }
 
       if (exist && !exited && container.id) {
         stateManager = new ContainerStateManager(
@@ -212,8 +223,6 @@ export class Provider {
           this.resourceManager.images.setImage(op.args.image);
         }
 
-        const index = getOpStateIndex(flow.jobDefinition.ops, op.id);
-        const name = flow.id + '-' + index;
         const volumes = getVolumes(op.args, flow);
         const gpu = getGpu(op.args, flow);
         const entrypoint = getEntrypoint(op.args, flow);
