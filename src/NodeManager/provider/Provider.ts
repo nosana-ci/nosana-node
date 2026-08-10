@@ -190,29 +190,16 @@ export class Provider {
       const index = getOpStateIndex(flow.jobDefinition.ops, op.id);
       const name = flow.id + '-' + index;
 
-      let container = await this.containerOrchestration.getContainer(name);
-
-      const exist = await this.containerOrchestration.doesContainerExist(name);
-      const exited = await this.containerOrchestration.isContainerExited(name);
-
-      // An exited container holds its name, and offers nothing to resume from.
-      if (exist && exited) {
-        await this.containerOrchestration.stopAndDeleteContainer(name);
+      // An operation runs the same way whether or not the flow it belongs to has
+      // already run, so whatever a previous run left behind under these names is
+      // removed rather than resumed from. The runtime refuses to create a
+      // container whose name is still taken, and all three are recreated below.
+      for (const leftover of [name, `frpc-${name}`, `bridge-${name}`]) {
+        if (await this.containerOrchestration.doesContainerExist(leftover)) {
+          await this.containerOrchestration.stopAndDeleteContainer(leftover);
+        }
       }
 
-      if (exist && !exited && container.id) {
-        stateManager = new ContainerStateManager(
-          container,
-          controller,
-          emitter,
-          op.args.restart_policy,
-        );
-        await stateManager.startMonitoring();
-
-        // Reused container is already running (no pull needed) — start the
-        // op-execution timeout clock here too.
-        emitter.emit('container:started');
-      } else {
         await this.containerOrchestration.pullImage(
           op.args.image,
           op.args.authentication?.docker,
@@ -379,7 +366,7 @@ export class Provider {
           }
         }
 
-        container = await this.containerOrchestration.runFlowContainer(
+        const container = await this.containerOrchestration.runFlowContainer(
           op.args.image ?? flow.jobDefinition.global?.image!,
           createContainerOptions
         );
@@ -389,12 +376,12 @@ export class Provider {
         // counted against it.
         emitter.emit('container:started');
 
-        const info = await container.inspect();
+        const startedInfo = await container.inspect();
 
         emitter.emit('updateOpState', { providerId: container.id });
 
-        if (teeRuntime !== 'SEV-SNP' && info.NetworkSettings?.Networks["NOSANA_GATEWAY"].IPAddress) {
-          emitter.emit('setContainerInternalIp', info.NetworkSettings.Networks["NOSANA_GATEWAY"].IPAddress);
+        if (teeRuntime !== 'SEV-SNP' && startedInfo.NetworkSettings?.Networks["NOSANA_GATEWAY"].IPAddress) {
+          emitter.emit('setContainerInternalIp', startedInfo.NetworkSettings.Networks["NOSANA_GATEWAY"].IPAddress);
         }
 
         stateManager = new ContainerStateManager(
@@ -425,7 +412,6 @@ export class Provider {
         // flush are independent; drain the stream before results are read off
         // the logs so the last line (e.g. the op's result) isn't lost.
         await stateManager.waitForLogsDrained();
-      }
 
       const info = await promiseTimeoutWrapper(
         container.inspect({

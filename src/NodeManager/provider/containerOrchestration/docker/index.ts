@@ -265,11 +265,6 @@ export class DockerContainerOrchestration
     }
   }
 
-  async getContainer(id: string): Promise<Container> {
-    const container = this.docker.getContainer(id);
-    return container;
-  }
-
   getProtocol(): string {
     return this.protocol;
   }

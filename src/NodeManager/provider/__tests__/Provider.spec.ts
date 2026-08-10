@@ -99,12 +99,6 @@ describe('Provider', () => {
       createNetwork: vi.fn().mockResolvedValue(undefined),
       deleteNetwork: vi.fn().mockResolvedValue(undefined),
       hasNetwork: vi.fn().mockResolvedValue(false),
-      getContainer: vi.fn().mockReturnValue({
-        id: TEST_CONTAINER_ID,
-        logs: vi.fn().mockImplementation(async () => Readable.from([])),
-        wait: vi.fn().mockResolvedValue(undefined),
-        inspect: vi.fn().mockResolvedValue({ State: { ExitCode: 0 } }),
-      }),
       getContainersByName: vi.fn().mockResolvedValue([]),
     };
 
