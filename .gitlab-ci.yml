@@ -78,12 +78,8 @@ npm publish prod:
   rules:
     - if: $CI_COMMIT_TAG && $CI_COMMIT_TAG != "latest"
 
-# Every tag publishes an -rc to npm, but only the manual "npm publish prod" job
-# makes a version public, so the GitHub release is gated the same way.
-# Remove `when: manual` if you'd rather announce on every tag.
 github release:
   extends: .github-release
   stage: deploy
-  rules:
-    - if: $GITHUB_REPO && $CI_COMMIT_TAG && $CI_COMMIT_TAG != "latest"
-      when: manual
+  needs:
+    - job: npm publish prod
