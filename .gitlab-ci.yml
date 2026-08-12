@@ -83,3 +83,6 @@ github release:
   stage: deploy
   needs:
     - job: npm publish prod
+  variables:
+    RELEASE_NPM_PACKAGES: auto
+    RELEASE_NPM_REQUIRED: "true"
