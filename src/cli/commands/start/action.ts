@@ -1,5 +1,10 @@
 import 'rpc-websockets/dist/lib/client.js';
 import NodeManager from '../../../NodeManager/index.js';
+import { EXIT_CODES } from '../../../exitCodes.js';
+import { validateCLIVersion } from '../../../version/index.js';
+
+/** Failures no restart resolves: the node reports them and stops. */
+const TERMINAL_ERRORS = ['NodeBannedError', 'NodeNotQualifiedError'];
 
 export async function startNode(
   market: string,
@@ -39,6 +44,8 @@ export async function startNode(
       console.error('https://nosana.com/discord');
       console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
+      // Terminal, and exits without stopping the node: the market position and
+      // run belong to the node holding this key.
       if (error.name == 'NodeAlreadyActiveError') {
         process.exit();
       }
@@ -49,11 +56,17 @@ export async function startNode(
         } catch (error) { }
 
         await nodeManager.delay(60);
+
+        // Checked here too, as `start()` is out of reach when `init()` fails.
+        await validateCLIVersion(true);
+
         continue;
       } else {
         await nodeManager.error();
         await nodeManager.stop();
-        process.exit();
+        process.exit(
+          TERMINAL_ERRORS.includes(error.name) ? 0 : EXIT_CODES.RESTART,
+        );
       }
     }
   }

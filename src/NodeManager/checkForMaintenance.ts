@@ -28,7 +28,7 @@ function displayUpcomingMaintenanceNotice(status: MaintenanceResponse): void {
   console.log("");
 }
 
-export async function checkForMaintenance() {
+export async function checkForMaintenance(inJobLoop = false) {
   const status = await getMaintenanceStatus();
   if (!status?.maintenance) {
     if (status?.startsAt || status?.expectedEndAt || status?.reason) {
@@ -46,7 +46,7 @@ export async function checkForMaintenance() {
   });
 
   while (!cleared) {
-    await validateCLIVersion();
+    await validateCLIVersion(inJobLoop);
     await Promise.race([sleep(NPM_POLL_INTERVAL_S), maintenanceFinished]);
   }
 }
