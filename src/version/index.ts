@@ -1,21 +1,27 @@
 import chalk from 'chalk';
 
 import { pkg } from '../static/index.js';
+import { EXIT_CODES } from '../exitCodes.js';
 
 function requiresNewVersion(required: string, current: string): boolean {
   return parseInt(required) > parseInt(current);
 }
 
-function exitCleanly(currentVersion: string, latestVersion: string) {
+function exitCleanly(
+  currentVersion: string,
+  latestVersion: string,
+  inJobLoop: boolean,
+) {
   console.log(
     chalk.red(
       `You are currently running Nosana CLI version ${currentVersion}. Version ${latestVersion} has been released, please update your CLI to the latest version using npm install ${pkg.name}.`,
     ),
   );
-  process.exit(129);
+  process.exit(inJobLoop ? EXIT_CODES.UPDATE_IN_JOB_LOOP : EXIT_CODES.UPDATE);
 }
 
-export async function validateCLIVersion() {
+/** @param inJobLoop the process that replaces this one stays in the job loop. */
+export async function validateCLIVersion(inJobLoop = false) {
   try {
     const [current_major, current_minor, current_patch] =
       pkg.version.split('.');
@@ -43,16 +49,16 @@ export async function validateCLIVersion() {
     if (parseInt(required_major) === parseInt(current_major)) {
       if (parseInt(required_minor) === parseInt(current_minor)) {
         if (requiresNewVersion(required_patch, current_patch)) {
-          exitCleanly(pkg.version, registryLatestVersion);
+          exitCleanly(pkg.version, registryLatestVersion, inJobLoop);
         }
       } else {
         if (requiresNewVersion(required_minor, current_minor)) {
-          exitCleanly(pkg.version, registryLatestVersion);
+          exitCleanly(pkg.version, registryLatestVersion, inJobLoop);
         }
       }
     } else {
       if (requiresNewVersion(required_major, current_major)) {
-        exitCleanly(pkg.version, registryLatestVersion);
+        exitCleanly(pkg.version, registryLatestVersion, inJobLoop);
       }
     }
   } catch (error: any) {

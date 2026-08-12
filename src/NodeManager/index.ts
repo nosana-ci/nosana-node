@@ -16,12 +16,19 @@ import { ping } from './monitoring/ping/PingHandler.js';
 import { LogMonitoringRegistry } from './monitoring/LogMonitoringRegistry.js';
 import { checkWSLStatus } from './utils/wslCheck.js';
 import { HostManager } from './node/market/hostManager.js';
+import { IN_JOB_LOOP_ENV } from '../exitCodes.js';
 
 export default class NodeManager {
   private node: BasicNode;
   private apiHandler: ApiHandler;
   private exiting = false;
-  public inJobLoop = false;
+  private apiStarted = false;
+
+  /**
+   * Seeded from the environment so the loop survives the process being
+   * replaced by an update.
+   */
+  public inJobLoop = process.env[IN_JOB_LOOP_ENV] === 'true';
 
   constructor(options: { [key: string]: any }) {
     this.node = createLoggingProxy(new BasicNode(options));
@@ -80,7 +87,7 @@ export default class NodeManager {
      * start the api of the node and register all the routes of the nodes,
      * we call this here in the init so the api survives restarts between jobs
      */
-    if (!this.inJobLoop) {
+    if (!this.apiStarted) {
       await this.apiHandler.preventMultipleApiStarts();
       await this.apiHandler.start();
 
@@ -90,6 +97,8 @@ export default class NodeManager {
        * make a call to the backend per interval to show live ness to the backend
        */
       await ping();
+
+      this.apiStarted = true;
     }
   }
 
@@ -97,7 +106,7 @@ export default class NodeManager {
     this.exiting = false;
 
     if (this.inJobLoop) {
-      await Promise.all([validateCLIVersion(), checkForMaintenance()]);
+      await Promise.all([validateCLIVersion(true), checkForMaintenance(true)]);
     }
 
     /**
