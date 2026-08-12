@@ -481,6 +481,17 @@ export async function runTaskManagerOperation(
 
     // Loop through each operation that depends on this one
     for (const id of dependent) {
+      // A dependency can report itself up more than once, and only an operation
+      // that has not started yet may be released.
+      const status = this.operationStatus.get(id);
+      if (
+        status !== OperationProgressStatuses.PENDING &&
+        status !== OperationProgressStatuses.WAITING &&
+        status !== OperationProgressStatuses.INIT
+      ) {
+        continue;
+      }
+
       const dependencyContext = this.dependecyMap.get(id) as DependencyContext;
 
       // Schedule the dependent operation to start, now that its dependency is healthy

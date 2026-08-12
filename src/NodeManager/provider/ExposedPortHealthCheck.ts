@@ -19,6 +19,15 @@ export class ExposedPortHealthCheck {
   private jobEmitter: EventEmitter;
   private intervals: Map<string, NodeJS.Timeout> = new Map();
 
+  // Every curl is bounded: an unbounded one holds the startup check open and
+  // nothing waiting on the service ever starts. The startup budget is generous
+  // because a health check can be a real request against a model that is still
+  // loading, and checks there never overlap. The continuous budget stays under
+  // the interval it runs on, where nothing serialises them.
+  private readonly connectTimeoutSeconds = 2;
+  private readonly startupMaxTimeSeconds = 60;
+  private readonly continuousMaxTimeSeconds = 20;
+
   private flowId: string;
 
   constructor(
@@ -49,9 +58,18 @@ export class ExposedPortHealthCheck {
 
   private startStartupHealthCheck(id: string, exposedPort: ExposedPort) {
     let startupCheckInterval: NodeJS.Timeout | null = null;
+    let checkInFlight = false;
 
     startupCheckInterval = setInterval(async () => {
-      const success = await this.checkPortHealth(exposedPort, true);
+      // Two checks in flight both report the service up.
+      if (checkInFlight) return;
+      checkInFlight = true;
+
+      const success = await this.checkPortHealth(exposedPort, true).finally(
+        () => {
+          checkInFlight = false;
+        },
+      );
 
       if (success == null) {
         clearInterval(startupCheckInterval!);
@@ -135,6 +153,10 @@ export class ExposedPortHealthCheck {
       return null; // Return null to indicate no check was done.
     }
 
+    const maxTimeSeconds = initialRun
+      ? this.startupMaxTimeSeconds
+      : this.continuousMaxTimeSeconds;
+
     for (const healthCheck of exposedPort.health_checks) {
       if (!initialRun && !healthCheck.continuous) {
         return null;
@@ -143,6 +165,7 @@ export class ExposedPortHealthCheck {
         const success = await this.runHttpHealthCheck(
           exposedPort.port,
           healthCheck,
+          maxTimeSeconds,
         );
         if (!success) return false;
       } else if (
@@ -152,6 +175,7 @@ export class ExposedPortHealthCheck {
         const success = await this.runWebSocketHealthCheck(
           exposedPort.port,
           healthCheck,
+          maxTimeSeconds,
         );
         if (!success) return false;
       }
@@ -163,11 +187,16 @@ export class ExposedPortHealthCheck {
   private async runHttpHealthCheck(
     port: number,
     healthCheck: HttpHealthCheck,
+    maxTimeSeconds: number,
   ): Promise<boolean> {
     const url = `http://${this.containerName}:${port}${healthCheck.path}`;
     const cmd: string[] = [
       'curl',
       '-s',
+      '--connect-timeout',
+      String(this.connectTimeoutSeconds),
+      '--max-time',
+      String(maxTimeSeconds),
       '-o',
       '/dev/null',
       '-w',
@@ -207,8 +236,18 @@ export class ExposedPortHealthCheck {
   private async runWebSocketHealthCheck(
     port: number,
     healthCheck: WebSocketHealthCheck,
+    maxTimeSeconds: number,
   ): Promise<boolean> {
-    const cmd = ['curl', '--include', '--no-buffer', `ws://localhost:${port}`];
+    const cmd = [
+      'curl',
+      '--include',
+      '--no-buffer',
+      '--connect-timeout',
+      String(this.connectTimeoutSeconds),
+      '--max-time',
+      String(maxTimeSeconds),
+      `ws://localhost:${port}`,
+    ];
 
     try {
       const output = await this.execCommand(cmd);
