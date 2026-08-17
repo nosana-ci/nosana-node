@@ -11,12 +11,11 @@ import { consoleLogging } from './monitoring/log/console/ConsoleLogger.js';
 import { validateCLIVersion } from '../version/index.js';
 import { checkForMaintenance } from './checkForMaintenance.js';
 import { configs } from './configs/configs.js';
-import { getSDK } from './sdk/index.js';
 import { ping } from './monitoring/ping/PingHandler.js';
 import { LogMonitoringRegistry } from './monitoring/LogMonitoringRegistry.js';
 import { checkWSLStatus } from './utils/wslCheck.js';
-import { HostManager } from './node/market/hostManager.js';
 import { IN_JOB_LOOP_ENV } from '../exitCodes.js';
+import { reportError } from './monitoring/reportError.js';
 
 export default class NodeManager {
   private node: BasicNode;
@@ -332,15 +331,3 @@ export default class NodeManager {
   }
 }
 
-const reportError = async (data: {
-  error_type: string;
-  error_name: string;
-  error_message: string;
-  error_stack: string;
-}) => {
-  const nosana = getSDK();
-  return HostManager.reportError({
-    address: nosana.solana.provider!.wallet.publicKey.toString(),
-    ...data,
-  });
-};

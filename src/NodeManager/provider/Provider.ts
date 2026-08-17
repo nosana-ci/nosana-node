@@ -86,18 +86,25 @@ export class Provider {
       const networks: { [key: string]: {} } = {};
       networks[networkName] = {};
 
-      this.proxyStartupAbortController = new AbortController();
+      const startup = new AbortController();
+      this.proxyStartupAbortController = startup;
 
       await this.containerOrchestration.pullImage(
         this.frpcImage,
         undefined,
-        this.proxyStartupAbortController,
+        startup,
       );
 
       this.resourceManager.images.setImage(this.frpcImage);
 
       const doesFrpcExist =
         await this.containerOrchestration.doesContainerExist(frpc_name);
+
+      // Stopped while the image was being pulled, so the proxy is not wanted:
+      // creating it now would put back what the caller has taken down.
+      if (startup.signal.aborted) {
+        throw new Error('API proxy setup was stopped');
+      }
 
       if (!doesFrpcExist) {
         await this.containerOrchestration.runFlowContainer(this.frpcImage, {
@@ -158,6 +165,13 @@ export class Provider {
             ],
           });
         }
+      }
+
+      // The runtime carries a create through to the end, so a setup stopped
+      // during one takes the container back off rather than leaving it up.
+      if (startup.signal.aborted) {
+        await this.containerOrchestration.stopAndDeleteContainer(frpc_name);
+        throw new Error('API proxy setup was stopped');
       }
     } catch (error) {
       throw error;

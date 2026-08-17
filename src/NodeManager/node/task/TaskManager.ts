@@ -57,6 +57,7 @@ import { configs } from '../../configs/configs.js';
 import { getSDK } from '../../sdk/index.js';
 import { StatsBuffer } from './loggers/StatsBuffer.js';
 import { pkg } from '../../../static/index.js';
+import { reportError } from '../../monitoring/reportError.js';
 
 export type TaskManagerOps = Array<Operation<OperationType>>;
 
@@ -799,7 +800,27 @@ export default class TaskManager {
       [StopReasons.UNKNOWN]: { ops: Statuses.FAILED, flow: Statuses.FAILED },
     };
 
-    return map[reason][type];
+    const stop = map[reason];
+
+    // A reason outside the known stops, undefined included, reads as unknown.
+    // Reported, since it means the caller lost the reason and the flow is about
+    // to be recorded as failed on the strength of that.
+    if (!stop) {
+      const description = `Unknown stop reason '${reason}', reading it as unknown.`;
+
+      console.warn(description);
+
+      void reportError({
+        error_type: 'unknownStopReason',
+        error_name: 'Error',
+        error_message: description,
+        error_stack: new Error(description).stack ?? '',
+      });
+
+      return map[StopReasons.UNKNOWN][type];
+    }
+
+    return stop[type];
   }
 
   protected getOpStateIndex(opId: string): number {

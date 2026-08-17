@@ -44,6 +44,20 @@ import {
   getJobStatsStreamRoute,
 } from './routes/index.js';
 import { NodeAlreadyActiveError } from '../../errors/NodeAlreadyActiveError.js';
+import { reportError } from '../../monitoring/reportError.js';
+import { EXIT_CODES } from '../../../exitCodes.js';
+import { TaskManagerRegistry } from '../task/TaskManagerRegistry.js';
+
+/** Rebuilds to fail before the process is replaced. */
+const MAX_PROXY_RESTART_FAILURES = 3;
+
+const API_CHECK_TIMEOUT_MS = 10 * 1000;
+
+/** Longer than the check: a slow answer means a node is there, not absent. */
+const API_TEST_TIMEOUT_MS = 60 * 1000;
+
+const API_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const API_CHECK_MIN_GAP_MS = 30 * 1000;
 
 export class ApiHandler {
   private api: Express;
@@ -51,7 +65,8 @@ export class ApiHandler {
   private server: Server | null = null;
   private wss: WebSocket.Server | null = null; // WebSocket server
   private eventEmitter = ApiEventEmitter.getInstance();
-  private apiCheckInterval: NodeJS.Timeout | null = null;
+  private apiCheckTimer: NodeJS.Timeout | null = null;
+  private failedProxyRestarts = 0;
 
   constructor(
     private sdk: SDK,
@@ -90,9 +105,16 @@ export class ApiHandler {
     }
   }
 
-  public async testApiServerOnce(server: string): Promise<boolean> {
+  public async testApiServerOnce(
+    server: string,
+    timeoutMs: number = API_TEST_TIMEOUT_MS,
+  ): Promise<boolean> {
     try {
-      const response = await fetch(`${server}`);
+      // A tunnel that is down accepts the connection and answers nothing, so
+      // without a deadline this waits minutes for the runtime's own.
+      const response = await fetch(`${server}`, {
+        signal: AbortSignal.timeout(timeoutMs),
+      });
 
       if (!response.ok) return false;
 
@@ -126,7 +148,6 @@ export class ApiHandler {
 
   private async stopApiProxy() {
     await this.provider.stopReverseProxyApi(this.address.toString());
-    this.stopApiCheck();
   }
 
   private async startWebSocketServer() {
@@ -193,16 +214,93 @@ export class ApiHandler {
   }
 
   private startApiCheck(server: string) {
-    if (!this.apiCheckInterval) {
-      this.apiCheckInterval = setInterval(async () => {
-        const isAlive = await this.testApiServerOnce(server);
-
-        if (!isAlive) {
-          console.log('API proxy is offline, restarting..');
-          await this.restartApiProxy();
-        }
-      }, 60000 * 5); // every 5 minutes
+    if (!this.apiCheckTimer) {
+      this.scheduleApiCheck(server, API_CHECK_INTERVAL_MS);
     }
+  }
+
+  /**
+   * Check the API, scheduling the next check once this one is done: a rebuild
+   * takes as long as an image pull, and two cannot both create the proxy.
+   */
+  private scheduleApiCheck(server: string, delayMs: number) {
+    this.apiCheckTimer = setTimeout(async () => {
+      const startedAt = Date.now();
+
+      try {
+        const isAlive = await this.testApiServerOnce(
+          server,
+          API_CHECK_TIMEOUT_MS,
+        );
+
+        if (isAlive) {
+          this.failedProxyRestarts = 0;
+          return;
+        }
+
+        // Stopped while this check waited, so the proxy is not wanted.
+        if (!this.apiCheckTimer) return;
+
+        console.log('API proxy is offline, restarting..');
+        await this.restartApiProxy();
+        this.failedProxyRestarts = 0;
+      } catch (error) {
+        // Nothing awaits this check, so a throw would leave unhandled.
+        const message =
+          (error as { message?: string })?.message ?? String(error);
+        const description = `Could not restart the API proxy: ${message}. The node is not reachable until it is rebuilt.`;
+
+        console.error(description);
+
+        void reportError({
+          error_type: 'apiProxyRestartFailure',
+          error_name: (error as Error)?.name ?? 'Error',
+          error_message: description,
+          error_stack: (error as Error)?.stack ?? '',
+        });
+
+        this.endNodeIfProxyIsLost(error);
+      } finally {
+        // Cleared by stopApiCheck, which is how a stopped API stays stopped.
+        // The delay is what is left of the interval, so a long rebuild does not
+        // push the next check out.
+        if (this.apiCheckTimer) {
+          this.scheduleApiCheck(
+            server,
+            Math.max(
+              API_CHECK_INTERVAL_MS - (Date.now() - startedAt),
+              API_CHECK_MIN_GAP_MS,
+            ),
+          );
+        }
+      }
+    }, delayMs);
+  }
+
+  /**
+   * End the process once the proxy counts as lost, so a fresh one can build it:
+   * nothing else in this process rebuilds it. A job in flight outranks that,
+   * since resuming a flow runs its operations again, and an unreachable registry
+   * is not something a new process fixes.
+   */
+  private endNodeIfProxyIsLost(error: unknown): void {
+    if ((error as { eventType?: string })?.eventType === 'image-pull-error') {
+      return;
+    }
+
+    this.failedProxyRestarts++;
+
+    if (this.failedProxyRestarts < MAX_PROXY_RESTART_FAILURES) return;
+
+    if (TaskManagerRegistry.getInstance().size() > 0) {
+      console.error(
+        'The API proxy could not be rebuilt, waiting for the running job to finish.',
+      );
+      return;
+    }
+
+    console.error('The API proxy could not be rebuilt, restarting the node.');
+    process.exit(EXIT_CODES.RESTART);
   }
 
   private async registerRoutes() {
@@ -269,9 +367,9 @@ export class ApiHandler {
   }
 
   private stopApiCheck() {
-    if (this.apiCheckInterval) {
-      clearInterval(this.apiCheckInterval);
-      this.apiCheckInterval = null;
+    if (this.apiCheckTimer) {
+      clearTimeout(this.apiCheckTimer);
+      this.apiCheckTimer = null;
     }
   }
 
@@ -285,6 +383,7 @@ export class ApiHandler {
   }
 
   public async stop() {
+    this.stopApiCheck();
     await this.stopApiProxy();
     this.stopServerAndWebSocket();
   }

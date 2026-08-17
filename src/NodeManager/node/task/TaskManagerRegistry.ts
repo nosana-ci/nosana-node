@@ -63,6 +63,11 @@ export class TaskManagerRegistry {
     this.registry.delete(jobId);
   }
 
+  /** Jobs with a task manager, which is to say the jobs this node is running. */
+  public size(): number {
+    return this.registry.size;
+  }
+
   public has(jobId: string): boolean {
     return this.registry.has(jobId);
   }

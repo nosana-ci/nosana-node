@@ -322,7 +322,14 @@ export class DockerContainerOrchestration
         ...createDockerRunOptions(image, args, this.gpu),
       });
 
-      await container.start();
+      try {
+        await container.start();
+      } catch (error) {
+        // A created container holds its name whether it ran or not, and nothing
+        // else can take that name until it is gone.
+        await this.stopAndDeleteContainer(container.id);
+        throw error;
+      }
 
       return container;
     } catch (error) {
