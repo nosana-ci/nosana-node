@@ -11,6 +11,7 @@ type RequiredResourcesResponse = operations["getMarketsByIdRequired-resources"][
 type HeartbeatResponse = operations["postNodesHeartbeat"]["responses"][200]["content"]["application/json"];
 type RpcResponse = operations["getRpc"]["responses"][200]["content"]["application/json"];
 type ErrorReportBody = operations["postErrorsReport"]["requestBody"]["content"]["application/json"];
+type SubmitAccessKeyTxResponse = operations["postNodesAccess-keySubmit"]["responses"][200]["content"]["application/json"];
 
 export type FeedbackReport = NonNullable<RequestMarketResponse["feedbackReport"]>;
 
@@ -75,7 +76,7 @@ export class HostManager {
     if (data.market) {
       result.market = {
         address: data.market.address,
-        sftTx: data.market.sftTx ?? undefined,
+        accessKeyTx: data.market.accessKeyTx ?? undefined,
       };
     }
 
@@ -103,14 +104,16 @@ export class HostManager {
     return data;
   }
 
-  public static async syncNodeAfterMint(address: string): Promise<void> {
-    const { error } = await hostManagerClientSelector().POST("/nodes/sync-node", {
-      body: { address },
+  public static async submitAccessKeyTx(signedTx: string): Promise<SubmitAccessKeyTxResponse> {
+    const { data, error } = await hostManagerClientSelector().POST("/nodes/access-key/submit", {
+      body: { signedTx },
     });
 
-    if (error) {
-      throw new Error(`Error syncing node after mint: ${error}`);
+    if (error || !data) {
+      throw new Error(`Error submitting access key transaction: ${JSON.stringify(error)}`);
     }
+
+    return data;
   }
 
   public static async getNode(address: string): Promise<GetNodeResponse | null> {

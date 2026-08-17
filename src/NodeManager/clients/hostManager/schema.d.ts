@@ -680,6 +680,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/nodes/access-key/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["postNodesAccess-keySubmit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/nodes/sync-node": {
         parameters: {
             query?: never;
@@ -4429,6 +4445,38 @@ export interface operations {
             };
         };
     };
+    "postNodesAccess-keySubmit": {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    signedTx: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status: "confirmed" | "failed" | "unknown";
+                        signature?: string;
+                        market?: string | null;
+                        reason?: string;
+                    };
+                };
+            };
+        };
+    };
     "postNodesSync-node": {
         parameters: {
             query?: never;
@@ -4901,7 +4949,7 @@ export interface operations {
                         };
                         market?: {
                             address: string | null;
-                            sftTx?: string;
+                            accessKeyTx?: string;
                         };
                         feedbackReport?: {
                             marketAddress: string;
@@ -5142,7 +5190,7 @@ export interface operations {
                         };
                         market?: {
                             address: string | null;
-                            sftTx?: string;
+                            accessKeyTx?: string;
                         };
                         feedbackReport?: {
                             marketAddress: string;
@@ -5383,7 +5431,7 @@ export interface operations {
                         };
                         market?: {
                             address: string | null;
-                            sftTx?: string;
+                            accessKeyTx?: string;
                         };
                         feedbackReport?: {
                             marketAddress: string;
