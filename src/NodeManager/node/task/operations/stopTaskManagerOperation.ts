@@ -125,7 +125,7 @@ export async function stopTaskManagerOperation(
     this.operationStatus.set(opId, OperationProgressStatuses.STOPPED);
     const index = this.getOpStateIndex(opId);
     const opState = this.repository.getOpState(this.job, index);
-    const alreadyEnded = !!opState.endTime;
+    const alreadyEnded = !!opState?.endTime;
     if (!alreadyEnded) {
       this.repository.updateOpState(this.job, index, {
         status: this.getStatus(StopReasons.STOPPED, 'ops'),

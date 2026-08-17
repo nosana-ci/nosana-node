@@ -273,20 +273,22 @@ export async function runTaskManagerOperation(
         ? Statuses.SUCCESS
         : Statuses.FAILED;
 
-    const opState = this.repository.getOpState(this.job, index);
+    // Empty once the flow is gone, so results are still passed to whatever
+    // depends on this operation.
+    const logs = this.repository.getOpState(this.job, index)?.logs ?? [];
 
     const results: {} | undefined = op.results
       ? createResultsObject(op.results)
       : undefined;
 
     if (results && op.results) {
-      for (const logObj of opState.logs) {
+      for (const logObj of logs) {
         extractResultFromLog(results, logObj, op.results);
       }
     }
 
     this.repository.updateOpState(this.job, index, {
-      logs: opState.logs,
+      logs,
       results,
       exitCode,
       endTime: Date.now(),
@@ -336,14 +338,16 @@ export async function runTaskManagerOperation(
       emitter.emit('log', 'Operation Completed', 'info');
     }
 
-    const opState = this.repository.getOpState(this.job, index);
+    // Empty once the flow is gone, so results are still passed to whatever
+    // depends on this operation.
+    const logs = this.repository.getOpState(this.job, index)?.logs ?? [];
 
     const results: {} | undefined = op.results
       ? createResultsObject(op.results)
       : undefined;
 
     if (results && op.results) {
-      for (const logObj of opState.logs) {
+      for (const logObj of logs) {
         extractResultFromLog(results, logObj, op.results);
       }
     }
@@ -372,7 +376,7 @@ export async function runTaskManagerOperation(
 
     this.repository.updateOpState(this.job, index, {
       results,
-      logs: opState.logs,
+      logs,
       exitCode: 2,
       status,
       endTime: Date.now(),

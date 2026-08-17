@@ -83,10 +83,13 @@ export class PodmanContainerOrchestration extends DockerContainerOrchestration {
             const container = this.docker.getContainer(createResult.Id);
             return container;
           } else {
-            throw new Error(
-              'Cannot start container: ' +
-              ((await start.json()) as any).message,
-            );
+            const message = ((await start.json()) as any).message;
+
+            // A created container holds its name whether it ran or not, and
+            // nothing else can take that name until it is gone.
+            await this.stopAndDeleteContainer(createResult.Id);
+
+            throw new Error('Cannot start container: ' + message);
           }
         }
 
