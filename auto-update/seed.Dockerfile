@@ -3,15 +3,16 @@
 # the coming release's update cycle without publishing anything.
 # seed.compose.yml builds and runs it; by hand, from the repository root:
 #
-#   docker build -f auto-update/seed.Dockerfile --build-arg DIST_TAG=next \
-#     -t nosana-auto-update-seed .
+#   docker build -f auto-update/seed.Dockerfile -t nosana-auto-update-seed .
 #   docker run --rm \
 #     --volume /root/.nosana/:/root/.nosana/ \
 #     --volume /var/run/docker.sock:/var/run/docker.sock \
 #     nosana-auto-update-seed start --network devnet
 #
 # The version on npm is installed first (or NOSANA_NODE_INITIAL_VERSION, when
-# set), from the registry unless packed too; any version the wrapper installs
+# set), from the registry unless packed too, and its successor is packed:
+# 1.1.49 and 1.1.50 with 1.1.49 on `latest`, or with --build-arg DIST_TAG=next
+# 1.1.50-rc and 1.1.51-rc with 1.1.50-rc on `next`. Any version the wrapper installs
 # comes from here when packed and from the registry when not. seed.hijack.mjs,
 # preloaded into the node, has its registry lookup report the packed versions
 # as released, so the one after npm's is asked for like any other. The node
