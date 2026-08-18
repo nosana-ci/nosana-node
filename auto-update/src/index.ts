@@ -1,19 +1,25 @@
 import chalk from 'chalk';
 import { exec, spawn } from 'child_process';
+import { existsSync } from 'fs';
 import ora from 'ora';
+import path from 'path';
 
 type SpawnParameters = Parameters<typeof spawn>;
 
 /**
- * Codes the node uses to ask for another process; any other code ends this
- * wrapper too. Keep in sync with `src/exitCodes.ts`.
+ * How the node asks for another process. Keep in sync with `src/exitCodes.ts`.
+ *
+ * The node exits with RESPAWN_EXIT_CODE and, when it is new enough, first
+ * sends an `ExitRequest` over IPC saying what it wants. The message wins when
+ * there is one; without one (an older node, or a type this wrapper does not
+ * know) the exit counts as an update, which is what every wrapper has always
+ * done with this code. Any other code ends this wrapper too.
  */
-const UPDATE_EXIT_CODE = 129;
-const UPDATE_IN_JOB_LOOP_EXIT_CODE = 76;
-const RESTART_EXIT_CODE = 75;
+type ExitRequest =
+  | { type: 'update'; inJobLoop: boolean; requestedVersion?: string }
+  | { type: 'restart'; inJobLoop: boolean };
 
-const UPDATE_CODES = [UPDATE_EXIT_CODE, UPDATE_IN_JOB_LOOP_EXIT_CODE];
-const RESPAWN_CODES = [...UPDATE_CODES, RESTART_EXIT_CODE];
+const RESPAWN_EXIT_CODE = 129;
 
 /** Handed to the node replacing one that was in the job loop. */
 const IN_JOB_LOOP_ENV = 'NOSANA_NODE_IN_JOB_LOOP';
@@ -24,76 +30,135 @@ const RESTART_DELAY_S = 60;
 const sleep = (seconds: number) =>
   new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
-async function installNosanaCLI(version?: string) {
-  return new Promise((resolve) =>
-    exec(`npm install -g @nosana/node${version ? '@' + version : ''}`, () => {
-      resolve(true);
-    }),
+/**
+ * A directory of `nosana-node-<version>.tgz` files that stand in for the
+ * registry for those versions, so a build that was never published can be
+ * installed. See seed.Dockerfile.
+ */
+const TARBALL_DIR = process.env.NOSANA_NODE_TARBALL_DIR;
+
+/** The tarball for the version when there is one, else the registry. */
+function packageSpec(version?: string) {
+  if (TARBALL_DIR && version) {
+    const tarball = path.join(TARBALL_DIR, `nosana-node-${version}.tgz`);
+    if (existsSync(tarball)) return tarball;
+  }
+  return `@nosana/node${version ? '@' + version : ''}`;
+}
+
+/** @param version latest when omitted. */
+async function installNosanaCLI(action: string, version?: string) {
+  const spec = packageSpec(version);
+  const spinner = ora(chalk.cyan(`${action} ${spec}`)).start();
+  await new Promise((resolve) =>
+    exec(`npm install -g ${spec}`, () => resolve(true)),
   );
+  spinner.succeed();
 }
 
 async function nosanaCLIRunner() {
-  let errorCode: number | undefined;
   const version: string | undefined = process.env.NOSANA_NODE_VERSION;
-  const spinner = ora(chalk.cyan('Installing @nosana/node')).start();
-  await installNosanaCLI(version);
-  spinner.succeed();
+  // Only affects the first install; unlike NOSANA_NODE_VERSION it does not
+  // pin, so the node still updates to latest afterwards. For exercising the
+  // update cycle: seed an older version and let the node request the update.
+  // A node new enough reads it too, and defers its startup version check to
+  // the job loop while it is that version.
+  await installNosanaCLI(
+    'Installing',
+    version ?? process.env.NOSANA_NODE_INITIAL_VERSION,
+  );
 
-  while (errorCode === undefined || RESPAWN_CODES.includes(errorCode)) {
-    const inJobLoop = errorCode === UPDATE_IN_JOB_LOOP_EXIT_CODE;
+  let inJobLoop = false;
 
-    if (errorCode !== undefined && UPDATE_CODES.includes(errorCode)) {
-      if (!version) {
-        console.log(chalk.yellow('New @nosana/node version found.'));
-        const spinner = ora(chalk.cyan('Updating @nosana/node')).start();
-        await installNosanaCLI();
-        spinner.succeed();
-      } else {
-        throw new Error(
-          chalk.red(`Need newer @nosana/node version, but pinned to ${version}`),
-        );
-      }
-    }
-
-    if (errorCode === RESTART_EXIT_CODE) {
-      console.log(
-        chalk.yellow(
-          `Nosana Node stopped, restarting in ${RESTART_DELAY_S} seconds.`,
-        ),
-      );
-      await sleep(RESTART_DELAY_S);
-
-      // Reinstall on the way back up, to pick up a version published since.
-      if (!version) {
-        const spinner = ora(chalk.cyan('Reinstalling @nosana/node')).start();
-        await installNosanaCLI();
-        spinner.succeed();
-      }
-    }
-
+  for (; ;) {
     console.log(chalk.green('Starting Nosana Node'));
-    errorCode = await spawnPromise('nosana-node', process.argv.slice(2), {
+    const exit = await spawnPromise('nosana-node', process.argv.slice(2), {
       cwd: process.cwd(),
       detached: true,
-      stdio: 'inherit',
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
       env: { ...process.env, [IN_JOB_LOOP_ENV]: inJobLoop ? 'true' : '' },
     });
-  }
 
-  return errorCode;
+    // Only a node that left with the respawn code is asking for another: a note
+    // that outlived any other exit, a signal among them, is not an ask.
+    const request: ExitRequest | undefined =
+      exit.code === RESPAWN_EXIT_CODE
+        ? exit.request ?? { type: 'update', inJobLoop: false }
+        : undefined;
+    if (!request) return exit.code;
+
+    switch (request.type) {
+      case 'update': {
+        if (version) {
+          throw new Error(
+            chalk.red(
+              `Need newer @nosana/node version, but pinned to ${version}`,
+            ),
+          );
+        }
+        inJobLoop = request.inJobLoop;
+        const target = request.requestedVersion;
+        console.log(
+          chalk.yellow(
+            `New @nosana/node version ${target ? target + ' ' : ''}found.`,
+          ),
+        );
+        await installNosanaCLI('Updating to', target);
+        break;
+      }
+      case 'restart': {
+        inJobLoop = request.inJobLoop;
+
+        // Failing before the job loop is a setup problem a restart does not
+        if (!inJobLoop) {
+          console.log(
+            chalk.yellow('Nosana Node stopped before running a job, shutting down.'),
+          );
+          return exit.code;
+        }
+
+        console.log(
+          chalk.yellow(
+            `Nosana Node stopped, restarting in ${RESTART_DELAY_S} seconds.`,
+          ),
+        );
+        await sleep(RESTART_DELAY_S);
+
+        // Reinstall on the way back up, to pick up a version published since.
+        if (!version) await installNosanaCLI('Installing latest');
+        break;
+      }
+      default: {
+        // Compile error when a type is added to ExitRequest but not handled
+        // here; falling through would respawn with no install and no delay.
+        const unhandled: never = request;
+        throw new Error(`Unhandled exit request ${JSON.stringify(unhandled)}`);
+      }
+    }
+  }
+}
+
+function isExitRequest(message: unknown): message is ExitRequest {
+  const type = (message as { type?: unknown })?.type;
+  return type === 'update' || type === 'restart';
 }
 
 function spawnPromise(
   arg1: SpawnParameters[0],
   arg2: SpawnParameters[1],
   options: SpawnParameters[2],
-): Promise<number> {
+): Promise<{ code: number; request?: ExitRequest }> {
   return new Promise((resolve) => {
     const child = spawn(arg1, arg2, options);
+    let request: ExitRequest | undefined;
+
+    child.on('message', (message) => {
+      if (isExitRequest(message)) request = message;
+    });
 
     // A node killed by a signal reports no code, and stopping it that way is
     // deliberate.
-    child.on('exit', (code) => resolve(code ?? 0));
+    child.on('exit', (code) => resolve({ code: code ?? 0, request }));
   });
 }
 

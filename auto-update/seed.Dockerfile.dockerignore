@@ -1,0 +1,4 @@
+# Context is the repository root; both stages install their own dependencies.
+.git
+**/node_modules
+**/dist

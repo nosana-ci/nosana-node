@@ -22,6 +22,7 @@ export default class NodeManager {
   private apiHandler: ApiHandler;
   private exiting = false;
   private apiStarted = false;
+  private signalled = false;
 
   /**
    * Seeded from the environment so the loop survives the process being
@@ -37,6 +38,7 @@ export default class NodeManager {
      * because we want the api to be independent from nodes restarts
      */
     this.apiHandler = this.node.api();
+    this.apiHandler.nodeManager = this;
 
     this.handleProcessExit();
   }
@@ -212,7 +214,7 @@ export default class NodeManager {
        * restarts after jobs
        */
       await this.apiHandler.stop();
-    } catch (error) {}
+    } catch (error) { }
 
     /**
      * check if the node exists then stop the node, this will involve killing and cleaning
@@ -280,6 +282,11 @@ export default class NodeManager {
     await this.node.restartDelay(sec);
   }
 
+  /** Asked to stop, which is not a failure to restart on. */
+  isStopping(): boolean {
+    return this.signalled;
+  }
+
   async error() {
     if (this.exiting) return;
     this.exiting = true;
@@ -292,6 +299,8 @@ export default class NodeManager {
   private handleProcessExit() {
     const exitHandler = async () => {
       LogMonitoringRegistry.getInstance().setLoggable(true);
+
+      this.signalled = true;
 
       if (this.exiting) return;
       this.exiting = true;
@@ -315,7 +324,7 @@ export default class NodeManager {
           error_message: e.message,
           error_stack: e.stack ?? e.trace,
         });
-      } catch (_) {}
+      } catch (_) { }
     });
     process.on("uncaughtException", async (reason) => {
       try {
@@ -326,7 +335,7 @@ export default class NodeManager {
           error_message: e.message,
           error_stack: e.stack ?? e.trace,
         });
-      } catch (_) {}
+      } catch (_) { }
     });
   }
 }

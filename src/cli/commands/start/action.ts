@@ -1,6 +1,6 @@
 import 'rpc-websockets/dist/lib/client.js';
 import NodeManager from '../../../NodeManager/index.js';
-import { EXIT_CODES } from '../../../exitCodes.js';
+import { requestExit } from '../../../exitCodes.js';
 import { validateCLIVersion } from '../../../version/index.js';
 
 /** Failures no restart resolves: the node reports them and stops. */
@@ -21,6 +21,9 @@ export async function startNode(
       await nodeManager.init();
       await nodeManager.start(market);
     } catch (error: any) {
+      // Failed because the node is stopping, and that shutdown owns the exit.
+      if (nodeManager.isStopping()) return;
+
       if (error.name === 'WSLBlockedError') {
         await nodeManager.stop();
         process.exit(1);
@@ -64,9 +67,8 @@ export async function startNode(
       } else {
         await nodeManager.error();
         await nodeManager.stop();
-        process.exit(
-          TERMINAL_ERRORS.includes(error.name) ? 0 : EXIT_CODES.RESTART,
-        );
+        if (TERMINAL_ERRORS.includes(error.name)) process.exit(0);
+        await requestExit({ type: 'restart', inJobLoop: nodeManager.inJobLoop });
       }
     }
   }

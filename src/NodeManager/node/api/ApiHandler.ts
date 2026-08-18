@@ -43,9 +43,10 @@ import {
   getJobStatsRoute,
   getJobStatsStreamRoute,
 } from './routes/index.js';
+import { requestExit } from '../../../exitCodes.js';
+import type NodeManager from '../../index.js';
 import { NodeAlreadyActiveError } from '../../errors/NodeAlreadyActiveError.js';
 import { reportError } from '../../monitoring/reportError.js';
-import { EXIT_CODES } from '../../../exitCodes.js';
 import { TaskManagerRegistry } from '../task/TaskManagerRegistry.js';
 
 /** Rebuilds to fail before the process is replaced. */
@@ -67,6 +68,12 @@ export class ApiHandler {
   private eventEmitter = ApiEventEmitter.getInstance();
   private apiCheckTimer: NodeJS.Timeout | null = null;
   private failedProxyRestarts = 0;
+  /**
+   * Where the node's progress into the job loop is kept. The API outlives the
+   * node's own restarts, and the process that replaces this one on a restart
+   * resumes there.
+   */
+  public nodeManager?: NodeManager;
 
   constructor(
     private sdk: SDK,
@@ -300,7 +307,10 @@ export class ApiHandler {
     }
 
     console.error('The API proxy could not be rebuilt, restarting the node.');
-    process.exit(EXIT_CODES.RESTART);
+    void requestExit({
+      type: 'restart',
+      inJobLoop: this.nodeManager?.inJobLoop ?? false,
+    });
   }
 
   private async registerRoutes() {
