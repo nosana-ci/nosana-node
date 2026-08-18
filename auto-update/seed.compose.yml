@@ -2,13 +2,14 @@
 # on npm, to exercise the coming release's update cycle end to end (see
 # seed.Dockerfile). From the repository root:
 #
-#   docker compose -f auto-update/seed.compose.yml up --build
+#   DIST_TAG=next docker compose -f auto-update/seed.compose.yml up --build
 #
-# With 1.1.49 on npm: 1.1.49 is installed first, from the registry, and runs
-# into the job loop, where it learns of 1.1.50 and updates to this checkout's
-# code. INITIAL_VERSION installs another version first, and VERSIONS
-# (comma-separated) packs another set: VERSIONS=1.1.49,1.1.50 runs this code
-# on both sides.
+# With 1.1.50-rc on npm's `next`: 1.1.50-rc is installed first, from the
+# registry, and runs into the job loop, where it learns of 1.1.51-rc and
+# updates to this checkout's code. DIST_TAG defaults to `latest`.
+# INITIAL_VERSION installs another version first, and VERSIONS
+# (comma-separated) packs another set: VERSIONS=1.1.50-rc,1.1.51-rc runs this
+# code on both sides.
 
 services:
   nosana_node_seed:
@@ -16,6 +17,7 @@ services:
       context: ..
       dockerfile: auto-update/seed.Dockerfile
       args:
+        DIST_TAG: ${DIST_TAG:-latest}
         VERSIONS: ${VERSIONS:-}
     container_name: nosana-node-seed
     image: nosana_node_seed:latest

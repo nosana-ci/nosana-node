@@ -3,7 +3,8 @@
 # the coming release's update cycle without publishing anything.
 # seed.compose.yml builds and runs it; by hand, from the repository root:
 #
-#   docker build -f auto-update/seed.Dockerfile -t nosana-auto-update-seed .
+#   docker build -f auto-update/seed.Dockerfile --build-arg DIST_TAG=next \
+#     -t nosana-auto-update-seed .
 #   docker run --rm \
 #     --volume /root/.nosana/:/root/.nosana/ \
 #     --volume /var/run/docker.sock:/var/run/docker.sock \
@@ -23,14 +24,18 @@ WORKDIR /node
 COPY . .
 RUN npm ci && npm run build
 
+# The channel: `latest`, or `next` for the release candidates, whose versions
+# carry an -rc suffix the packed one keeps.
+ARG DIST_TAG=latest
 ARG VERSIONS
 # npm ignores the shrinkwrap when installing a tarball from disk, so bundle the
 # dependencies rather than let it resolve them afresh into a tree that may not
 # run. The node reads its version from the copy of package.json that the build
 # put in dist, so that is stamped alongside.
 RUN mkdir /tarballs \
- && latest=$(npm view @nosana/node version) && echo "$latest" > /tarballs/npm-latest \
- && pack=${VERSIONS:-${latest%.*}.$(( ${latest##*.} + 1 ))} \
+ && latest=$(npm view @nosana/node dist-tags.$DIST_TAG) && echo "$latest" > /tarballs/npm-latest \
+ && base=${latest%-rc} && suffix=${latest#"$base"} \
+ && pack=${VERSIONS:-${base%.*}.$(( ${base##*.} + 1 ))$suffix} \
  && echo "Packing $pack" \
  && npm pkg set bundleDependencies=true --json \
  && for version in $(echo "$pack" | tr ',' ' '); do \
