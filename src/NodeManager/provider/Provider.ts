@@ -166,13 +166,6 @@ export class Provider {
           });
         }
       }
-
-      // The runtime carries a create through to the end, so a setup stopped
-      // during one takes the container back off rather than leaving it up.
-      if (startup.signal.aborted) {
-        await this.containerOrchestration.stopAndDeleteContainer(frpc_name);
-        throw new Error('API proxy setup was stopped');
-      }
     } catch (error) {
       throw error;
     }
