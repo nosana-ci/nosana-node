@@ -1,8 +1,9 @@
 import chalk from 'chalk';
-import { exec, spawn } from 'child_process';
+import { exec, spawn, type ChildProcess } from 'child_process';
 import { existsSync } from 'fs';
 import ora from 'ora';
 import path from 'path';
+import os from 'os';
 
 type SpawnParameters = Parameters<typeof spawn>;
 
@@ -26,6 +27,32 @@ const IN_JOB_LOOP_ENV = 'NOSANA_NODE_IN_JOB_LOOP';
 
 /** Spacing between restarts, so a node that cannot start does not hot loop. */
 const RESTART_DELAY_S = 60;
+
+/**
+ * Signals that mean "stop", forwarded to the node. They cannot reach it any
+ * other way: `detached` puts the node in its own session, and this wrapper is
+ * PID 1 in the container, where the kernel ignores default signal
+ * dispositions. Without forwarding, `docker stop` waits out its grace period,
+ * SIGKILLs PID 1, and the node dies with the PID namespace — never asked to
+ * shut down gracefully.
+ */
+const STOP_SIGNALS = ['SIGTERM', 'SIGINT', 'SIGHUP'] as const;
+
+/** The running node, while there is one. */
+let currentChild: ChildProcess | undefined;
+
+/** Set once a stop signal arrives, so the loop stops respawning. */
+let stopSignal: NodeJS.Signals | undefined;
+
+for (const signal of STOP_SIGNALS) {
+  process.on(signal, () => {
+    stopSignal = signal;
+    // No node running (installing, or in the restart delay): nothing to wind
+    // down, leave like a process the signal actually killed would.
+    if (!currentChild) process.exit(128 + os.constants.signals[signal]);
+    currentChild.kill(signal);
+  });
+}
 
 const sleep = (seconds: number) =>
   new Promise((resolve) => setTimeout(resolve, seconds * 1000));
@@ -78,6 +105,10 @@ async function nosanaCLIRunner() {
       stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
       env: { ...process.env, [IN_JOB_LOOP_ENV]: inJobLoop ? 'true' : '' },
     });
+
+    // A stop was asked of this wrapper and forwarded; however the node then
+    // chose to leave — even asking for an update — it is not respawned.
+    if (stopSignal) return exit.code;
 
     // Only a node that left with the respawn code is asking for another: a note
     // that outlived any other exit, a signal among them, is not an ask.
@@ -150,6 +181,7 @@ function spawnPromise(
 ): Promise<{ code: number; request?: ExitRequest }> {
   return new Promise((resolve) => {
     const child = spawn(arg1, arg2, options);
+    currentChild = child;
     let request: ExitRequest | undefined;
 
     child.on('message', (message) => {
@@ -158,7 +190,10 @@ function spawnPromise(
 
     // A node killed by a signal reports no code, and stopping it that way is
     // deliberate.
-    child.on('exit', (code) => resolve({ code: code ?? 0, request }));
+    child.on('exit', (code) => {
+      currentChild = undefined;
+      resolve({ code: code ?? 0, request });
+    });
   });
 }
 
