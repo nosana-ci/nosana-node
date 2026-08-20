@@ -6,9 +6,10 @@
 #
 # With 1.1.49 on npm: 1.1.49 is installed first, from the registry, and runs
 # into the job loop, where it learns of 1.1.50 and updates to this checkout's
-# code. INITIAL_VERSION installs another version first, and VERSIONS
-# (comma-separated) packs another set: VERSIONS=1.1.49,1.1.50 runs this code
-# on both sides.
+# code. DIST_TAG=next does the same on the release-candidate channel
+# (1.1.50-rc to 1.1.51-rc). INITIAL_VERSION installs another version first,
+# and VERSIONS (comma-separated) packs another set: VERSIONS=1.1.49,1.1.50
+# runs this code on both sides.
 
 services:
   nosana_node_seed:
@@ -16,6 +17,7 @@ services:
       context: ..
       dockerfile: auto-update/seed.Dockerfile
       args:
+        DIST_TAG: ${DIST_TAG:-latest}
         VERSIONS: ${VERSIONS:-}
     container_name: nosana-node-seed
     image: nosana_node_seed:latest

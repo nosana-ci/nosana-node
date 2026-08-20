@@ -10,7 +10,9 @@
 #     nosana-auto-update-seed start --network devnet
 #
 # The version on npm is installed first (or NOSANA_NODE_INITIAL_VERSION, when
-# set), from the registry unless packed too; any version the wrapper installs
+# set), from the registry unless packed too, and its successor is packed:
+# 1.1.49 and 1.1.50 with 1.1.49 on `latest`, or with --build-arg DIST_TAG=next
+# 1.1.50-rc and 1.1.51-rc with 1.1.50-rc on `next`. Any version the wrapper installs
 # comes from here when packed and from the registry when not. seed.hijack.mjs,
 # preloaded into the node, has its registry lookup report the packed versions
 # as released, so the one after npm's is asked for like any other. The node
@@ -23,14 +25,18 @@ WORKDIR /node
 COPY . .
 RUN npm ci && npm run build
 
+# The channel: `latest`, or `next` for the release candidates, whose versions
+# carry an -rc suffix the packed one keeps.
+ARG DIST_TAG=latest
 ARG VERSIONS
 # npm ignores the shrinkwrap when installing a tarball from disk, so bundle the
 # dependencies rather than let it resolve them afresh into a tree that may not
 # run. The node reads its version from the copy of package.json that the build
 # put in dist, so that is stamped alongside.
 RUN mkdir /tarballs \
- && latest=$(npm view @nosana/node version) && echo "$latest" > /tarballs/npm-latest \
- && pack=${VERSIONS:-${latest%.*}.$(( ${latest##*.} + 1 ))} \
+ && latest=$(npm view @nosana/node dist-tags.$DIST_TAG) && echo "$latest" > /tarballs/npm-latest \
+ && base=${latest%-rc} && suffix=${latest#"$base"} \
+ && pack=${VERSIONS:-${base%.*}.$(( ${base##*.} + 1 ))$suffix} \
  && echo "Packing $pack" \
  && npm pkg set bundleDependencies=true --json \
  && for version in $(echo "$pack" | tr ',' ' '); do \
