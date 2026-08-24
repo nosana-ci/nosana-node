@@ -6,6 +6,12 @@ import { Provider } from "../../provider/Provider.js";
 import { NodeRepository } from "../../repository/NodeRepository.js";
 import { createLoggingProxy, logEmitter } from '../../monitoring/proxy/loggingProxy.js';
 
+/**
+ * Set on the container by the start script that launched it. Absent when the
+ * node was started another way.
+ */
+export const START_SCRIPT_VERSION_ENV = 'NOSANA_START_SCRIPT_VERSION';
+
 export class Benchmark {
   constructor(
     private benchmarkId: string,
@@ -80,6 +86,13 @@ export class Benchmark {
   private async submitResults(): Promise<void> {
     const flowResults = this.repository.getFlow(this.benchmarkId);
     if (!flowResults) throw new Error(`Cannot find results for flow with id ${this.benchmarkId}`);
+
+    if (process.env[START_SCRIPT_VERSION_ENV]) {
+      flowResults.state.errors = [
+        ...(flowResults.state.errors ?? []),
+        `${START_SCRIPT_VERSION_ENV}=${process.env[START_SCRIPT_VERSION_ENV]}`,
+      ];
+    }
 
     await HostManager.submitBenchmarkResults(this.benchmarkId, flowResults.state);
 
