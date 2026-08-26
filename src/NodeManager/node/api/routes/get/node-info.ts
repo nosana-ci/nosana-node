@@ -9,6 +9,9 @@ export function getNodeInfoRoute(req: NodeAPIRequest<{}>, res: Response) {
   const networkRedacted: any = { ...info.network };
   delete networkRedacted['ip'];
 
+  const images = Object.keys(req.repository!.getImagesResources());
+  const volumes = Object.keys(req.repository!.getVolumesResources());
+
   res.status(200).json({
     ...state(req.address!.toString()).getNodeInfo(),
     info: {
@@ -26,6 +29,10 @@ export function getNodeInfoRoute(req: NodeAPIRequest<{}>, res: Response) {
         ),
       },
       network: networkRedacted,
+    },
+    resources: {
+      images,
+      volumes,
     },
   });
 }
