@@ -1,8 +1,19 @@
+import { DockerAuth } from '@nosana/sdk';
+
 import { applyLoggingProxyToClass } from '../../../monitoring/proxy/loggingProxy.js';
 import { ContainerOrchestrationInterface } from '../../../provider/containerOrchestration/interface.js';
 import { NodeRepository } from '../../../repository/NodeRepository.js';
 import { hoursSinceDate } from '../helpers/hoursSunceDate.js';
 import { repoTagsContainsImage } from '../helpers/repoTagsContainsImage.js';
+
+/**
+ * An image the market requires, and the registry credentials it takes to pull
+ * it. Public images carry none.
+ */
+export type RequiredImage = {
+  name: string;
+  auth?: DockerAuth;
+};
 
 export class ImageManager {
   private fetched: boolean = false;
@@ -16,23 +27,30 @@ export class ImageManager {
   }
 
   public async pullMarketRequiredImages(
-    required_images: string[],
+    required_images: RequiredImage[],
   ): Promise<void> {
     this.fetched = true;
-    this.market_required_images = required_images;
+    this.market_required_images = required_images.map(({ name }) => name);
 
-    for (const image of required_images) {
-      if (!(await this.containerOrchestration.hasImage(image))) {
-        await this.containerOrchestration.pullImage(image);
+    for (const { name, auth } of required_images) {
+      if (!(await this.containerOrchestration.hasImage(name))) {
+        await this.containerOrchestration.pullImage(name, auth);
       }
 
-      if (!this.repository.getImageResource(image)) {
-        this.repository.updateImageResource(image, {
-          required: true,
-          lastUsed: new Date(),
-          usage: 1,
-        });
-      }
+      // Written whether or not the image is already known: an image a job
+      // pulled first has an entry that says nothing about the market requiring
+      // it, and `pruneImages` deletes anything not marked required. `isPrivate`
+      // carries the same weight it does for a job image — a credentialed image
+      // is dropped rather than left cached — and only takes effect once the
+      // market stops requiring this one.
+      const known = this.repository.getImageResource(name);
+
+      this.repository.updateImageResource(name, {
+        required: true,
+        isPrivate: !!auth,
+        lastUsed: known?.lastUsed ?? new Date(),
+        usage: known?.usage ?? 1,
+      });
     }
   }
 
