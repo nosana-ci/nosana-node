@@ -16,6 +16,7 @@ import { LogMonitoringRegistry } from './monitoring/LogMonitoringRegistry.js';
 import { checkWSLStatus } from './utils/wslCheck.js';
 import { IN_JOB_LOOP_ENV } from '../exitCodes.js';
 import { reportError } from './monitoring/reportError.js';
+import { reportPodmanDiagnostics } from './monitoring/reportPodmanDiagnostics.js';
 
 export default class NodeManager {
   private node: BasicNode;
@@ -23,6 +24,7 @@ export default class NodeManager {
   private exiting = false;
   private apiStarted = false;
   private signalled = false;
+  private configLocation: string;
 
   /**
    * Seeded from the environment so the loop survives the process being
@@ -31,6 +33,7 @@ export default class NodeManager {
   public inJobLoop = process.env[IN_JOB_LOOP_ENV] === 'true';
 
   constructor(options: { [key: string]: any }) {
+    this.configLocation = options.config;
     this.node = createLoggingProxy(new BasicNode(options));
 
     /**
@@ -74,6 +77,12 @@ export default class NodeManager {
      * this prints the logs to the console.
      */
     consoleLogging();
+
+    /**
+     * collect the diagnostics the podman container leaves in the shared
+     * directory, which has no other route off the node
+     */
+    reportPodmanDiagnostics(this.configLocation);
 
     /**
      * start
