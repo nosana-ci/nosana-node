@@ -76,11 +76,9 @@ export class MarketHandler {
       return await this.request(requestedMarket, result.session ?? session, benchmarkRetries);
     }
 
-    // Sign and send SFT mint/burn transaction if provided
-    if (result.market?.sftTx) {
-      await this.marketAccessHandler.mintAccessKey(result.market.sftTx);
-      await sleep(30);
-      await HostManager.syncNodeAfterMint(this.address.toString());
+    // Sign as fee payer; the host-manager submits and confirms it.
+    if (result.market?.accessKeyTx) {
+      await this.marketAccessHandler.submitAccessKey(result.market.accessKeyTx);
     }
 
     await this.logLatestMeasurements();
