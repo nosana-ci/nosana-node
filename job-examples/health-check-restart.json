@@ -1,0 +1,40 @@
+{
+  "version": "0.1",
+  "type": "container",
+  "meta": {
+    "trigger": "cli"
+  },
+  "ops": [
+    {
+      "type": "container/run",
+      "id": "health-check-restart-test",
+      "args": {
+        "image": "docker.io/python:3.11-slim",
+        "cmd": [
+          "python3",
+          "-c",
+          "import http.server, time\nstart = time.time()\nclass H(http.server.BaseHTTPRequestHandler):\n    def do_GET(self):\n        healthy = time.time() - start < 20\n        self.send_response(200 if healthy else 503)\n        self.end_headers()\n        self.wfile.write(b'ok' if healthy else b'wedged')\n    def log_message(self, *a):\n        print('%s answered %s' % (self.path, 200 if time.time() - start < 20 else 503), flush=True)\nprint('serving on 8000, healthy for the first 20s', flush=True)\nhttp.server.HTTPServer(('0.0.0.0', 8000), H).serve_forever()"
+        ],
+        "expose": [
+          {
+            "port": 8000,
+            "health_checks": [
+              {
+                "type": "http",
+                "path": "/health",
+                "method": "GET",
+                "expected_status": 200,
+                "continuous": true,
+                "restart_on_failure": true,
+                "max_restarts": 2
+              }
+            ]
+          }
+        ]
+      },
+      "execution": {
+        "timeout": 600
+      }
+    }
+  ]
+}
