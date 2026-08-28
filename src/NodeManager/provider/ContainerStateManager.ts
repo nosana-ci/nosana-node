@@ -27,12 +27,19 @@ export class ContainerStateManager {
   private currentLogStream: NodeJS.ReadableStream | null = null;
   private currentStatsStream: NodeJS.ReadableStream | null = null;
   private pollingInterval: NodeJS.Timeout | null = null;
+  private restarting = false;
 
   constructor(
     private container: Dockerode.Container,
     private controller: AbortController,
     private emitter: EventEmitter,
     private restartPolicy: RestartPolicy | undefined,
+    /**
+     * Whether a failed liveness probe may restart this container. Like a
+     * restart policy it means a stop is not necessarily the op finishing, so
+     * the container has to be polled rather than waited on.
+     */
+    private restartsOnUnhealthy: boolean = false,
   ) { }
 
   getState(): ContainerState {
@@ -42,7 +49,7 @@ export class ContainerStateManager {
   async startMonitoring() {
     await Promise.all([this.attachLogStream(), this.attachStatsStream()]);
 
-    if (!this.restartPolicy) {
+    if (!this.restartPolicy && !this.restartsOnUnhealthy) {
       this.container
         .wait({ abortSignal: liveAbortSignal(this.controller.signal) })
         .finally(() => {
@@ -60,6 +67,13 @@ export class ContainerStateManager {
     this.pollingInterval = setInterval(async () => {
       if (this.controller.signal.aborted) {
         this.stopMonitoring();
+        return;
+      }
+
+      // A restart takes the container through a stop, which is not the op
+      // ending; hold off on exit detection until it is back.
+      if (this.restarting) {
+        this.exitedCheckCount = 0;
         return;
       }
 
@@ -130,7 +144,12 @@ export class ContainerStateManager {
       this.currentLogStream.on('close', () => {
         this.currentLogStream = null;
 
-        if (this.state === 'running' && !this.controller.signal.aborted) {
+        // A restart closes the stream while the container is briefly stopped;
+        // re-attach so the logs it writes on the way back up aren't lost.
+        if (
+          (this.state === 'running' || this.restarting) &&
+          !this.controller.signal.aborted
+        ) {
           setTimeout(() => this.attachLogStream(), 100);
         }
       });
@@ -147,6 +166,26 @@ export class ContainerStateManager {
       if (this.state === 'running' && !this.controller.signal.aborted) {
         setTimeout(() => this.attachLogStream(), 1000);
       }
+    }
+  }
+
+  /**
+   * Restart the container in place after a failed liveness probe, keeping the
+   * op alive across it. Returns whether the container came back.
+   */
+  async restartContainer(): Promise<boolean> {
+    if (this.controller.signal.aborted || this.state === 'exited') return false;
+
+    this.restarting = true;
+    try {
+      await this.container.restart();
+      this.state = 'running';
+      return true;
+    } catch (error) {
+      return false;
+    } finally {
+      this.exitedCheckCount = 0;
+      this.restarting = false;
     }
   }
 

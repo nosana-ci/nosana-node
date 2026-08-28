@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Readable } from 'stream';
 import { EventEmitter } from 'events';
 import type Dockerode from 'dockerode';
@@ -238,5 +238,98 @@ describe('ContainerStateManager', () => {
     expect(manager.getState()).toBe('exited');
 
     manager.stopMonitoring();
+  });
+  it('polls instead of waiting when a failed liveness probe may restart the container', async () => {
+    vi.useFakeTimers();
+    try {
+      const controller = new AbortController();
+
+      const container = {
+        logs: async () => openStream(),
+        stats: async () => openStream(),
+        // A restart resolves `wait()`; on that branch it would end the op.
+        wait: () => Promise.resolve(),
+        inspect: async () => ({ State: { Status: 'running' } }),
+      } as unknown as Dockerode.Container;
+
+      const manager = new ContainerStateManager(
+        container,
+        controller,
+        new EventEmitter(),
+        undefined, // no restart policy — the health check is what allows restarts
+        true,
+      );
+
+      await manager.startMonitoring();
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // The poll loop, not `wait()`, is what tracks the container now.
+      expect(manager.getState()).toBe('running');
+
+      manager.stopMonitoring();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not read a health-triggered restart as the op exiting', async () => {
+    vi.useFakeTimers();
+    try {
+      const controller = new AbortController();
+      let inspected = 'running';
+      let releaseRestart!: () => void;
+
+      const container = {
+        logs: async () => openStream(),
+        stats: async () => openStream(),
+        wait: () => new Promise<void>(() => {}),
+        inspect: async () => ({ State: { Status: inspected } }),
+        restart: () =>
+          new Promise<void>((resolve) => {
+            // A restart stops the container before starting it again, which is
+            // long enough for the poll loop to confirm an exit several times over.
+            inspected = 'exited';
+            releaseRestart = () => {
+              inspected = 'running';
+              resolve();
+            };
+          }),
+      } as unknown as Dockerode.Container;
+
+      const manager = new ContainerStateManager(
+        container,
+        controller,
+        new EventEmitter(),
+        undefined,
+        true,
+      );
+
+      await manager.startMonitoring();
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(manager.getState()).toBe('running');
+
+      let exitObserved = false;
+      manager.waitForExit().then(() => {
+        exitObserved = true;
+      });
+
+      const restarted = manager.restartContainer();
+
+      // Sit in the restart for longer than it takes to confirm an exit.
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(exitObserved).toBe(false);
+      expect(manager.getState()).not.toBe('exited');
+
+      releaseRestart();
+      expect(await restarted).toBe(true);
+      expect(manager.getState()).toBe('running');
+
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(exitObserved).toBe(false);
+
+      manager.stopMonitoring();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

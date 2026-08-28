@@ -16,7 +16,10 @@ import Dockerode from 'dockerode';
 import { configs } from '../configs/configs.js';
 import { NodeConfigsSingleton } from '../configs/NodeConfigs.js';
 import { NodeRepository } from '../repository/NodeRepository.js';
-import { ExposedPortHealthCheck } from './ExposedPortHealthCheck.js';
+import {
+  ExposedPortHealthCheck,
+  RestartableHealthCheck,
+} from './ExposedPortHealthCheck.js';
 import { s3HelperImage } from '../node/resource/definition/index.js';
 import { ResourceManager } from '../node/resource/resourceManager.js';
 import { applyLoggingProxyToClass } from '../monitoring/proxy/loggingProxy.js';
@@ -232,6 +235,13 @@ export class Provider {
         const networks: { [key: string]: {} } = {};
         let idMaps: Map<string, ExposedPort> = new Map();
         const ports = getExposePorts(op);
+        // A liveness probe restarts the container under the running op, so the
+        // state manager has to know a stop may not be the op finishing.
+        const restartsOnUnhealthy = ports.some((port) =>
+          port.health_checks?.some(
+            (check) => (check as RestartableHealthCheck).restart_on_failure,
+          ),
+        );
         networks[name] = {};
         await this.containerOrchestration.createNetwork(name, controller);
 
@@ -396,6 +406,7 @@ export class Provider {
           controller,
           emitter,
           op.args.restart_policy,
+          restartsOnUnhealthy,
         );
         await stateManager.startMonitoring();
 
@@ -405,6 +416,9 @@ export class Provider {
             frpcContainer as Dockerode.Container,
             emitter,
             name,
+            restartsOnUnhealthy
+              ? () => stateManager!.restartContainer()
+              : undefined,
           );
 
           exposedPortHealthCheck.addExposedPortsMap(idMaps);
