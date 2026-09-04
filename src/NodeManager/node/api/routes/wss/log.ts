@@ -19,7 +19,7 @@ export async function wssLogRoute(
   logStreaming(walletAddress).subscribe(ws, jobAddress);
 }
 
-export function wssTaskManagerLogRoute(
+export async function wssTaskManagerLogRoute(
   ws: WebSocket,
   _: string,
   {
@@ -34,7 +34,18 @@ export function wssTaskManagerLogRoute(
     type?: string;
   },
 ) {
-  const task = TaskManagerRegistry.getInstance().get(jobAddress);
+  const registry = TaskManagerRegistry.getInstance();
+  const deadline = Date.now() + 30_000;
+  let task = registry.get(jobAddress);
+
+  // A run is visible on-chain before the node has finished loading the job
+  // definition and registering its TaskManager. Keep the authenticated socket
+  // open during that short startup window instead of forcing clients to race it.
+  while (!task && Date.now() < deadline && ws.readyState === WebSocket.OPEN) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    task = registry.get(jobAddress);
+  }
+
   if (!task) return ws.close(1008, 'Invalid job address');
 
   task.subscribe(ws, (log: TaskLog) => {
@@ -49,12 +60,14 @@ export function wssTaskManagerLogRoute(
   const logs = opId
     ? task.getLogsByOp(opId)
     : group
-      ? task.getLogsByGroup(group)
-      : task.getAllLogs();
+    ? task.getLogsByGroup(group)
+    : task.getAllLogs();
 
   for (const log of logs) {
     try {
       ws.send(JSON.stringify({ path: 'flog', data: JSON.stringify(log) }));
-    } catch { }
+    } catch {
+      // The client may disconnect while historical logs are being replayed.
+    }
   }
 }

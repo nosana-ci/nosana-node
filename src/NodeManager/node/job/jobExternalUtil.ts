@@ -5,6 +5,8 @@ import { JobDefinitionStrategySelector } from './defination/JobDefinitionStrateg
 import { ResultReturnStrategySelector } from './result/ResultReturnStrategy.js';
 import { createInitialFlow } from '../task/helpers/createInitialFlow.js';
 
+const JOB_DEFINITION_RETRY_DELAYS_SECONDS = [0.5, 1, 18.5];
+
 export class JobExternalUtil {
   constructor(private repository: NodeRepository) { }
 
@@ -15,11 +17,12 @@ export class JobExternalUtil {
     try {
       return await IpfsClientSingleton.retrieve(ipfsHash);
     } catch (error) {
-      if (attempts >= 2) {
+      const retryDelay = JOB_DEFINITION_RETRY_DELAYS_SECONDS[attempts];
+      if (retryDelay === undefined) {
         throw error;
       }
 
-      await sleep(10);
+      await sleep(retryDelay);
       return this.retrieveJobDefinitionWithRetry(ipfsHash, attempts + 1);
     }
   }
