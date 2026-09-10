@@ -1,7 +1,9 @@
 import { Table } from 'console-table-printer';
 import {
   JobDefinition,
+  Operation,
   OperationArgsMap,
+  getExposePorts,
   isOperator,
   isSpreadMarker,
   ExposedPort,
@@ -23,6 +25,12 @@ export function generateDeploymentEndpointsTable(jobDefinition: JobDefinition) {
     if (op.type === 'container/run') {
       const { expose } = op.args as OperationArgsMap['container/run'];
       if (expose) {
+        // Mirror generateProxies: only single-port ops fall back to 0, so a
+        // multi-port op gets a distinct endpoint per port.
+        const exposedPortCount = getExposePorts(
+          op as Operation<'container/run'>,
+        ).length;
+
         if (
           typeof expose === 'number' ||
           (typeof expose === 'string' && !isOperator(expose))
@@ -30,7 +38,7 @@ export function generateDeploymentEndpointsTable(jobDefinition: JobDefinition) {
           const generatedId = generateExposeId(
             jobDefinition.deployment_id!,
             op.id,
-            0,
+            exposedPortCount > 1 ? expose : 0,
             false,
           );
           table.addRow({
@@ -51,7 +59,7 @@ export function generateDeploymentEndpointsTable(jobDefinition: JobDefinition) {
             const generatedId = generateExposeId(
               jobDefinition.deployment_id!,
               op.id,
-              0,
+              exposedPortCount > 1 ? p : 0,
               false,
             );
 
