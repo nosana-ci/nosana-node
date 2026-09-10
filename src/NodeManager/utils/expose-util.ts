@@ -99,8 +99,15 @@ export const generateProxies = (
       op.args.private,
     );
 
+    // When an op exposes more than one port, include the port in the id so each
+    // port gets a distinct deployment endpoint instead of colliding on a shared one.
     const generatedDeploymentId = deploymentId
-      ? generateExposeId(deploymentId, op.id, 0, false)
+      ? generateExposeId(
+          deploymentId,
+          op.id,
+          ports.length > 1 ? exposedPort.port : 0,
+          false,
+        )
       : undefined;
 
     let proxyHTTPHealthCheckPath: string | undefined = undefined;
