@@ -16,6 +16,9 @@ import { generateDeploymentEndpointsTable } from './generateDeploymentEndpointsT
 import { generateRandomId } from '../../../NodeManager/node/utils/generateRandomId.js';
 import { getSDK } from '../../../NodeManager/sdk/index.js';
 import { createLoggingProxy } from '../../../NodeManager/monitoring/proxy/loggingProxy.js';
+import { PodmanManager } from '../../../NodeManager/provider/podmanManager/PodmanManager.js';
+import { DockerContainerOrchestration } from '../../../NodeManager/provider/containerOrchestration/docker/index.js';
+import { resolveProvider } from '../sharedOptions/index.js';
 
 export async function runJob(
   jobDefinitionFile: string,
@@ -23,7 +26,7 @@ export async function runJob(
     [key: string]: any;
   },
 ) {
-  options.provider = process.argv.some(arg => arg === '--docker') ? 'docker' : 'podman';
+  resolveProvider(options);
 
   try {
     const sdk = getSDK();
@@ -68,6 +71,21 @@ export async function runJob(
       repository,
       resourceManager,
     );
+
+    /**
+     * the podman container, when this node owns it: brought up before the job
+     * needs it, and repaired under the job should a container fail to start on
+     * the GPU runtime
+     */
+    if (options.managedPodman) {
+      const podmanManager = new PodmanManager(
+        new DockerContainerOrchestration(options.dockerSocket, options.gpu),
+        options.config,
+        containerOrchestration,
+      );
+      provider.gpuRuntime = podmanManager;
+      await podmanManager.ensure();
+    }
 
     const logger = new ConsoleLogger(false);
     logger.addObserver();

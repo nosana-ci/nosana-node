@@ -37,6 +37,15 @@ describe('reportPodmanDiagnostics', () => {
     );
   });
 
+  it('hands each event to the callback as well', async () => {
+    const onEvent = vi.fn();
+    fs.writeFileSync(path.join(dir, 'cdi-events.log'), '{"event":"unrepairable"}\n');
+
+    reportPodmanDiagnostics(dir, onEvent);
+
+    expect(onEvent).toHaveBeenCalledWith('{"event":"unrepairable"}');
+  });
+
   it('holds an incomplete line until the newline ending it arrives', async () => {
     const log = path.join(dir, 'cdi-events.log');
     reportPodmanDiagnostics(dir);

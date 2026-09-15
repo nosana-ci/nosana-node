@@ -25,8 +25,8 @@ describe('startNodeCommand', () => {
     expect(startNodeCommand.args[0]).toBe('market address');
   });
 
-  it('should have 9 options', () => {
-    expect(startNodeCommand.options.length).toBe(9);
+  it('should have 10 options', () => {
+    expect(startNodeCommand.options.length).toBe(10);
   });
 
   it.each([
@@ -36,6 +36,7 @@ describe('startNodeCommand', () => {
     ['--config', '-c', '~/.nosana/'],
     ['--port', '-p', 5001],
     ['--podman', '--docker', '~/.nosana/podman/podman.sock'],
+    ['--managed-podman', undefined, undefined],
     ['--gpu', undefined, 'all'],
     ['--trusted-execution-runtime', undefined, undefined],
   ])('should have %s option', (long, short, defaultValue) => {

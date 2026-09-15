@@ -80,6 +80,7 @@ Options:
   --provider <provider>     provider used to run the job (choices: "docker", "podman", default: "podman")
   -w, --wallet <wallet>     path to wallet private key (default: "~/.nosana/nosana_key.json")
   --docker, --podman <URI>  Podman/Docker connection URI (default: "~/.nosana/podman/podman.sock")
+  --managed-podman          Run jobs in a podman container the node creates over the docker socket given with --docker, and recreates when its GPU mounts go stale
   -h, --help                display help for command
 ```
 

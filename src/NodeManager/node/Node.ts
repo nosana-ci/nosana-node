@@ -18,6 +18,7 @@ import { ExpiryHandler } from './expiry/expiryHandler.js';
 import { GridHandler } from './grid/gridHandler.js';
 import { ResourceManager } from './resource/resourceManager.js';
 import { selectContainerOrchestrationProvider } from '../provider/containerOrchestration/selectContainerOrchestration.js';
+import { DockerContainerOrchestration } from '../provider/containerOrchestration/docker/index.js';
 import { RegisterHandler } from './register/index.js';
 import { BalanceHandler } from './balance/balanceHandler.js';
 import {
@@ -28,6 +29,10 @@ import { pollForRun } from './utils/poll.js';
 import { configs } from '../configs/configs.js';
 import { TaskManagerRegistry } from './task/TaskManagerRegistry.js';
 import { StopReason, StopReasons } from './task/TaskManager.js';
+import {
+  isStaleCdiEvent,
+  PodmanManager,
+} from '../provider/podmanManager/PodmanManager.js';
 
 export class BasicNode {
   private apiHandler: ApiHandler;
@@ -44,6 +49,7 @@ export class BasicNode {
   private resourceManager: ResourceManager;
   private provider: Provider;
   private containerOrchestration: ContainerOrchestrationInterface;
+  private podmanManager?: PodmanManager;
   private exiting = false;
 
   private sdk: Client;
@@ -58,6 +64,13 @@ export class BasicNode {
       options.gpu,
       options.trustedExecutionRuntime
     );
+    if (options.managedPodman) {
+      this.podmanManager = new PodmanManager(
+        new DockerContainerOrchestration(options.dockerSocket, options.gpu),
+        options.config,
+        this.containerOrchestration,
+      );
+    }
     this.resourceManager = new ResourceManager(
       this.containerOrchestration,
       this.repository,
@@ -68,6 +81,12 @@ export class BasicNode {
       this.repository,
       this.resourceManager,
     );
+    if (this.podmanManager) {
+      this.provider.gpuRuntime = this.podmanManager;
+      // the API proxy runs in docker beside the node, where replacing podman
+      // cannot reach it
+      this.provider.apiOrchestration = this.podmanManager.hostDocker;
+    }
 
     this.apiHandler = new ApiHandler(
       this.sdk,
@@ -104,6 +123,14 @@ export class BasicNode {
 
   async healthcheck(): Promise<boolean> {
     /**
+     * the podman container, when this node owns it: recreated between jobs,
+     * so a driver the host replaced since is injected afresh. Nothing of the
+     * node's runs inside it at this point, and the image and resource caches
+     * live on volumes that survive it.
+     */
+    await this.podmanManager?.recreate('between jobs');
+
+    /**
      * run health check,
      */
     return await this.healthHandler.run();
@@ -138,6 +165,11 @@ export class BasicNode {
     return this.repository.getNodeInfo().system_environment;
   }
 
+  /** An event line the podman container's CDI watcher logged. */
+  public podmanEvent(event: string): void {
+    if (isStaleCdiEvent(event)) this.podmanManager?.markStale(event);
+  }
+
   async stop(): Promise<void> {
     await this.marketHandler.stop();
     await this.runHandler.stop();
@@ -168,6 +200,12 @@ export class BasicNode {
     }
 
     /**
+     * the podman container, when this node owns it: brought up if it is not
+     * running, and recreated if its GPU mounts went stale since the last job
+     */
+    await this.podmanManager?.ensure();
+
+    /**
      * get an instance to the container
      */
     await this.containerOrchestration.getConnection();
@@ -194,6 +232,10 @@ export class BasicNode {
         let resolvedStatus: StopReason = StopReasons.COMPLETED;
 
         const periodicHealthcheck = async (): Promise<boolean> => {
+          // Leaves the queue, so the healthcheck that follows recreates podman
+          // before the node takes a job it cannot run.
+          if (this.podmanManager?.isStale()) return false;
+
           const { status, error } = await this.containerOrchestration.healthy();
           if (!status) {
             return false;

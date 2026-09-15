@@ -9,6 +9,7 @@ import {
   verboseOption,
   gpuOption,
   teeRuntimeOption,
+  managedPodmanOption,
 } from '../sharedOptions/index.js';
 
 export * from './action.js';
@@ -25,6 +26,7 @@ export const startNodeCommand = new Command('start')
       'Podman/Docker connection URI',
     ).default('~/.nosana/podman/podman.sock'),
   )
+  .addOption(managedPodmanOption)
   .addOption(
     new Option(
       '-c, --config <path>',

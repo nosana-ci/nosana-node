@@ -2,11 +2,12 @@ import { DB } from '../../../NodeManager/db/index.js';
 import { ResourceManager } from '../../../NodeManager/node/resource/resourceManager.js';
 import { selectContainerOrchestrationProvider } from '../../../NodeManager/provider/containerOrchestration/selectContainerOrchestration.js';
 import { NodeRepository } from '../../../NodeManager/repository/NodeRepository.js';
+import { resolveProvider } from '../sharedOptions/index.js';
 
 export * from './action.js';
 
 export async function pruneResources(options: { [key: string]: any }) {
-  options.provider = process.argv.some(arg => arg === '--docker') ? 'docker' : 'podman';
+  resolveProvider(options);
 
   try {
     const db = new DB(options.config).db;

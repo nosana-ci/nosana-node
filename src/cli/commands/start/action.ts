@@ -2,6 +2,7 @@ import 'rpc-websockets/dist/lib/client.js';
 import NodeManager from '../../../NodeManager/index.js';
 import { requestExit } from '../../../exitCodes.js';
 import { validateCLIVersion } from '../../../version/index.js';
+import { resolveProvider } from '../sharedOptions/index.js';
 
 /** Failures no restart resolves: the node reports them and stops. */
 const TERMINAL_ERRORS = ['NodeBannedError', 'NodeNotQualifiedError'];
@@ -12,7 +13,7 @@ export async function startNode(
     [key: string]: any;
   },
 ): Promise<void> {
-  options.provider = process.argv.some(arg => arg === '--docker') ? 'docker' : 'podman';
+  resolveProvider(options);
 
   const nodeManager = new NodeManager(options);
 

@@ -13,7 +13,8 @@ const MAX_CATCH_UP = 1024 * 1024;
 /**
  * Forward the events the podman container leaves in the directory the two
  * share. That container has no route to the host manager of its own, so its
- * event log is the only sign of whether the CDI watcher ever fired.
+ * event log is the only sign of whether the CDI watcher ever fired. Each
+ * event also goes to `onEvent`, for the node to act on.
  *
  * Nothing here may throw: this is diagnostics, and the node's uncaught handler
  * would turn a failure to read a log file into the node stopping. Watching can
@@ -21,7 +22,10 @@ const MAX_CATCH_UP = 1024 * 1024;
  * and a watch already established still reports errors of its own if the
  * directory it covers is removed.
  */
-export function reportPodmanDiagnostics(configLocation: string): void {
+export function reportPodmanDiagnostics(
+  configLocation: string,
+  onEvent?: (event: string) => void,
+): void {
   if (!configLocation) return;
 
   const log = path.join(configLocation.replace(/^~/, os.homedir()), CDI_EVENTS);
@@ -84,14 +88,15 @@ export function reportPodmanDiagnostics(configLocation: string): void {
       partial = lines.pop() ?? '';
       lines
         .filter(Boolean)
-        .forEach((event) =>
+        .forEach((event) => {
           void reportError({
             error_type: 'cdiEvent',
             error_name: 'Event',
             error_message: event,
             error_stack: '',
-          }),
-        );
+          });
+          onEvent?.(event);
+        });
     } finally {
       fs.closeSync(fd);
     }

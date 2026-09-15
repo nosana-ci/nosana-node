@@ -8,3 +8,4 @@ export * from './--port.js';
 export * from './--gpu.js';
 export * from './--tee-runtime.js';
 export * from './--verbose.js';
+export * from './--managed-podman.js';

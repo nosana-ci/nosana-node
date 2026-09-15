@@ -31,15 +31,32 @@ import {
   generateUrlSecretObject,
 } from '../utils/expose-util.js';
 import { ContainerStateManager } from './ContainerStateManager.js';
+import { isStaleGpuRuntimeError, type GpuRuntime } from './gpuRuntime.js';
 
 export class Provider {
   private readonly frpcImage = configs().frp.containerImage;
   private proxyStartupAbortController: AbortController | undefined = undefined;
+
+  /**
+   * Where the node's own API proxy runs: the job runtime, unless the node
+   * manages podman, in which case it runs in docker beside the node so that
+   * replacing podman does not take the API down with it.
+   */
+  public apiOrchestration: ContainerOrchestrationInterface;
+
+  /**
+   * The node's podman manager, when the node manages podman: operation starts
+   * wait out a recreate, and one whose container failed to start on the GPU
+   * runtime has podman recreated and is run again rather than failed.
+   */
+  public gpuRuntime?: GpuRuntime;
+
   constructor(
     public containerOrchestration: ContainerOrchestrationInterface,
     private repository: NodeRepository,
     private resourceManager: ResourceManager,
   ) {
+    this.apiOrchestration = containerOrchestration;
     applyLoggingProxyToClass(this);
   }
 
@@ -58,14 +75,14 @@ export class Provider {
     try {
       // Check if the frpc container exists and stop/delete it
       const doesFrpcExist =
-        await this.containerOrchestration.doesContainerExist(frpc_name);
+        await this.apiOrchestration.doesContainerExist(frpc_name);
       if (doesFrpcExist) {
-        await this.containerOrchestration.stopAndDeleteContainer(frpc_name);
+        await this.apiOrchestration.stopAndDeleteContainer(frpc_name);
       }
 
       // check if network then delete
-      if (await this.containerOrchestration.hasNetwork(networkName)) {
-        await this.containerOrchestration.deleteNetwork(networkName);
+      if (await this.apiOrchestration.hasNetwork(networkName)) {
+        await this.apiOrchestration.deleteNetwork(networkName);
       }
     } catch (error) {
       throw error;
@@ -84,7 +101,7 @@ export class Provider {
       const networkName = `api-${address}`;
       const frpc_name = `frpc-api-${address}`;
 
-      await this.containerOrchestration.createNetwork(networkName);
+      await this.apiOrchestration.createNetwork(networkName);
 
       const networks: { [key: string]: {} } = {};
       networks[networkName] = {};
@@ -92,7 +109,7 @@ export class Provider {
       const startup = new AbortController();
       this.proxyStartupAbortController = startup;
 
-      await this.containerOrchestration.pullImage(
+      await this.apiOrchestration.pullImage(
         this.frpcImage,
         undefined,
         startup,
@@ -101,7 +118,7 @@ export class Provider {
       this.resourceManager.images.setImage(this.frpcImage);
 
       const doesFrpcExist =
-        await this.containerOrchestration.doesContainerExist(frpc_name);
+        await this.apiOrchestration.doesContainerExist(frpc_name);
 
       // Stopped while the image was being pulled, so the proxy is not wanted:
       // creating it now would put back what the caller has taken down.
@@ -110,7 +127,7 @@ export class Provider {
       }
 
       if (!doesFrpcExist) {
-        await this.containerOrchestration.runFlowContainer(this.frpcImage, {
+        await this.apiOrchestration.runFlowContainer(this.frpcImage, {
           name: 'frpc-api-' + address,
           cmd: ['-c', '/etc/frp/frpc.toml'],
           networks,
@@ -137,12 +154,12 @@ export class Provider {
         });
       } else {
         const hasFrpcExited =
-          await this.containerOrchestration.isContainerExited(frpc_name);
+          await this.apiOrchestration.isContainerExited(frpc_name);
 
         if (hasFrpcExited) {
-          await this.containerOrchestration.stopAndDeleteContainer(frpc_name);
+          await this.apiOrchestration.stopAndDeleteContainer(frpc_name);
 
-          await this.containerOrchestration.runFlowContainer(this.frpcImage, {
+          await this.apiOrchestration.runFlowContainer(this.frpcImage, {
             name: 'frpc-api-' + address,
             cmd: ['-c', '/etc/frp/frpc.toml'],
             networks,
@@ -181,7 +198,8 @@ export class Provider {
     op: Operation<'container/run'>,
     controller: AbortController,
     emitter: EventEmitter,
-  ) {
+    retried = false,
+  ): Promise<void> {
     let stateManager: ContainerStateManager | undefined;
     let exposedPortHealthCheck: ExposedPortHealthCheck | undefined;
 
@@ -190,6 +208,10 @@ export class Provider {
       emitter.emit('end');
       return;
     }
+
+    // The runtime may be being replaced under a repair; nothing starts until
+    // it answers again.
+    await this.gpuRuntime?.ready();
 
     try {
       emitter.emit('start');
@@ -444,8 +466,59 @@ export class Provider {
 
       emitter.emit('exit', { exitCode: info.State.ExitCode });
     } catch (error) {
-      emitter.emit('log', error, 'error');
-      emitter.emit('error', error);
+      const fail = () => {
+        emitter.emit('log', error, 'error');
+        emitter.emit('error', error);
+      };
+      const runtime = this.gpuRuntime;
+      const message = error instanceof Error ? error.message : String(error);
+
+      // The container could not start because the GPU runtime under it went
+      // stale, which the node can fix: podman is recreated and the operation
+      // is run again from the top, sidecars included. Once only, and not when
+      // the recreate's own restart of this operation (the abort) relaunches it.
+      if (
+        !runtime ||
+        controller.signal.aborted ||
+        !(isStaleGpuRuntimeError(error) || runtime.isStale())
+      ) {
+        fail();
+      } else if (retried) {
+        // The recreate did not help: a replaced kernel module takes a reboot.
+        emitter.emit(
+          'log',
+          "The container still cannot start on the GPU runtime after podman was recreated. If the host's NVIDIA driver was replaced, reboot the host.",
+          'info',
+        );
+        fail();
+      } else {
+        emitter.emit(
+          'log',
+          `Container could not start on the GPU runtime, recreating podman and retrying: ${message}`,
+          'info',
+        );
+        try {
+          await runtime.recreate(
+            `container start failed on the GPU runtime: ${message}`,
+          );
+        } catch (recreateError) {
+          emitter.emit('log', recreateError, 'error');
+          emitter.emit('error', recreateError);
+          emitter.emit('end');
+          return;
+        }
+        if (controller.signal.aborted) {
+          fail();
+        } else {
+          return this.taskManagerContainerRunOperation(
+            flow,
+            op,
+            controller,
+            emitter,
+            true,
+          );
+        }
+      }
     }
 
     // Clean up resources

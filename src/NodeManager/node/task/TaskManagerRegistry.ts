@@ -1,4 +1,4 @@
-import TaskManager from './TaskManager.js';
+import TaskManager, { OperationProgressStatuses } from './TaskManager.js';
 
 /**
  * TaskManagerRegistry
@@ -70,6 +70,33 @@ export class TaskManagerRegistry {
 
   public has(jobId: string): boolean {
     return this.registry.has(jobId);
+  }
+
+  /**
+   * Restart every operation that is running, in every job: the runtime under
+   * them is being replaced. Operations that finished stay finished and ones
+   * that have not started pick up the new runtime on their own; only what is
+   * running is aborted now and relaunched, which the provider holds until the
+   * runtime answers again.
+   */
+  public restartRunningOperations(): void {
+    for (const manager of this.registry.values()) {
+      const group = manager.getCurrentGroup();
+      if (!group) continue;
+
+      for (const [opId, status] of Object.entries(
+        manager.getCurrentGroupStatus(),
+      )) {
+        if (status !== OperationProgressStatuses.RUNNING) continue;
+
+        manager.restartTaskManagerOperation(group, opId).catch((error) => {
+          console.warn(
+            `Could not restart operation ${opId} on the new runtime:`,
+            error,
+          );
+        });
+      }
+    }
   }
 
   public async stop(): Promise<void> {

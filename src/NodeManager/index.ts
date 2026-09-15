@@ -82,7 +82,9 @@ export default class NodeManager {
      * collect the diagnostics the podman container leaves in the shared
      * directory, which has no other route off the node
      */
-    reportPodmanDiagnostics(this.configLocation);
+    reportPodmanDiagnostics(this.configLocation, (event) =>
+      this.node.podmanEvent(event),
+    );
 
     /**
      * start
